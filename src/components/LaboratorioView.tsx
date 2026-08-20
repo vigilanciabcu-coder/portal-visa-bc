@@ -1806,12 +1806,12 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
             </button>
 
             {/* Cabeçalho Oficial do Laudo */}
-            <div className="flex items-stretch justify-between pb-3 border-b-2 border-black mb-3">
-              <div className="flex items-center gap-3.5">
+            <div className="flex items-stretch justify-between pb-2 border-b-2 border-black mb-2">
+              <div className="flex items-center gap-3">
                 <img
                   src="https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/logo_bc.avif"
                   alt="Brasão Balneário Camboriú"
-                  className="h-20 w-auto object-contain self-center"
+                  className="h-14 w-auto object-contain self-center"
                   onError={(e) => {
                     // Fallback para o brasão da wikimedia caso necessário
                     const target = e.target as HTMLImageElement;
@@ -1820,17 +1820,17 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                     }
                   }}
                 />
-                <div className="flex flex-col justify-between py-0.5 space-y-1">
-                  <div className="text-[12px] font-bold uppercase text-slate-700 tracking-wider leading-none">
+                <div className="flex flex-col justify-between py-0.5 space-y-0.5">
+                  <div className="text-[10.5px] font-bold uppercase text-slate-700 tracking-wider leading-none">
                     ESTADO DE SANTA CATARINA
                   </div>
-                  <div className="text-[12px] font-bold uppercase text-slate-700 tracking-wider leading-none">
+                  <div className="text-[10.5px] font-bold uppercase text-slate-700 tracking-wider leading-none">
                     MUNICÍPIO DE BALNEÁRIO CAMBORIÚ
                   </div>
-                  <div className="text-[12px] font-bold uppercase text-slate-700 leading-none">
+                  <div className="text-[10.5px] font-bold uppercase text-slate-700 leading-none">
                     SECRETARIA DE SAÚDE
                   </div>
-                  <div className="text-[15px] font-black uppercase text-blue-900 tracking-tight leading-none pt-0.5">
+                  <div className="text-[13px] font-black uppercase text-blue-900 tracking-tight leading-none pt-0.5">
                     DIVISÃO DE VIGILÂNCIA SANITÁRIA
                   </div>
                 </div>
@@ -1838,157 +1838,157 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
             </div>
 
             {/* Título Principal */}
-            <div className="text-center font-black text-xs uppercase py-1 bg-slate-100 border border-black mb-2 tracking-wide">
+            <div className="text-center font-black text-[11px] uppercase py-0.5 bg-slate-100 border border-black mb-1.5 tracking-wide">
               LAUDO DE ANÁLISE DE ÁGUA PARA CONSUMO HUMANO
             </div>
 
             {/* Tabela 1: Identificação da Coleta */}
-            <div className="border border-black text-[11px] divide-y divide-black mb-3">
-              <div className="grid grid-cols-12 divide-x divide-black bg-slate-50 font-bold p-1">
-                <div className="col-span-5 px-1.5">
+            <div className="border border-black text-[10px] divide-y divide-black mb-1.5 leading-tight">
+              <div className="grid grid-cols-12 divide-x divide-black bg-slate-50 font-bold p-0.5">
+                <div className="col-span-5 px-1">
                   PROTOCOLO: <span className="font-mono">{selectedAmostraForLaudo.protocolo || '60.455/2026'}</span>
                 </div>
-                <div className="col-span-4 px-1.5">
+                <div className="col-span-4 px-1">
                   Número da Amostra: <span className="font-mono">{selectedAmostraForLaudo.codigo_amostra || '169'}</span>
                 </div>
-                <div className="col-span-3 px-1.5 text-right uppercase">
+                <div className="col-span-3 px-1 text-right uppercase">
                   {selectedAmostraForLaudo.mes_ano_referencia || 'JULHO /2026'}
                 </div>
               </div>
 
-              <div className="p-1 px-1.5">
+              <div className="p-0.5 px-1">
                 <span className="font-bold">Responsável pela distribuição:</span> {selectedAmostraForLaudo.responsavel_distribuicao || 'EMASA'}
               </div>
 
-              <div className="p-1 px-1.5">
+              <div className="p-0.5 px-1">
                 <span className="font-bold">Interessado:</span> <span className="font-black uppercase">{selectedAmostraForLaudo.interessado || selectedAmostraForLaudo.estabelecimento || 'MERCADO BAGÉ LTDA'}</span>
               </div>
 
-              <div className="grid grid-cols-12 divide-x divide-black p-1">
-                <div className="col-span-6 px-1.5">
+              <div className="grid grid-cols-12 divide-x divide-black p-0.5">
+                <div className="col-span-6 px-1">
                   <span className="font-bold">CNPJ:</span> <span className="font-mono">{selectedAmostraForLaudo.cnpj_cpf || '63.457.239/0001-05'}</span>
                 </div>
-                <div className="col-span-6 px-1.5">
+                <div className="col-span-6 px-1">
                   <span className="font-bold">Número Alvará:</span> {selectedAmostraForLaudo.numero_alvara || 'Solicitado'}
                 </div>
               </div>
 
-              <div className="p-1 px-1.5">
+              <div className="p-0.5 px-1">
                 <span className="font-bold">Endereço:</span> {selectedAmostraForLaudo.endereco || 'Rua 1500, 381 - CENTRO - Balneário Camboriú/SC - 88.330-528'}
               </div>
 
-              <div className="grid grid-cols-12 divide-x divide-black p-1">
-                <div className="col-span-8 px-1.5">
+              <div className="grid grid-cols-12 divide-x divide-black p-0.5">
+                <div className="col-span-8 px-1">
                   <span className="font-bold">Local de Coleta:</span> <span className="font-black uppercase">{selectedAmostraForLaudo.local_coleta || 'TORNEIRA CAFETERIA'}</span>
                 </div>
-                <div className="col-span-4 px-1.5">
+                <div className="col-span-4 px-1">
                   <span className="font-bold">Data:</span> {selectedAmostraForLaudo.data_coleta}
                 </div>
               </div>
 
-              <div className="grid grid-cols-12 divide-x divide-black p-1">
-                <div className="col-span-8 px-1.5">
+              <div className="grid grid-cols-12 divide-x divide-black p-0.5">
+                <div className="col-span-8 px-1">
                   <span className="font-bold">Coletado por:</span> {selectedAmostraForLaudo.fiscal_coletor || 'Rita Sahd'}
                 </div>
-                <div className="col-span-4 px-1.5">
+                <div className="col-span-4 px-1">
                   <span className="font-bold">Hora da Coleta:</span> {selectedAmostraForLaudo.hora_coleta || '08:20'}
                 </div>
               </div>
 
-              <div className="p-1 px-1.5">
+              <div className="p-0.5 px-1">
                 <span className="font-bold">Observações:</span>
-                <div className="uppercase text-[10px] mt-0.5 font-medium">
+                <div className="uppercase text-[9px] mt-0.5 font-medium">
                   {selectedAmostraForLaudo.observacoes || 'ANÁLISE SOLICITADA PARA VERIFICAR QUALIDADE DA ÁGUA PARA CONSUMO HUMANO'}
                 </div>
               </div>
             </div>
 
             {/* Tabela 2: Características Organolépticas */}
-            <div className="border border-black mb-3">
-              <div className="bg-slate-100 font-black text-center text-[10px] uppercase py-0.5 border-b border-black">
+            <div className="border border-black mb-1.5">
+              <div className="bg-slate-100 font-black text-center text-[9.5px] uppercase py-0.5 border-b border-black">
                 CARACTERÍSTICAS ORGANOLÉPTICAS
               </div>
-              <div className="grid grid-cols-3 divide-x divide-black text-[11px] p-1">
-                <div className="px-1.5">
+              <div className="grid grid-cols-3 divide-x divide-black text-[10px] p-0.5">
+                <div className="px-1">
                   <span className="font-bold">Aspecto:</span> {selectedAmostraForLaudo.aspecto || 'Límpido'}
                 </div>
-                <div className="px-1.5">
+                <div className="px-1">
                   <span className="font-bold">Odor:</span> {selectedAmostraForLaudo.odor || 'Inobjetável'}
                 </div>
-                <div className="px-1.5">
+                <div className="px-1">
                   <span className="font-bold">Cor:</span> {selectedAmostraForLaudo.cor || 'Incolor'}
                 </div>
               </div>
             </div>
 
             {/* Tabela 3: Análise Físico/Química */}
-            <div className="border border-black mb-3 text-[10.5px]">
-              <div className="bg-slate-100 font-black text-center text-[10px] uppercase py-0.5 border-b border-black">
+            <div className="border border-black mb-1.5 text-[9.5px]">
+              <div className="bg-slate-100 font-black text-center text-[9.5px] uppercase py-0.5 border-b border-black">
                 ANÁLISE FÍSICO/QUÍMICA
               </div>
               <table className="w-full border-collapse table-fixed">
                 <thead>
-                  <tr className="border-b border-black bg-slate-50 font-black text-[10px] text-center">
-                    <th className="border-r border-black p-1 w-[20%]">Parâmetro</th>
-                    <th className="border-r border-black p-1 w-[28%]">Equipamento</th>
-                    <th className="border-r border-black p-1 w-[12%]">Resultado</th>
-                    <th className="p-1 w-[40%]">Valores de Referência de acordo com a</th>
+                  <tr className="border-b border-black bg-slate-50 font-black text-[9px] text-center">
+                    <th className="border-r border-black p-0.5 w-[20%]">Parâmetro</th>
+                    <th className="border-r border-black p-0.5 w-[30%]">Equipamento</th>
+                    <th className="border-r border-black p-0.5 w-[12%]">Resultado</th>
+                    <th className="p-0.5 w-[38%]">Valores de Referência de acordo com a</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black text-center">
                   <tr>
-                    <td className="border-r border-black p-1 font-bold text-center">pH</td>
-                    <td className="border-r border-black p-1 text-left text-[9px] leading-tight">
+                    <td className="border-r border-black p-0.5 font-bold text-center">pH</td>
+                    <td className="border-r border-black p-0.5 text-left text-[8.5px] leading-tight">
                       {selectedAmostraForLaudo.equipamento_ph || 'pH indicator strips MQuant 0 – 14 Marca MERCK'}
                     </td>
-                    <td className="border-r border-black p-1 font-bold text-sm">
+                    <td className="border-r border-black p-0.5 font-bold text-xs">
                       {selectedAmostraForLaudo.ph || '7,0'}
                     </td>
-                    <td className="p-1 text-[9px] text-center leading-tight">
+                    <td className="p-0.5 text-[8px] text-center leading-tight">
                       <div className="font-bold italic">6.0 a 9.5</div>
                       <div>Portaria GM/MS Nº 888, maio de 2021.</div>
                     </td>
                   </tr>
 
                   <tr>
-                    <td className="border-r border-black p-1 font-bold text-center">
+                    <td className="border-r border-black p-0.5 font-bold text-center">
                       Cloro Residual livre
                     </td>
-                    <td className="border-r border-black p-1 text-left text-[9px] leading-tight">
+                    <td className="border-r border-black p-0.5 text-left text-[8.5px] leading-tight">
                       {selectedAmostraForLaudo.equipamento_cloro || 'Chlorine Reagente for 10ml Sample(DLA-CL)'}
                     </td>
-                    <td className="border-r border-black p-1 font-bold text-sm">
+                    <td className="border-r border-black p-0.5 font-bold text-xs">
                       {selectedAmostraForLaudo.cloro || '1,59'}
                     </td>
-                    <td className="p-1 text-[9px] text-center leading-tight">
+                    <td className="p-0.5 text-[8px] text-center leading-tight">
                       <div className="font-bold italic">0,2 a 2,0 mg/l para águas tratadas com cloro e 0,0 para águas naturais, minerais ou após passagem por filtro</div>
                       <div>Portaria GM/MS Nº 888, maio de 2021.</div>
                     </td>
                   </tr>
 
                   <tr>
-                    <td className="border-r border-black p-1 font-bold text-center">Flúor</td>
-                    <td className="border-r border-black p-1 text-left text-[9px] leading-tight">
+                    <td className="border-r border-black p-0.5 font-bold text-center">Flúor</td>
+                    <td className="border-r border-black p-0.5 text-left text-[8.5px] leading-tight">
                       {selectedAmostraForLaudo.equipamento_fluor || 'Colorímetro Digital para Flúor (Modelo DLA-FL)'}
                     </td>
-                    <td className="border-r border-black p-1 font-bold text-sm">
+                    <td className="border-r border-black p-0.5 font-bold text-xs">
                       {selectedAmostraForLaudo.fluoreto || '0,72'}
                     </td>
-                    <td className="p-1 text-[9px] text-center leading-tight">
+                    <td className="p-0.5 text-[8px] text-center leading-tight">
                       <div className="font-bold italic">De 0,7 a 1,0 mg/L</div>
                       <div className="font-bold">Portaria/SC- 421/2016</div>
                     </td>
                   </tr>
 
                   <tr>
-                    <td className="border-r border-black p-1 font-bold text-center">Turbidez</td>
-                    <td className="border-r border-black p-1 text-left text-[9px] leading-tight">
+                    <td className="border-r border-black p-0.5 font-bold text-center">Turbidez</td>
+                    <td className="border-r border-black p-0.5 text-left text-[8.5px] leading-tight">
                       {selectedAmostraForLaudo.equipamento_turbidez || 'Turbidímetro Digital modelo DLT-WV'}
                     </td>
-                    <td className="border-r border-black p-1 font-bold text-sm">
+                    <td className="border-r border-black p-0.5 font-bold text-xs">
                       {selectedAmostraForLaudo.turbidez || '0,52'}
                     </td>
-                    <td className="p-1 text-[9px] text-center leading-tight">
+                    <td className="p-0.5 text-[8px] text-center leading-tight">
                       <div className="font-bold italic">Até 5,0 NTu ( unidades de turbidez)</div>
                       <div>Portaria GM/MS Nº 888, maio de 2021.</div>
                     </td>
@@ -1998,41 +1998,41 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
             </div>
 
             {/* Tabela 4: Análise Microbiológica */}
-            <div className="border border-black mb-3 text-[10px]">
-              <div className="bg-slate-100 font-black text-center text-[10px] uppercase py-0.5 border-b border-black">
+            <div className="border border-black mb-1.5 text-[9.5px]">
+              <div className="bg-slate-100 font-black text-center text-[9.5px] uppercase py-0.5 border-b border-black">
                 ANÁLISE MICROBIOLÓGICA
               </div>
               <table className="w-full border-collapse table-fixed">
                 <thead>
-                  <tr className="border-b border-black bg-slate-50 font-black text-[10px]">
-                    <th className="border-r border-black p-1 text-left w-[58%]">Parâmetro / Metodologia</th>
-                    <th className="border-r border-black p-1 text-center w-[14%]">Resultado</th>
-                    <th className="p-1 text-center w-[28%]">Val. Referência</th>
+                  <tr className="border-b border-black bg-slate-50 font-black text-[9px]">
+                    <th className="border-r border-black p-0.5 text-left w-[58%]">Parâmetro / Metodologia</th>
+                    <th className="border-r border-black p-0.5 text-center w-[14%]">Resultado</th>
+                    <th className="p-0.5 text-center w-[28%]">Val. Referência</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black">
                   <tr>
-                    <td className="border-r border-black p-1.5 text-[9px] text-justify leading-tight">
-                      <strong className="block text-[10px] text-black">COLIFORMES TOTAIS:</strong>
+                    <td className="border-r border-black p-1 text-[8px] text-justify leading-tight">
+                      <strong className="block text-[8.5px] text-black">COLIFORMES TOTAIS:</strong>
                       {selectedAmostraForLaudo.metodologia_coliformes_totais || 'Kit Analisis Colilert –DST-P/A em cartela QUANTY-TRAY/2000-MARCA IDEXX+QUANTY TRAY SEALER – Model 2 X +estufa FABBE PRIMAR 36ºC100 ml por 24 horas'}
                     </td>
-                    <td className="border-r border-black p-1.5 text-center font-black text-xs text-black align-middle">
+                    <td className="border-r border-black p-1 text-center font-black text-[11px] text-black align-middle">
                       {selectedAmostraForLaudo.coliformes_totais || 'AUSENTE'}
                     </td>
-                    <td className="p-1.5 text-center text-[9.5px] italic font-bold align-middle">
+                    <td className="p-1 text-center text-[8.5px] italic font-bold align-middle">
                       Ausência em 100 ml
                     </td>
                   </tr>
 
                   <tr>
-                    <td className="border-r border-black p-1.5 text-[9px] text-justify leading-tight">
-                      <strong className="block text-[10px] text-black">COLIFORMES FECAIS- (E.coli Termoresistente):</strong>
+                    <td className="border-r border-black p-1 text-[8px] text-justify leading-tight">
+                      <strong className="block text-[8.5px] text-black">COLIFORMES FECAIS- (E.coli Termoresistente):</strong>
                       {selectedAmostraForLaudo.metodologia_escherichia_coli || 'KIT ANALISES COLILERT-DST-P/A em cartela QUANTY-TRAY/2000-marca IDEXX+QUANTY TRAY SEALER – Model 2 X + estufa FABBE PRIMAR 36ºC100ml por 24 horas + LONG WAVE Ultravioleta 365 NM – marca CE.'}
                     </td>
-                    <td className="border-r border-black p-1.5 text-center font-black text-xs text-black align-middle">
+                    <td className="border-r border-black p-1 text-center font-black text-[11px] text-black align-middle">
                       {selectedAmostraForLaudo.escherichia_coli || 'AUSENTE'}
                     </td>
-                    <td className="p-1.5 text-center text-[9.5px] italic font-bold align-middle">
+                    <td className="p-1 text-center text-[8.5px] italic font-bold align-middle">
                       Ausência em 100 ml
                     </td>
                   </tr>
@@ -2041,44 +2041,44 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
             </div>
 
             {/* Conclusão Oficial */}
-            <div className="border border-black p-2.5 text-[11px] mb-4">
-              <div className="font-black uppercase mb-1">CONCLUSÃO:</div>
-              <p className="font-bold text-justify leading-snug">
+            <div className="border border-black p-1.5 text-[9.5px] mb-2">
+              <div className="font-black uppercase mb-0.5 text-[9.5px]">CONCLUSÃO:</div>
+              <p className="font-bold text-justify leading-tight text-[9px]">
                 {selectedAmostraForLaudo.conclusao_laudo || 'Para os parâmetros analisados, a amostra está em ACORDO com a Portaria GM/MS Nº 888, de 4 maio de 2021.'}
               </p>
-              <div className="text-center font-black mt-2 text-xs">
+              <div className="text-center font-black mt-1 text-[10px]">
                 Água <span className="underline">PRÓPRIA</span> para o consumo humano, considerando os parâmetros descritos.
               </div>
             </div>
 
             {/* Data e Assinatura Técnica */}
-            <div className="grid grid-cols-2 gap-4 border border-black p-3 text-[11px] items-center mb-4">
+            <div className="grid grid-cols-2 gap-3 border border-black p-2 text-[10px] items-center mb-2">
               <div>
                 <span className="font-bold">Data:</span> {selectedAmostraForLaudo.data_resultado || '04/08/2026'}
                 {selectedAmostraForLaudo.assinatura_digital_validada && (
-                  <div className="mt-2 text-[9px] text-slate-700 bg-slate-100 p-1.5 rounded border border-slate-300">
+                  <div className="mt-1 text-[8px] text-slate-700 bg-slate-100 p-1 rounded border border-slate-300">
                     <div className="flex items-center gap-1 font-black text-emerald-800">
                       <span>✓ ASSINATURA ELETRÔNICA VALIDADA</span>
                     </div>
-                    <div className="font-mono text-[8.5px] mt-0.5">
+                    <div className="font-mono text-[7.5px] mt-0.5">
                       Hash: {selectedAmostraForLaudo.assinatura_digital_hash || 'VISA-CRF-SC-VALID'}
                     </div>
-                    <div className="text-[8px] text-slate-500">
+                    <div className="text-[7.5px] text-slate-500">
                       Autenticado em {selectedAmostraForLaudo.assinatura_digital_data || '04/08/2026'}
                     </div>
                   </div>
                 )}
               </div>
               <div className="text-center">
-                <div className="font-black uppercase">{selectedAmostraForLaudo.laboratorialista || 'ADRIANO GUARDINI'}</div>
-                <div className="text-[10px] font-bold uppercase text-slate-700">
+                <div className="font-black uppercase text-[10.5px]">{selectedAmostraForLaudo.laboratorialista || 'ADRIANO GUARDINI'}</div>
+                <div className="text-[9px] font-bold uppercase text-slate-700">
                   {selectedAmostraForLaudo.cargo_laboratorialista || 'FARMACÊUTICO E BIOQUIMICO'}
                 </div>
-                <div className="font-mono text-[10px] font-bold">
+                <div className="font-mono text-[9px] font-bold">
                   {selectedAmostraForLaudo.registro_conselho || 'CRF/SC- 3321'}
                 </div>
                 {selectedAmostraForLaudo.assinatura_digital_validada && (
-                  <div className="inline-block mt-1 text-[8.5px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-300">
+                  <div className="inline-block mt-0.5 text-[7.5px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded-full border border-emerald-300">
                     Assinado Digitalmente por Senha
                   </div>
                 )}
@@ -2086,7 +2086,7 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
             </div>
 
             {/* Rodapé Oficial da Vigilância Sanitária */}
-            <div className="border-t-2 border-black pt-2 text-center text-[9.5px] font-bold text-slate-700 leading-tight space-y-0.5">
+            <div className="border-t-2 border-black pt-1.5 text-center text-[8.5px] font-bold text-slate-700 leading-tight space-y-0.5">
               <div>Balneário Camboriú – Capital Catarinense do Turismo – CNPJ: 83.102.285/0001-07</div>
               <div className="uppercase font-black text-slate-900">DIVISÃO DE VIGILÂNCIA SANITÁRIA</div>
               <div>Avenida Palestina, Nº150 - Nações - CEP 88338-010 - (47)3267-7000 - E-mail: devs@bc.sc.gov.br / www.bc.sc.gov.br</div>
