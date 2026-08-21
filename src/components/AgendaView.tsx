@@ -62,7 +62,10 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   users = [],
   currentUser
 }) => {
-  const isMaster = currentUser?.cargo === 'MASTER';
+  const isMaster =
+    currentUser?.cargo === 'MASTER' ||
+    currentUser?.cargo === 'MASTER ADM' ||
+    currentUser?.nivel_acesso === 'MASTER (TUDO)';
   const todayObj = new Date();
   const [currentMonth, setCurrentMonth] = useState(todayObj.getMonth());
   const [currentYear, setCurrentYear] = useState(todayObj.getFullYear());

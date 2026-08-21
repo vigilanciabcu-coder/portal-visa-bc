@@ -1,11 +1,11 @@
 export type UserRole =
   | 'AGENTE DE ENDEMIAS'
   | 'ASSISTENTE ADMINISTRATIVO'
+  | 'DIRETOR CCPU'
   | 'DIRETOR DAL'
+  | 'DIRETOR DFSIS'
   | 'DIRETOR PMCD'
-  | 'DIRETORA CCPU'
-  | 'DIRETORA DFSIS'
-  | 'DIRETORA-GERAL'
+  | 'DIRETOR-GERAL'
   | 'FARMACÊUTICO/BIOQUÍMICO'
   | 'FISCAL DE SAÚDE PÚBLICA'
   | 'FISCAL DE VIGILÂNCIA SANITÁRIA'
@@ -14,10 +14,7 @@ export type UserRole =
   | 'NUTRICIONISTA'
   | 'SUPERVISOR DE CAMPO'
   | 'SUPERVISOR GERAL'
-  | 'AGENTE'
-  | 'FISCAL'
-  | 'DIRETOR'
-  | 'MASTER';
+  | string;
 
 export type UserSetor =
   | 'VIGILÂNCIA SANITÁRIA'

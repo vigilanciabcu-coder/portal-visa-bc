@@ -530,7 +530,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 const canDelete =
                   isMe ||
                   currentUser?.cargo === 'MASTER' ||
-                  currentUser?.cargo === 'DIRETOR';
+                  currentUser?.cargo === 'MASTER ADM' ||
+                  currentUser?.cargo?.includes('DIRETOR') ||
+                  currentUser?.nivel_acesso === 'MASTER (TUDO)';
 
                 return (
                   <div

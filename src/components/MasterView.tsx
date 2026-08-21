@@ -471,7 +471,7 @@ export const MasterView: React.FC<MasterViewProps> = ({
                 <UserCheck className="w-7 h-7 text-blue-600" /> Cadastro e Permissões de Operadores
               </h2>
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5">
-                Cadastre servidores e defina seus cargos (AGENTE, FISCAL, DIRETOR, MASTER) para liberação de acessos no portal.
+                Cadastre servidores, atribua cargos e defina níveis de acesso para uso dos módulos do portal.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -596,11 +596,11 @@ export const MasterView: React.FC<MasterViewProps> = ({
                 >
                   <option value="AGENTE DE ENDEMIAS">AGENTE DE ENDEMIAS</option>
                   <option value="ASSISTENTE ADMINISTRATIVO">ASSISTENTE ADMINISTRATIVO</option>
+                  <option value="DIRETOR CCPU">DIRETOR CCPU</option>
                   <option value="DIRETOR DAL">DIRETOR DAL</option>
+                  <option value="DIRETOR DFSIS">DIRETOR DFSIS</option>
                   <option value="DIRETOR PMCD">DIRETOR PMCD</option>
-                  <option value="DIRETORA CCPU">DIRETORA CCPU</option>
-                  <option value="DIRETORA DFSIS">DIRETORA DFSIS</option>
-                  <option value="DIRETORA-GERAL">DIRETORA-GERAL</option>
+                  <option value="DIRETOR-GERAL">DIRETOR-GERAL</option>
                   <option value="FARMACÊUTICO/BIOQUÍMICO">FARMACÊUTICO/BIOQUÍMICO</option>
                   <option value="FISCAL DE SAÚDE PÚBLICA">FISCAL DE SAÚDE PÚBLICA</option>
                   <option value="FISCAL DE VIGILÂNCIA SANITÁRIA">FISCAL DE VIGILÂNCIA SANITÁRIA</option>
@@ -609,10 +609,6 @@ export const MasterView: React.FC<MasterViewProps> = ({
                   <option value="NUTRICIONISTA">NUTRICIONISTA</option>
                   <option value="SUPERVISOR DE CAMPO">SUPERVISOR DE CAMPO</option>
                   <option value="SUPERVISOR GERAL">SUPERVISOR GERAL</option>
-                  <option value="FISCAL">FISCAL</option>
-                  <option value="DIRETOR">DIRETOR</option>
-                  <option value="MASTER">MASTER</option>
-                  <option value="AGENTE">AGENTE</option>
                 </select>
               </div>
 
