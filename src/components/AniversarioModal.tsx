@@ -11,6 +11,7 @@ export const AniversarioModal: React.FC<AniversarioModalProps> = ({ currentUser 
   const [primeiroNome, setPrimeiroNome] = useState('');
 
   useEffect(() => {
+    setIsOpen(false);
     if (!currentUser || !currentUser.data_nascimento) return;
 
     try {
@@ -22,8 +23,15 @@ export const AniversarioModal: React.FC<AniversarioModalProps> = ({ currentUser 
       if (rawDate.includes('-')) {
         const parts = rawDate.split('-');
         if (parts.length === 3) {
-          birthMonth = parts[1].padStart(2, '0');
-          birthDay = parts[2].padStart(2, '0');
+          // Se formato YYYY-MM-DD
+          if (parts[0].length === 4) {
+            birthMonth = parts[1].padStart(2, '0');
+            birthDay = parts[2].padStart(2, '0');
+          } else {
+            // Se formato DD-MM-YYYY
+            birthDay = parts[0].padStart(2, '0');
+            birthMonth = parts[1].padStart(2, '0');
+          }
         }
       } else if (rawDate.includes('/')) {
         const parts = rawDate.split('/');
@@ -33,7 +41,10 @@ export const AniversarioModal: React.FC<AniversarioModalProps> = ({ currentUser 
         }
       }
 
-      if (!birthMonth || !birthDay) return;
+      if (!birthMonth || !birthDay) {
+        setIsOpen(false);
+        return;
+      }
 
       const now = new Date();
       const currentYear = now.getFullYear();
@@ -53,10 +64,15 @@ export const AniversarioModal: React.FC<AniversarioModalProps> = ({ currentUser 
           setIsOpen(true);
           // Marca no localStorage para não exibir repetidamente em cada troca de tela no mesmo dia
           localStorage.setItem(storageKey, 'true');
+        } else {
+          setIsOpen(false);
         }
+      } else {
+        setIsOpen(false);
       }
     } catch (err) {
       console.error('Erro ao verificar aniversário:', err);
+      setIsOpen(false);
     }
   }, [currentUser]);
 
