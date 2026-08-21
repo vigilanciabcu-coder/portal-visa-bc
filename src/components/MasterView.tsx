@@ -102,6 +102,7 @@ export const MasterView: React.FC<MasterViewProps> = ({
     setor: 'VIGILÂNCIA SANITÁRIA' as UserSetor,
     nivel_acesso: 'VISA (FISCAL)' as UserNivelAcesso,
     matricula: '',
+    telefone: '',
     senha: ''
   });
 
@@ -118,6 +119,7 @@ export const MasterView: React.FC<MasterViewProps> = ({
       setor: u.setor || 'VIGILÂNCIA SANITÁRIA',
       nivel_acesso: u.nivel_acesso || (u.cargo === 'MASTER' || u.cargo === 'MASTER ADM' ? 'MASTER (TUDO)' : 'VISA (FISCAL)'),
       matricula: u.matricula || '',
+      telefone: u.telefone || '',
       senha: u.senha || ''
     });
     setSaveStatus(null);
@@ -133,6 +135,7 @@ export const MasterView: React.FC<MasterViewProps> = ({
       setor: 'VIGILÂNCIA SANITÁRIA',
       nivel_acesso: 'VISA (FISCAL)',
       matricula: '',
+      telefone: '',
       senha: ''
     });
   };
@@ -163,6 +166,7 @@ export const MasterView: React.FC<MasterViewProps> = ({
       setor: userForm.setor,
       nivel_acesso: userForm.nivel_acesso,
       matricula: userForm.matricula ? userForm.matricula.trim() : `FIS-${Math.floor(1000 + Math.random() * 9000)}`,
+      telefone: userForm.telefone ? userForm.telefone.trim() : '',
       senha: userForm.senha ? userForm.senha.trim() : '123456'
     };
 
@@ -515,7 +519,7 @@ export const MasterView: React.FC<MasterViewProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-7 gap-4 items-end">
               <div className="md:col-span-2">
                 <label className="text-[10px] font-bold uppercase block mb-1">Nome Completo</label>
                 <input
@@ -553,6 +557,16 @@ export const MasterView: React.FC<MasterViewProps> = ({
                   placeholder="FIS-4092"
                   value={userForm.matricula}
                   onChange={(e) => setUserForm({ ...userForm, matricula: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold uppercase block mb-1">Telefone</label>
+                <input
+                  type="tel"
+                  placeholder="(47) 99999-9999"
+                  value={userForm.telefone}
+                  onChange={(e) => setUserForm({ ...userForm, telefone: e.target.value })}
                 />
               </div>
 
