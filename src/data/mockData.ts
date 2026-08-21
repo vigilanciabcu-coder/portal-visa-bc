@@ -9,7 +9,7 @@ export const INITIAL_USERS: UserProfile[] = [
     id: 'u1',
     email: 'fiscal@bc.sc.gov.br',
     nome_completo: 'Carlos Eduardo Silva',
-    data_nascimento: `1985-${todayMM}-${todayDD}`,
+    data_nascimento: '1985-05-15',
     cargo: 'FISCAL DE VIGILÂNCIA SANITÁRIA',
     setor: 'VIGILÂNCIA SANITÁRIA',
     nivel_acesso: 'VISA (FISCAL)',

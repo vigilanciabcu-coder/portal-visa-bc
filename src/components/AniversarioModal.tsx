@@ -63,8 +63,14 @@ export const AniversarioModal: React.FC<AniversarioModalProps> = ({ currentUser 
   if (!isOpen || !currentUser) return null;
 
   return (
-    <div className="fixed inset-0 z-[3000] bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-      <div className="relative bg-gradient-to-b from-amber-50 via-white to-orange-50 dark:from-slate-900 dark:via-slate-850 dark:to-slate-900 border-2 border-amber-300 dark:border-amber-500/40 rounded-[2.5rem] shadow-2xl max-w-md w-full p-7 text-center overflow-hidden">
+    <div
+      onClick={() => setIsOpen(false)}
+      className="fixed inset-0 z-[3000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in cursor-pointer"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative bg-gradient-to-b from-amber-50 via-white to-orange-50 dark:from-slate-900 dark:via-slate-850 dark:to-slate-900 border-2 border-amber-300 dark:border-amber-500/40 rounded-[2.5rem] shadow-2xl max-w-md w-full p-7 text-center overflow-hidden cursor-default"
+      >
         {/* Confetes e luzes decorativas de fundo */}
         <div className="absolute -top-10 -left-10 w-36 h-36 bg-amber-400/20 rounded-full blur-2xl pointer-events-none" />
         <div className="absolute -bottom-10 -right-10 w-36 h-36 bg-orange-400/20 rounded-full blur-2xl pointer-events-none" />

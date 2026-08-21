@@ -817,7 +817,7 @@ export default function App() {
               )}
 
               {currentView === 'master' && (
-                currentUser?.nivel_acesso === 'MASTER (TUDO)' ? (
+                (currentUser?.nivel_acesso?.toUpperCase().includes('MASTER') || currentUser?.nivel_acesso === 'MASTER (TUDO)') ? (
                   <MasterView
                     currentUser={currentUser}
                     users={users}
