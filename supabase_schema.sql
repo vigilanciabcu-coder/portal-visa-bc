@@ -11,8 +11,20 @@ CREATE TABLE IF NOT EXISTS public.operadores (
     cargo TEXT NOT NULL,
     data_nascimento TEXT,
     matricula TEXT,
+    telefone TEXT,
+    conselho_regional TEXT,
+    setor TEXT DEFAULT 'VIGILÂNCIA SANITÁRIA',
+    nivel_acesso TEXT DEFAULT 'VISA (FISCAL)',
+    senha TEXT DEFAULT '123456',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Migrações seguras (caso a tabela já exista):
+ALTER TABLE public.operadores ADD COLUMN IF NOT EXISTS telefone TEXT;
+ALTER TABLE public.operadores ADD COLUMN IF NOT EXISTS conselho_regional TEXT;
+ALTER TABLE public.operadores ADD COLUMN IF NOT EXISTS setor TEXT DEFAULT 'VIGILÂNCIA SANITÁRIA';
+ALTER TABLE public.operadores ADD COLUMN IF NOT EXISTS nivel_acesso TEXT DEFAULT 'VISA (FISCAL)';
+ALTER TABLE public.operadores ADD COLUMN IF NOT EXISTS senha TEXT DEFAULT '123456';
 
 -- 2. Tabela de Escala de Plantão
 CREATE TABLE IF NOT EXISTS public.escala (

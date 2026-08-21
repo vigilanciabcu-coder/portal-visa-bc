@@ -33,8 +33,10 @@ export async function fetchOperadoresFromSupabase(): Promise<UserProfile[] | nul
         data_nascimento: item.data_nascimento || '',
         cargo: item.cargo || 'FISCAL DE VIGILÂNCIA SANITÁRIA',
         setor: item.setor || 'VIGILÂNCIA SANITÁRIA',
+        conselho_regional: item.conselho_regional || '',
         nivel_acesso: item.nivel_acesso || (item.cargo === 'MASTER' || item.cargo === 'MASTER ADM' ? 'MASTER (TUDO)' : 'VISA (FISCAL)'),
         matricula: item.matricula || '',
+        telefone: item.telefone || '',
         senha: item.senha || '123456'
       }));
     }
@@ -102,8 +104,10 @@ export async function saveOperadorToSupabase(user: UserProfile): Promise<boolean
         data_nascimento: user.data_nascimento || '1990-01-01',
         cargo: user.cargo,
         setor: user.setor || 'VIGILÂNCIA SANITÁRIA',
+        conselho_regional: (user.conselho_regional || '').trim().toUpperCase(),
         nivel_acesso: user.nivel_acesso || (user.cargo === 'MASTER' || user.cargo === 'MASTER ADM' ? 'MASTER (TUDO)' : 'VISA (FISCAL)'),
         matricula: (user.matricula || '').trim(),
+        telefone: (user.telefone || '').trim(),
         senha: (user.senha || '123456').trim()
       };
 
@@ -169,8 +173,10 @@ export async function saveOperadorToSupabase(user: UserProfile): Promise<boolean
         data_nascimento: user.data_nascimento || '1990-01-01',
         cargo: user.cargo,
         setor: user.setor || 'VIGILÂNCIA SANITÁRIA',
+        conselho_regional: (user.conselho_regional || '').trim().toUpperCase(),
         nivel_acesso: user.nivel_acesso || (user.cargo === 'MASTER' || user.cargo === 'MASTER ADM' ? 'MASTER (TUDO)' : 'VISA (FISCAL)'),
         matricula: (user.matricula || '').trim(),
+        telefone: (user.telefone || '').trim(),
         senha: (user.senha || '123456').trim()
       };
 

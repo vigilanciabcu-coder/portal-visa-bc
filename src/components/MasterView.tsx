@@ -100,6 +100,7 @@ export const MasterView: React.FC<MasterViewProps> = ({
     data_nascimento: '',
     cargo: 'FISCAL DE VIGILÂNCIA SANITÁRIA' as UserRole,
     setor: 'VIGILÂNCIA SANITÁRIA' as UserSetor,
+    conselho_regional: '',
     nivel_acesso: 'VISA (FISCAL)' as UserNivelAcesso,
     matricula: '',
     telefone: '',
@@ -117,6 +118,7 @@ export const MasterView: React.FC<MasterViewProps> = ({
       data_nascimento: u.data_nascimento || '',
       cargo: u.cargo,
       setor: u.setor || 'VIGILÂNCIA SANITÁRIA',
+      conselho_regional: u.conselho_regional || '',
       nivel_acesso: u.nivel_acesso || (u.cargo === 'MASTER' || u.cargo === 'MASTER ADM' ? 'MASTER (TUDO)' : 'VISA (FISCAL)'),
       matricula: u.matricula || '',
       telefone: u.telefone || '',
@@ -133,6 +135,7 @@ export const MasterView: React.FC<MasterViewProps> = ({
       data_nascimento: '',
       cargo: 'FISCAL DE VIGILÂNCIA SANITÁRIA',
       setor: 'VIGILÂNCIA SANITÁRIA',
+      conselho_regional: '',
       nivel_acesso: 'VISA (FISCAL)',
       matricula: '',
       telefone: '',
@@ -164,6 +167,7 @@ export const MasterView: React.FC<MasterViewProps> = ({
       data_nascimento: userForm.data_nascimento,
       cargo: userForm.cargo,
       setor: userForm.setor,
+      conselho_regional: userForm.conselho_regional ? userForm.conselho_regional.trim().toUpperCase() : '',
       nivel_acesso: userForm.nivel_acesso,
       matricula: userForm.matricula ? userForm.matricula.trim() : `FIS-${Math.floor(1000 + Math.random() * 9000)}`,
       telefone: userForm.telefone ? userForm.telefone.trim() : '',
@@ -583,7 +587,7 @@ export const MasterView: React.FC<MasterViewProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
-              <div className="md:col-span-4">
+              <div className="md:col-span-3">
                 <label className="text-[10px] font-bold uppercase block mb-1">Cargo / Função</label>
                 <select
                   value={userForm.cargo}
@@ -626,6 +630,17 @@ export const MasterView: React.FC<MasterViewProps> = ({
               </div>
 
               <div className="md:col-span-2">
+                <label className="text-[10px] font-bold uppercase block mb-1 text-emerald-700 dark:text-emerald-400">Conselho Regional.</label>
+                <input
+                  type="text"
+                  placeholder="Ex: CRF/SC 3321..."
+                  value={userForm.conselho_regional}
+                  onChange={(e) => setUserForm({ ...userForm, conselho_regional: e.target.value })}
+                  className="w-full font-bold text-xs uppercase"
+                />
+              </div>
+
+              <div className="md:col-span-2">
                 <label className="text-[10px] font-bold uppercase block mb-1 text-purple-600 dark:text-purple-400 flex items-center gap-1">
                   <ShieldAlert className="w-3 h-3 text-purple-500" /> Acesso
                 </label>
@@ -641,12 +656,12 @@ export const MasterView: React.FC<MasterViewProps> = ({
                 </select>
               </div>
 
-              <div className="md:col-span-3 flex justify-end gap-2 pt-2 md:pt-0">
+              <div className="md:col-span-2 flex justify-end gap-1.5 pt-2 md:pt-0">
                 {editingUserId && (
                   <button
                     type="button"
                     onClick={handleClearUserForm}
-                    className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-3 rounded-xl text-xs font-bold uppercase cursor-pointer"
+                    className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-3 rounded-xl text-xs font-bold uppercase cursor-pointer"
                   >
                     Cancelar
                   </button>
@@ -654,7 +669,7 @@ export const MasterView: React.FC<MasterViewProps> = ({
                 <button
                   type="submit"
                   disabled={isSavingUser}
-                  className={`bg-blue-600 hover:bg-blue-700 text-white font-black px-4 py-3 rounded-xl text-xs uppercase shadow transition cursor-pointer flex items-center gap-1.5 ${
+                  className={`bg-blue-600 hover:bg-blue-700 text-white font-black px-3.5 py-3 rounded-xl text-xs uppercase shadow transition cursor-pointer flex items-center justify-center gap-1.5 w-full md:w-auto ${
                     isSavingUser ? 'opacity-70 cursor-wait' : ''
                   }`}
                 >
@@ -708,19 +723,26 @@ export const MasterView: React.FC<MasterViewProps> = ({
                         {u.data_nascimento ? u.data_nascimento.split('-').reverse().slice(0, 2).join('/') : '---'}
                       </td>
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span
-                          className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase inline-block ${
-                            u.cargo === 'MASTER' || u.cargo === 'MASTER ADM'
-                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
-                              : u.cargo.includes('DIRETOR')
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                              : u.cargo.includes('SUPERVISOR')
-                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
-                              : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                          }`}
-                        >
-                          {u.cargo}
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <span
+                            className={`px-3 py-1 rounded-lg font-black text-[10px] uppercase inline-block ${
+                              u.cargo === 'MASTER' || u.cargo === 'MASTER ADM'
+                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                                : u.cargo.includes('DIRETOR')
+                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                                : u.cargo.includes('SUPERVISOR')
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                            }`}
+                          >
+                            {u.cargo}
+                          </span>
+                          {u.conselho_regional && (
+                            <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded inline-flex items-center gap-1">
+                              ⚖️ {u.conselho_regional}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <span

@@ -37,6 +37,7 @@ export interface UserProfile {
   data_nascimento: string;
   cargo: UserRole;
   setor?: UserSetor;
+  conselho_regional?: string;
   nivel_acesso?: UserNivelAcesso;
   matricula?: string;
   telefone?: string;
