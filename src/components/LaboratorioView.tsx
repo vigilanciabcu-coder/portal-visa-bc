@@ -1809,8 +1809,8 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
             <div className="flex items-stretch justify-between pb-2 border-b-2 border-black mb-2">
               <div className="flex items-center gap-3">
                 <img
-                  src="https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/logo_bc.avif"
-                  alt="Brasão Balneário Camboriú"
+                  src="https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/brasao__1_-removebg-preview%20(1).avif"
+                  alt="Brasão Oficial - Balneário Camboriú"
                   className="h-14 w-auto object-contain self-center"
                   onError={(e) => {
                     // Fallback para o brasão da wikimedia caso necessário
