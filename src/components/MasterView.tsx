@@ -519,8 +519,8 @@ export const MasterView: React.FC<MasterViewProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-7 gap-4 items-end">
-              <div className="md:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-[2.3fr_1.7fr_1.15fr_0.9fr_1.05fr_1.05fr] gap-3.5 items-end">
+              <div>
                 <label className="text-[10px] font-bold uppercase block mb-1">Nome Completo</label>
                 <input
                   type="text"
