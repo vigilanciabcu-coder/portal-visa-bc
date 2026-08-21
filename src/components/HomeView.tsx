@@ -91,6 +91,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const isMaster = currentUser?.nivel_acesso === 'MASTER (TUDO)';
 
   const visibleButtons = buttons.filter((b) => {
+    // Permite que Teste Laboratório fique liberado para todos
+    if (b.id === 'tlab') {
+      return true;
+    }
     if (b.somenteMaster || b.nome.toLowerCase().includes('teste')) {
       return isMaster;
     }

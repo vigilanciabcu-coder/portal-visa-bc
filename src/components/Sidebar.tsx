@@ -23,6 +23,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const todayDay = new Date().getDate();
 
   const visibleButtons = buttons.filter((b) => {
+    // Permite que Teste Laboratório fique liberado para todos
+    if (b.id === 'tlab') {
+      return true;
+    }
     if (b.somenteMaster || b.nome.toLowerCase().includes('teste')) {
       return isMaster;
     }
