@@ -41,7 +41,9 @@ import {
   KeyRound,
   Eye,
   EyeOff,
-  Check
+  Check,
+  RefreshCw,
+  Database
 } from 'lucide-react';
 import {
   BAIRROS_BC,
@@ -49,6 +51,7 @@ import {
   INITIAL_LABORATORIALISTAS
 } from '../data/mockData';
 import { ServidoresLaboratorioSection } from './ServidoresLaboratorioSection';
+import { syncAllLaboratorioToSupabase, isSupabaseConfigured } from '../lib/supabaseService';
 
 interface LaboratorioViewProps {
   amostras: AmostraLaboratorioItem[];
@@ -105,6 +108,82 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
   const [authError, setAuthError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Sincronização direta com o Supabase
+  const [isSyncingSupabase, setIsSyncingSupabase] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const handleSyncWithSupabase = async () => {
+    setIsSyncingSupabase(true);
+    setSyncFeedback(null);
+    try {
+      const res = await syncAllLaboratorioToSupabase(amostras);
+      if (res.success > 0) {
+        setSyncFeedback({
+          type: 'success',
+          message: `${res.success} de ${res.total} amostras foram sincronizadas com sucesso na tabela 'laboratorio' do Supabase!`
+        });
+      } else {
+        setSyncFeedback({
+          type: 'error',
+          message: 'Nenhuma amostra pôde ser gravada no Supabase. Verifique se o script SQL foi executado no painel do Supabase.'
+        });
+      }
+    } catch (e: any) {
+      setSyncFeedback({
+        type: 'error',
+        message: `Falha na sincronização: ${e.message || 'Erro de conexão'}`
+      });
+    } finally {
+      setIsSyncingSupabase(false);
+      setTimeout(() => setSyncFeedback(null), 6000);
+    }
+  };
+
+  // Sincroniza Servidores Coletores priorizando os Operadores cadastrados no Botão Master (Supabase)
+  const effectiveColetores: ServidorColetaLaboratorio[] = useMemo(() => {
+    if (users && users.length > 0) {
+      return users.map((u) => ({
+        id: u.id,
+        nome_completo: u.nome_completo,
+        cargo: u.cargo || 'FISCAL DE VIGILÂNCIA SANITÁRIA',
+        matricula: u.matricula || '',
+        telefone: u.telefone || '',
+        email: u.email || '',
+        ativo: true,
+        observacao: u.conselho_regional ? `Conselho: ${u.conselho_regional}` : ''
+      }));
+    }
+    return coletores;
+  }, [users, coletores]);
+
+  // Sincroniza Responsáveis Técnicos priorizando os Usuários/Farmacêuticos do Master (Supabase)
+  const effectiveLaboratorialistas: LaboratorialistaResponsavel[] = useMemo(() => {
+    if (users && users.length > 0) {
+      // Ordena colocando Farmacêuticos ou quem possui Conselho Regional no topo
+      const sortedUsers = [...users].sort((a, b) => {
+        const aIsLab = a.cargo?.includes('FARMACÊUTICO') || a.cargo?.includes('BIOQUÍMICO') || !!a.conselho_regional;
+        const bIsLab = b.cargo?.includes('FARMACÊUTICO') || b.cargo?.includes('BIOQUÍMICO') || !!b.conselho_regional;
+        if (aIsLab && !bIsLab) return -1;
+        if (!aIsLab && bIsLab) return 1;
+        return a.nome_completo.localeCompare(b.nome_completo);
+      });
+
+      return sortedUsers.map((u) => ({
+        id: u.id,
+        nome_completo: u.nome_completo,
+        funcao: u.cargo || 'FARMACÊUTICO E BIOQUIMICO',
+        registro_conselho: u.conselho_regional || 'CRF/SC- 3321',
+        conselho_regional: u.conselho_regional ? u.conselho_regional.split('/')[0] : 'CRF',
+        email: u.email || '',
+        telefone: u.telefone || '',
+        senha: u.senha || '123456',
+        ativo: true,
+        padrao: u.cargo?.includes('FARMACÊUTICO') || u.nome_completo.toUpperCase().includes('ADRIANO')
+      }));
+    }
+    return laboratorialistas;
+  }, [users, laboratorialistas]);
 
   // ==========================================
   // ESTADO DO FORMULÁRIO: ABA COLETA
@@ -401,7 +480,7 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
   // Abrir modal de validação para o responsável atual
   const handleOpenAuthForCurrentLab = () => {
     const currentName = labForm.laboratorialista;
-    const lab = laboratorialistas.find((l) => l.nome_completo === currentName) || {
+    const lab = effectiveLaboratorialistas.find((l) => l.nome_completo === currentName) || {
       id: 'temp-lab',
       nome_completo: currentName || 'ADRIANO GUARDINI',
       funcao: labForm.cargo_laboratorialista || 'FARMACÊUTICO E BIOQUIMICO',
@@ -494,8 +573,7 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
 
     onSaveAmostra(updatedAmostra);
     setSelectedPendingColetaId('');
-    setSelectedAmostraForLaudo(updatedAmostra);
-    alert('Laudo oficial finalizado com sucesso! O modelo pronto para impressão já está aberto.');
+    alert('Laudo oficial salvo e finalizado com sucesso!');
   };
 
   return (
@@ -521,8 +599,23 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
           </div>
         </div>
 
-        {/* Abas de Navegação (Sem a palavra 'Aba') */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900/60 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold">
+        {/* Abas de Navegação (Sem a palavra 'Aba') + Botão Sincronizar Supabase */}
+        <div className="flex flex-wrap items-center gap-2">
+          {isSupabaseConfigured && (
+            <button
+              id="sync-supabase-btn"
+              onClick={handleSyncWithSupabase}
+              disabled={isSyncingSupabase}
+              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 rounded-xl text-xs font-black uppercase hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition shadow-xs disabled:opacity-50 cursor-pointer"
+              title="Salvar todas as amostras atuais na tabela 'laboratorio' do Supabase"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingSupabase ? 'animate-spin' : ''}`} />
+              <Database className="w-3.5 h-3.5" />
+              {isSyncingSupabase ? 'Sincronizando...' : `Salvar no Supabase (${amostras.length})`}
+            </button>
+          )}
+
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900/60 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold">
           <button
             id="tab-btn-coleta"
             onClick={() => setActiveTab('coleta')}
@@ -594,6 +687,28 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
           </button>
         </div>
       </div>
+      </div>
+
+      {/* Banner de Feedback de Sincronização */}
+      {syncFeedback && (
+        <div className={`mx-6 mt-4 p-3.5 rounded-xl border flex items-center justify-between text-xs font-bold ${
+          syncFeedback.type === 'success'
+            ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+            : 'bg-red-50 dark:bg-red-950/60 border-red-300 dark:border-red-800 text-red-800 dark:text-red-200'
+        }`}>
+          <div className="flex items-center gap-2">
+            {syncFeedback.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+            )}
+            <span>{syncFeedback.message}</span>
+          </div>
+          <button onClick={() => setSyncFeedback(null)} className="text-slate-400 hover:text-slate-600 ml-3">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Conteúdo Principal */}
       <div className="p-6 flex-1 max-w-7xl w-full mx-auto space-y-6">
@@ -811,21 +926,21 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                       <label className="block text-xs font-black uppercase text-slate-600 dark:text-slate-300">
                         Coletado por (Fiscal Sanitário) *
                       </label>
-                      {coletores.length > 0 && (
+                      {effectiveColetores.length > 0 && (
                         <button
                           type="button"
                           onClick={() => setActiveTab('servidores')}
                           className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 hover:underline cursor-pointer"
                         >
-                          Gerenciar Servidores ({coletores.length})
+                          Gerenciar Servidores ({effectiveColetores.length})
                         </button>
                       )}
                     </div>
 
                     <div className="space-y-1.5">
-                      {coletores.length > 0 && (
+                      {effectiveColetores.length > 0 && (
                         <select
-                          value={coletores.some((c) => c.nome_completo === coletaForm.fiscal_coletor) ? coletaForm.fiscal_coletor : ''}
+                          value={effectiveColetores.some((c) => c.nome_completo === coletaForm.fiscal_coletor) ? coletaForm.fiscal_coletor : ''}
                           onChange={(e) => {
                             if (e.target.value) {
                               setColetaForm({ ...coletaForm, fiscal_coletor: e.target.value });
@@ -834,7 +949,7 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                           className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-1.5 text-xs font-bold focus:ring-2 focus:ring-cyan-500 outline-none"
                         >
                           <option value="">-- Selecionar Servidor Coletor Cadastrado --</option>
-                          {coletores.filter((c) => c.ativo).map((c) => (
+                          {effectiveColetores.filter((c) => c.ativo).map((c) => (
                             <option key={c.id} value={c.nome_completo}>
                               {c.nome_completo} ({c.cargo} {c.matricula ? `• Mat: ${c.matricula}` : ''})
                             </option>
@@ -1441,7 +1556,7 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                   </div>
 
                   {/* Seleção Rápida de Laboratorialista Cadastrado com Validação por Senha */}
-                  {laboratorialistas.length > 0 && (
+                  {effectiveLaboratorialistas.length > 0 && (
                     <div className="bg-cyan-50/80 dark:bg-cyan-950/40 p-3 rounded-2xl border border-cyan-200 dark:border-cyan-800 space-y-2.5">
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                         <span className="text-[11px] font-black uppercase text-cyan-900 dark:text-cyan-300 flex items-center gap-1.5 shrink-0">
@@ -1449,7 +1564,7 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                           Responsável Técnico Cadastrado:
                         </span>
                         <select
-                          value={laboratorialistas.some((l) => l.nome_completo === labForm.laboratorialista) ? labForm.laboratorialista : ''}
+                          value={effectiveLaboratorialistas.some((l) => l.nome_completo === labForm.laboratorialista) ? labForm.laboratorialista : ''}
                           onChange={(e) => {
                             const selectedName = e.target.value;
                             if (!selectedName) {
@@ -1464,7 +1579,7 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                               });
                               return;
                             }
-                            const chosen = laboratorialistas.find((l) => l.nome_completo === selectedName);
+                            const chosen = effectiveLaboratorialistas.find((l) => l.nome_completo === selectedName);
                             if (chosen) {
                               // Abre a janela de confirmação de senha do servidor
                               setPendingLaboratorialista(chosen);
@@ -1478,7 +1593,7 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                           className="w-full sm:w-auto flex-1 bg-white dark:bg-slate-900 border border-cyan-300 dark:border-cyan-700 rounded-xl px-3 py-2 text-xs font-black uppercase outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer shadow-xs"
                         >
                           <option value="">-- Selecione seu nome para validar assinatura com senha --</option>
-                          {laboratorialistas.filter((l) => l.ativo).map((l) => (
+                          {effectiveLaboratorialistas.filter((l) => l.ativo).map((l) => (
                             <option key={l.id} value={l.nome_completo}>
                               {l.nome_completo} — {l.funcao} ({l.registro_conselho}) {l.padrao ? '⭐ [Padrão]' : ''}
                             </option>
@@ -1598,8 +1713,8 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                     type="submit"
                     className="bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs px-6 py-3 rounded-xl uppercase shadow-lg shadow-cyan-600/20 flex items-center gap-2 transition cursor-pointer"
                   >
-                    <FileText className="w-4 h-4" />
-                    Finalizar Laudo Oficial & Abrir Impressão
+                    <CheckCircle2 className="w-4 h-4" />
+                    Salvar e Finalizar Laudo
                   </button>
                 </div>
               </form>
@@ -1774,8 +1889,8 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
         {/* ============================================================== */}
         {activeTab === 'servidores' && (
           <ServidoresLaboratorioSection
-            coletores={coletores}
-            laboratorialistas={laboratorialistas}
+            coletores={effectiveColetores}
+            laboratorialistas={effectiveLaboratorialistas}
             amostras={amostras}
             users={users}
             currentUser={currentUser}

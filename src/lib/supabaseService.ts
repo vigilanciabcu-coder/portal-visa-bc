@@ -1,6 +1,8 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { UserProfile, EscalaItem, FeiranteItem, RecadoMural, FiscalizacaoItem, ChatMessage } from '../types';
 
+export { isSupabaseConfigured };
+
 // Status helper
 export function checkSupabaseStatus() {
   return {
@@ -895,8 +897,8 @@ export async function fetchLaboratorioFromSupabase(): Promise<any[] | null> {
 
       if (!error && data && data.length > 0) {
         return data.map((item: any) => ({
-          id: String(item.id),
-          codigo_amostra: item.codigo_amostra || item.codigo || `LAB-${item.id}`,
+          id: String(item.id || `lab-${item.codigo_amostra || Math.random()}`),
+          codigo_amostra: String(item.codigo_amostra || item.codigo || `LAB-${item.id}`),
           protocolo: item.protocolo || item.numero_protocolo || '',
           mes_ano_referencia: item.mes_ano_referencia || '',
           responsavel_distribuicao: item.responsavel_distribuicao || 'EMASA',
@@ -946,6 +948,9 @@ export async function fetchLaboratorioFromSupabase(): Promise<any[] | null> {
           cargo_laboratorialista: item.cargo_laboratorialista || 'FARMACÊUTICO E BIOQUIMICO',
           registro_conselho: item.registro_conselho || 'CRF/SC- 3321',
           responsavel_analise: item.responsavel_analise || 'Laboratório Central Municipal VISA',
+          assinatura_digital_validada: item.assinatura_digital_validada === true || !!item.assinatura_digital_hash,
+          assinatura_digital_data: item.assinatura_digital_data || undefined,
+          assinatura_digital_hash: item.assinatura_digital_hash || undefined,
           observacoes: item.observacoes || 'ANÁLISE SOLICITADA PARA VERIFICAR QUALIDADE DA ÁGUA PARA CONSUMO HUMANO',
           parametros: item.parametros || {},
           created_at: item.created_at
@@ -962,8 +967,10 @@ export async function fetchLaboratorioFromSupabase(): Promise<any[] | null> {
 export async function saveLaboratorioToSupabase(amostra: any): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) return false;
   try {
+    const rawId = String(amostra.id || `lab-${amostra.codigo_amostra || Date.now()}`);
     const payload: any = {
-      codigo_amostra: amostra.codigo_amostra || `LAB-${Date.now()}`,
+      id: rawId,
+      codigo_amostra: String(amostra.codigo_amostra || `LAB-${Date.now()}`),
       protocolo: amostra.protocolo || null,
       mes_ano_referencia: amostra.mes_ano_referencia || null,
       responsavel_distribuicao: amostra.responsavel_distribuicao || 'EMASA',
@@ -1013,42 +1020,93 @@ export async function saveLaboratorioToSupabase(amostra: any): Promise<boolean> 
       cargo_laboratorialista: amostra.cargo_laboratorialista || 'FARMACÊUTICO E BIOQUIMICO',
       registro_conselho: amostra.registro_conselho || 'CRF/SC- 3321',
       responsavel_analise: amostra.responsavel_analise || 'Laboratório Central Municipal VISA',
+      assinatura_digital_validada: amostra.assinatura_digital_validada || false,
+      assinatura_digital_data: amostra.assinatura_digital_data || null,
+      assinatura_digital_hash: amostra.assinatura_digital_hash || null,
       observacoes: amostra.observacoes || '',
       parametros: amostra.parametros || {},
       updated_at: new Date().toISOString()
     };
 
-    const isUUID = amostra.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(amostra.id);
     const tablesToTry = ['laboratorio', 'laudos_laboratorio', 'amostras_laboratorio'];
 
     for (const tbl of tablesToTry) {
       try {
-        if (isUUID) {
-          const { error } = await supabase.from(tbl).update(payload).eq('id', amostra.id);
-          if (!error) return true;
-        } else {
-          const { error } = await supabase.from(tbl).upsert(payload, { onConflict: 'codigo_amostra' });
-          if (!error) return true;
+        // 1ª Tentativa: Upsert por id
+        const { error: errId } = await supabase.from(tbl).upsert(payload, { onConflict: 'id' });
+        if (!errId) {
+          console.log(`Amostra ${payload.codigo_amostra} salva no Supabase (tabela: ${tbl}) com sucesso via ID.`);
+          return true;
         }
+
+        // 2ª Tentativa: Upsert por codigo_amostra
+        const { error: upsertErr } = await supabase.from(tbl).upsert(payload, { onConflict: 'codigo_amostra' });
+        if (!upsertErr) {
+          console.log(`Amostra ${payload.codigo_amostra} salva no Supabase (tabela: ${tbl}) via codigo_amostra.`);
+          return true;
+        }
+
+        // 3ª Tentativa: Insert comum
+        const { error: insertErr } = await supabase.from(tbl).insert(payload);
+        if (!insertErr) {
+          console.log(`Amostra ${payload.codigo_amostra} inserida no Supabase (tabela: ${tbl}).`);
+          return true;
+        }
+
+        // 4ª Tentativa: Update onde id = rawId ou codigo_amostra = payload.codigo_amostra
+        const { error: updateErr } = await supabase.from(tbl).update(payload).eq('codigo_amostra', payload.codigo_amostra);
+        if (!updateErr) return true;
+
+        console.warn(`Tentativa de salvar na tabela ${tbl} falhou:`, errId?.message || upsertErr?.message || insertErr?.message);
       } catch (e) {
-        console.warn(`Tentativa de salvar na tabela ${tbl} falhou:`, e);
+        console.warn(`Exceção ao salvar na tabela ${tbl}:`, e);
       }
     }
     return false;
   } catch (err) {
-    console.error('Exceção ao salvar amostra de laboratório no Supabase:', err);
+    console.error('Exceção geral ao salvar amostra de laboratório no Supabase:', err);
     return false;
   }
+}
+
+export async function seedInitialLaboratorioIfEmpty(initialItems: any[]): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase || !initialItems || initialItems.length === 0) return false;
+  try {
+    const { count, error } = await supabase
+      .from('laboratorio')
+      .select('*', { count: 'exact', head: true });
+
+    if (!error && (count === 0 || count === null)) {
+      console.log('Tabela laboratorio vazia no Supabase. Sincronizando dados iniciais...');
+      for (const item of initialItems) {
+        await saveLaboratorioToSupabase(item);
+      }
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.warn('Erro ao verificar/semear amostras iniciais de laboratório no Supabase:', e);
+    return false;
+  }
+}
+
+export async function syncAllLaboratorioToSupabase(items: any[]): Promise<{ success: number; total: number }> {
+  if (!isSupabaseConfigured || !supabase || !items) return { success: 0, total: 0 };
+  let successCount = 0;
+  for (const item of items) {
+    const ok = await saveLaboratorioToSupabase(item);
+    if (ok) successCount++;
+  }
+  return { success: successCount, total: items.length };
 }
 
 export async function deleteLaboratorioFromSupabase(amostraId: string, codigoAmostra?: string): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) return false;
   try {
-    const isUUID = amostraId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(amostraId);
     const tablesToTry = ['laboratorio', 'laudos_laboratorio', 'amostras_laboratorio'];
 
     for (const tbl of tablesToTry) {
-      if (isUUID) {
+      if (amostraId) {
         const { error } = await supabase.from(tbl).delete().eq('id', amostraId);
         if (!error) return true;
       }
@@ -1073,17 +1131,17 @@ export async function fetchPontosColetaFromSupabase(): Promise<any[] | null> {
       const { data, error } = await supabase
         .from(tbl)
         .select('*')
-        .order('ponto', { ascending: true });
+        .order('id', { ascending: true });
 
       if (!error && data && data.length > 0) {
         return data.map((item: any) => ({
           id: String(item.id),
-          ponto: item.ponto || item.nome || `Ponto ${item.id}`,
-          local: item.local || '',
+          ponto: item.ponto || item.nome_identificacao || item.nome || `Ponto ${item.id}`,
+          local: item.local || item.local_especifico || '',
           endereco: item.endereco || item.logradouro || '',
           bairro: item.bairro || 'Centro',
-          tipo_matriz_padrao: item.tipo_matriz_padrao || 'ÁGUA POTÁVEL',
-          observacao: item.observacao || item.obs || '',
+          tipo_matriz_padrao: item.tipo_matriz_padrao || item.tipo_matriz || 'ÁGUA POTÁVEL',
+          observacao: item.observacao || item.observacoes || '',
           ativo: item.ativo !== false
         }));
       }
@@ -1098,8 +1156,11 @@ export async function fetchPontosColetaFromSupabase(): Promise<any[] | null> {
 export async function savePontoColetaToSupabase(ponto: any): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) return false;
   try {
+    const rawId = String(ponto.id || `pto-${Date.now()}`);
     const payload: any = {
+      id: rawId,
       ponto: ponto.ponto,
+      nome_identificacao: ponto.ponto,
       local: ponto.local || '',
       endereco: ponto.endereco || '',
       bairro: ponto.bairro || 'Centro',
@@ -1109,18 +1170,15 @@ export async function savePontoColetaToSupabase(ponto: any): Promise<boolean> {
       updated_at: new Date().toISOString()
     };
 
-    const isUUID = ponto.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ponto.id);
     const tablesToTry = ['pontos_coleta', 'laboratorio_pontos', 'pontos_laboratorio'];
 
     for (const tbl of tablesToTry) {
       try {
-        if (isUUID) {
-          const { error } = await supabase.from(tbl).update(payload).eq('id', ponto.id);
-          if (!error) return true;
-        } else {
-          const { error } = await supabase.from(tbl).insert(payload);
-          if (!error) return true;
-        }
+        const { error: upsertErr } = await supabase.from(tbl).upsert(payload, { onConflict: 'id' });
+        if (!upsertErr) return true;
+
+        const { error: insErr } = await supabase.from(tbl).insert(payload);
+        if (!insErr) return true;
       } catch (e) {
         console.warn(`Tentativa em ${tbl} falhou:`, e);
       }
@@ -1128,6 +1186,27 @@ export async function savePontoColetaToSupabase(ponto: any): Promise<boolean> {
     return false;
   } catch (err) {
     console.error('Exceção ao salvar ponto de coleta no Supabase:', err);
+    return false;
+  }
+}
+
+export async function seedInitialPontosColetaIfEmpty(initialPontos: any[]): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase || !initialPontos || initialPontos.length === 0) return false;
+  try {
+    const { count, error } = await supabase
+      .from('pontos_coleta')
+      .select('*', { count: 'exact', head: true });
+
+    if (!error && (count === 0 || count === null)) {
+      console.log('Tabela pontos_coleta vazia no Supabase. Sincronizando pontos...');
+      for (const p of initialPontos) {
+        await savePontoColetaToSupabase(p);
+      }
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.warn('Erro ao semear pontos de coleta no Supabase:', e);
     return false;
   }
 }

@@ -63,8 +63,11 @@ import {
   fetchLaboratorioFromSupabase,
   saveLaboratorioToSupabase,
   deleteLaboratorioFromSupabase,
+  seedInitialLaboratorioIfEmpty,
+  syncAllLaboratorioToSupabase,
   fetchPontosColetaFromSupabase,
   savePontoColetaToSupabase,
+  seedInitialPontosColetaIfEmpty,
   deletePontoColetaFromSupabase
 } from './lib/supabaseService';
 
@@ -261,6 +264,9 @@ export default function App() {
       if (remoteLab && remoteLab.length > 0) {
         setAmostrasLaboratorio(remoteLab);
         localStorage.setItem('visa_laboratorio', JSON.stringify(remoteLab));
+      } else {
+        // Se vazio no Supabase, tenta semear com as amostras existentes
+        await seedInitialLaboratorioIfEmpty(INITIAL_LABORATORIO);
       }
 
       // Carrega pontos de coleta do Supabase
@@ -268,6 +274,9 @@ export default function App() {
       if (remotePontos && remotePontos.length > 0) {
         setPontosColeta(remotePontos);
         localStorage.setItem('visa_pontos_coleta', JSON.stringify(remotePontos));
+      } else {
+        // Se vazio no Supabase, tenta semear os pontos iniciais
+        await seedInitialPontosColetaIfEmpty(INITIAL_PONTOS_COLETA);
       }
     }
     loadSupabaseData();
