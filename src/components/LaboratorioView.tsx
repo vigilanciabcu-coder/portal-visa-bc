@@ -1811,7 +1811,7 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                 <img
                   src="https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/brasao__1_-removebg-preview%20(1).avif"
                   alt="Brasão Oficial - Balneário Camboriú"
-                  className="h-14 w-auto object-contain self-center"
+                  className="h-20 max-h-[84px] w-auto object-contain self-center shrink-0"
                   onError={(e) => {
                     // Fallback para o brasão da wikimedia caso necessário
                     const target = e.target as HTMLImageElement;
