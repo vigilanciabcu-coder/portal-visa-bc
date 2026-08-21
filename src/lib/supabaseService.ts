@@ -964,109 +964,131 @@ export async function fetchLaboratorioFromSupabase(): Promise<any[] | null> {
   }
 }
 
-export async function saveLaboratorioToSupabase(amostra: any): Promise<boolean> {
-  if (!isSupabaseConfigured || !supabase) return false;
-  try {
-    const rawId = String(amostra.id || `lab-${amostra.codigo_amostra || Date.now()}`);
-    const payload: any = {
-      id: rawId,
-      codigo_amostra: String(amostra.codigo_amostra || `LAB-${Date.now()}`),
-      protocolo: amostra.protocolo || null,
-      mes_ano_referencia: amostra.mes_ano_referencia || null,
-      responsavel_distribuicao: amostra.responsavel_distribuicao || 'EMASA',
-      interessado: amostra.interessado || amostra.estabelecimento || 'MERCADO BAGÉ LTDA',
-      cnpj_cpf: amostra.cnpj_cpf || '',
-      numero_alvara: amostra.numero_alvara || 'Solicitado',
-      data_coleta: amostra.data_coleta || new Date().toISOString().split('T')[0],
-      hora_coleta: amostra.hora_coleta || '08:20',
-      ponto_coleta_id: amostra.ponto_coleta_id || null,
-      ponto_coleta_nome: amostra.ponto_coleta_nome || '',
-      local_coleta: amostra.local_coleta || '',
-      endereco: amostra.endereco || '',
-      bairro: amostra.bairro || 'Centro',
-      estabelecimento: amostra.estabelecimento || amostra.interessado || 'REDE MUNICIPAL',
-      tipo_matriz: amostra.tipo_matriz || 'ÁGUA POTÁVEL',
-      fiscal_coletor: amostra.fiscal_coletor || 'Rita Sahd',
-      temperatura_coleta: amostra.temperatura_coleta || '',
-      
-      // Organolépticas
-      aspecto: amostra.aspecto || 'Límpido',
-      odor: amostra.odor || 'Inobjetável',
-      cor: amostra.cor || 'Incolor',
+function isValidDateString(val: any): boolean {
+  if (!val || typeof val !== 'string') return false;
+  const trimmed = val.trim();
+  if (!trimmed || trimmed === '') return false;
+  // Regex for YYYY-MM-DD
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed);
+}
 
-      // Físico-Química
-      ph: amostra.ph || '',
-      equipamento_ph: amostra.equipamento_ph || null,
-      cloro: amostra.cloro || '',
-      equipamento_cloro: amostra.equipamento_cloro || null,
-      fluoreto: amostra.fluoreto || '',
-      equipamento_fluor: amostra.equipamento_fluor || null,
-      turbidez: amostra.turbidez || '',
-      equipamento_turbidez: amostra.equipamento_turbidez || null,
-      fluoretacao: amostra.fluoretacao || 'CONFORME',
-
-      // Microbiológicas
-      coliformes_totais: amostra.coliformes_totais || 'AUSENTE',
-      metodologia_coliformes_totais: amostra.metodologia_coliformes_totais || null,
-      escherichia_coli: amostra.escherichia_coli || 'AUSENTE',
-      metodologia_escherichia_coli: amostra.metodologia_escherichia_coli || null,
-
-      // Responsável Técnico e Conclusão
-      status: amostra.status || 'CONFORME',
-      laudo_numero: amostra.laudo_numero || '',
-      data_resultado: amostra.data_resultado || null,
-      conclusao_laudo: amostra.conclusao_laudo || '',
-      laboratorialista: amostra.laboratorialista || 'ADRIANO GUARDINI',
-      cargo_laboratorialista: amostra.cargo_laboratorialista || 'FARMACÊUTICO E BIOQUIMICO',
-      registro_conselho: amostra.registro_conselho || 'CRF/SC- 3321',
-      responsavel_analise: amostra.responsavel_analise || 'Laboratório Central Municipal VISA',
-      assinatura_digital_validada: amostra.assinatura_digital_validada || false,
-      assinatura_digital_data: amostra.assinatura_digital_data || null,
-      assinatura_digital_hash: amostra.assinatura_digital_hash || null,
-      observacoes: amostra.observacoes || '',
-      parametros: amostra.parametros || {},
-      updated_at: new Date().toISOString()
-    };
-
-    const tablesToTry = ['laboratorio', 'laudos_laboratorio', 'amostras_laboratorio'];
-
-    for (const tbl of tablesToTry) {
-      try {
-        // 1ª Tentativa: Upsert por id
-        const { error: errId } = await supabase.from(tbl).upsert(payload, { onConflict: 'id' });
-        if (!errId) {
-          console.log(`Amostra ${payload.codigo_amostra} salva no Supabase (tabela: ${tbl}) com sucesso via ID.`);
-          return true;
-        }
-
-        // 2ª Tentativa: Upsert por codigo_amostra
-        const { error: upsertErr } = await supabase.from(tbl).upsert(payload, { onConflict: 'codigo_amostra' });
-        if (!upsertErr) {
-          console.log(`Amostra ${payload.codigo_amostra} salva no Supabase (tabela: ${tbl}) via codigo_amostra.`);
-          return true;
-        }
-
-        // 3ª Tentativa: Insert comum
-        const { error: insertErr } = await supabase.from(tbl).insert(payload);
-        if (!insertErr) {
-          console.log(`Amostra ${payload.codigo_amostra} inserida no Supabase (tabela: ${tbl}).`);
-          return true;
-        }
-
-        // 4ª Tentativa: Update onde id = rawId ou codigo_amostra = payload.codigo_amostra
-        const { error: updateErr } = await supabase.from(tbl).update(payload).eq('codigo_amostra', payload.codigo_amostra);
-        if (!updateErr) return true;
-
-        console.warn(`Tentativa de salvar na tabela ${tbl} falhou:`, errId?.message || upsertErr?.message || insertErr?.message);
-      } catch (e) {
-        console.warn(`Exceção ao salvar na tabela ${tbl}:`, e);
-      }
-    }
-    return false;
-  } catch (err) {
-    console.error('Exceção geral ao salvar amostra de laboratório no Supabase:', err);
-    return false;
+export async function saveLaboratorioToSupabaseWithDetail(amostra: any): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseConfigured || !supabase) {
+    return { ok: false, error: 'Supabase não está configurado nas variáveis de ambiente (.env).' };
   }
+
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const hasValidUUID = amostra.id && uuidRegex.test(String(amostra.id));
+  const validUUID = hasValidUUID ? String(amostra.id) : generateUUID();
+
+  const cleanDataColeta = isValidDateString(amostra.data_coleta)
+    ? amostra.data_coleta
+    : new Date().toISOString().split('T')[0];
+
+  const cleanDataResultado = isValidDateString(amostra.data_resultado)
+    ? amostra.data_resultado
+    : null;
+
+  const basePayload: any = {
+    codigo_amostra: String(amostra.codigo_amostra || `LAB-${Date.now()}`),
+    protocolo: amostra.protocolo || null,
+    mes_ano_referencia: amostra.mes_ano_referencia || null,
+    responsavel_distribuicao: amostra.responsavel_distribuicao || 'EMASA',
+    interessado: amostra.interessado || amostra.estabelecimento || 'MERCADO BAGÉ LTDA',
+    cnpj_cpf: amostra.cnpj_cpf || '',
+    numero_alvara: amostra.numero_alvara || 'Solicitado',
+    data_coleta: cleanDataColeta,
+    hora_coleta: amostra.hora_coleta || '08:20',
+    ponto_coleta_id: amostra.ponto_coleta_id || null,
+    ponto_coleta_nome: amostra.ponto_coleta_nome || '',
+    local_coleta: amostra.local_coleta || '',
+    endereco: amostra.endereco || '',
+    bairro: amostra.bairro || 'Centro',
+    estabelecimento: amostra.estabelecimento || amostra.interessado || 'REDE MUNICIPAL',
+    tipo_matriz: amostra.tipo_matriz || 'ÁGUA POTÁVEL',
+    fiscal_coletor: amostra.fiscal_coletor || 'Rita Sahd',
+    temperatura_coleta: amostra.temperatura_coleta || '',
+    
+    // Organolépticas
+    aspecto: amostra.aspecto || 'Límpido',
+    odor: amostra.odor || 'Inobjetável',
+    cor: amostra.cor || 'Incolor',
+
+    // Físico-Química
+    ph: amostra.ph || '',
+    equipamento_ph: amostra.equipamento_ph || null,
+    cloro: amostra.cloro || '',
+    equipamento_cloro: amostra.equipamento_cloro || null,
+    fluoreto: amostra.fluoreto || '',
+    equipamento_fluor: amostra.equipamento_fluor || null,
+    turbidez: amostra.turbidez || '',
+    equipamento_turbidez: amostra.equipamento_turbidez || null,
+    fluoretacao: amostra.fluoretacao || 'CONFORME',
+
+    // Microbiológicas
+    coliformes_totais: amostra.coliformes_totais || 'AUSENTE',
+    metodologia_coliformes_totais: amostra.metodologia_coliformes_totais || null,
+    escherichia_coli: amostra.escherichia_coli || 'AUSENTE',
+    metodologia_escherichia_coli: amostra.metodologia_escherichia_coli || null,
+
+    // Responsável Técnico e Conclusão
+    status: amostra.status || 'CONFORME',
+    laudo_numero: amostra.laudo_numero || '',
+    data_resultado: cleanDataResultado,
+    conclusao_laudo: amostra.conclusao_laudo || '',
+    laboratorialista: amostra.laboratorialista || 'ADRIANO GUARDINI',
+    cargo_laboratorialista: amostra.cargo_laboratorialista || 'FARMACÊUTICO E BIOQUIMICO',
+    registro_conselho: amostra.registro_conselho || 'CRF/SC- 3321',
+    responsavel_analise: amostra.responsavel_analise || 'Laboratório Central Municipal VISA',
+    assinatura_digital_validada: amostra.assinatura_digital_validada || false,
+    assinatura_digital_data: amostra.assinatura_digital_data || null,
+    assinatura_digital_hash: amostra.assinatura_digital_hash || null,
+    observacoes: amostra.observacoes || '',
+    parametros: amostra.parametros || {},
+    updated_at: new Date().toISOString()
+  };
+
+  const tablesToTry = ['laboratorio', 'laudos_laboratorio', 'amostras_laboratorio'];
+  let lastErrorMessage = '';
+
+  for (const tbl of tablesToTry) {
+    try {
+      // 1ª Tentativa: Upsert com UUID e onConflict codigo_amostra
+      const payloadWithUUID = { id: validUUID, ...basePayload };
+      const { error: err1 } = await supabase.from(tbl).upsert(payloadWithUUID, { onConflict: 'codigo_amostra' });
+      if (!err1) return { ok: true };
+
+      // 2ª Tentativa: Upsert por id (se tiver ID)
+      const { error: err2 } = await supabase.from(tbl).upsert(payloadWithUUID, { onConflict: 'id' });
+      if (!err2) return { ok: true };
+
+      // 3ª Tentativa: Upsert com id original (caso a coluna ID seja TEXT e não UUID)
+      const payloadWithOriginalId = { id: String(amostra.id || `lab-${amostra.codigo_amostra}`), ...basePayload };
+      const { error: err3 } = await supabase.from(tbl).upsert(payloadWithOriginalId, { onConflict: 'codigo_amostra' });
+      if (!err3) return { ok: true };
+
+      // 4ª Tentativa: Insert sem ID (deixa o banco gerar o id default)
+      const { error: err4 } = await supabase.from(tbl).insert(basePayload);
+      if (!err4) return { ok: true };
+
+      // 5ª Tentativa: Update por codigo_amostra
+      const { error: err5 } = await supabase.from(tbl).update(basePayload).eq('codigo_amostra', basePayload.codigo_amostra);
+      if (!err5) return { ok: true };
+
+      lastErrorMessage = err1?.message || err2?.message || err3?.message || err4?.message || err5?.message || 'Erro desconhecido';
+      console.warn(`Tentativa de salvar na tabela ${tbl} falhou:`, lastErrorMessage);
+    } catch (e: any) {
+      lastErrorMessage = e?.message || String(e);
+      console.warn(`Exceção ao salvar na tabela ${tbl}:`, e);
+    }
+  }
+
+  return { ok: false, error: lastErrorMessage };
+}
+
+export async function saveLaboratorioToSupabase(amostra: any): Promise<boolean> {
+  const result = await saveLaboratorioToSupabaseWithDetail(amostra);
+  return result.ok;
 }
 
 export async function seedInitialLaboratorioIfEmpty(initialItems: any[]): Promise<boolean> {
@@ -1090,14 +1112,19 @@ export async function seedInitialLaboratorioIfEmpty(initialItems: any[]): Promis
   }
 }
 
-export async function syncAllLaboratorioToSupabase(items: any[]): Promise<{ success: number; total: number }> {
-  if (!isSupabaseConfigured || !supabase || !items) return { success: 0, total: 0 };
+export async function syncAllLaboratorioToSupabase(items: any[]): Promise<{ success: number; total: number; error?: string }> {
+  if (!isSupabaseConfigured || !supabase || !items) return { success: 0, total: 0, error: 'Supabase não está configurado.' };
   let successCount = 0;
+  let lastError = '';
   for (const item of items) {
-    const ok = await saveLaboratorioToSupabase(item);
-    if (ok) successCount++;
+    const res = await saveLaboratorioToSupabaseWithDetail(item);
+    if (res.ok) {
+      successCount++;
+    } else if (res.error) {
+      lastError = res.error;
+    }
   }
-  return { success: successCount, total: items.length };
+  return { success: successCount, total: items.length, error: lastError };
 }
 
 export async function deleteLaboratorioFromSupabase(amostraId: string, codigoAmostra?: string): Promise<boolean> {
@@ -1156,9 +1183,11 @@ export async function fetchPontosColetaFromSupabase(): Promise<any[] | null> {
 export async function savePontoColetaToSupabase(ponto: any): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) return false;
   try {
-    const rawId = String(ponto.id || `pto-${Date.now()}`);
-    const payload: any = {
-      id: rawId,
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const hasValidUUID = ponto.id && uuidRegex.test(String(ponto.id));
+    const validUUID = hasValidUUID ? String(ponto.id) : generateUUID();
+
+    const basePayload: any = {
       ponto: ponto.ponto,
       nome_identificacao: ponto.ponto,
       local: ponto.local || '',
@@ -1174,11 +1203,17 @@ export async function savePontoColetaToSupabase(ponto: any): Promise<boolean> {
 
     for (const tbl of tablesToTry) {
       try {
-        const { error: upsertErr } = await supabase.from(tbl).upsert(payload, { onConflict: 'id' });
-        if (!upsertErr) return true;
+        // 1ª Tentativa: Upsert com UUID
+        const { error: upsertErr1 } = await supabase.from(tbl).upsert({ id: validUUID, ...basePayload }, { onConflict: 'id' });
+        if (!upsertErr1) return true;
 
-        const { error: insErr } = await supabase.from(tbl).insert(payload);
+        // 2ª Tentativa: Insert sem ID
+        const { error: insErr } = await supabase.from(tbl).insert(basePayload);
         if (!insErr) return true;
+
+        // 3ª Tentativa: Upsert com id original
+        const { error: upsertErr2 } = await supabase.from(tbl).upsert({ id: String(ponto.id || `pto-${Date.now()}`), ...basePayload }, { onConflict: 'id' });
+        if (!upsertErr2) return true;
       } catch (e) {
         console.warn(`Tentativa em ${tbl} falhou:`, e);
       }

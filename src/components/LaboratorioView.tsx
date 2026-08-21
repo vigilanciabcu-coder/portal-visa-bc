@@ -43,7 +43,10 @@ import {
   EyeOff,
   Check,
   RefreshCw,
-  Database
+  Database,
+  Copy,
+  Code,
+  ExternalLink
 } from 'lucide-react';
 import {
   BAIRROS_BC,
@@ -111,7 +114,9 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
 
   // Sincronização direta com o Supabase
   const [isSyncingSupabase, setIsSyncingSupabase] = useState(false);
-  const [syncFeedback, setSyncFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [syncFeedback, setSyncFeedback] = useState<{ type: 'success' | 'error'; message: string; detail?: string } | null>(null);
+  const [sqlModalOpen, setSqlModalOpen] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
 
   const handleSyncWithSupabase = async () => {
     setIsSyncingSupabase(true);
@@ -126,17 +131,21 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
       } else {
         setSyncFeedback({
           type: 'error',
-          message: 'Nenhuma amostra pôde ser gravada no Supabase. Verifique se o script SQL foi executado no painel do Supabase.'
+          message: 'Nenhuma amostra pôde ser gravada no Supabase. Execute o script SQL no painel do Supabase para criar as tabelas.',
+          detail: res.error
         });
       }
     } catch (e: any) {
       setSyncFeedback({
         type: 'error',
-        message: `Falha na sincronização: ${e.message || 'Erro de conexão'}`
+        message: `Falha na sincronização: ${e.message || 'Erro de conexão'}`,
+        detail: e.message
       });
     } finally {
       setIsSyncingSupabase(false);
-      setTimeout(() => setSyncFeedback(null), 6000);
+      setTimeout(() => {
+        // Only clear if success
+      }, 6000);
     }
   };
 
@@ -602,17 +611,29 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
         {/* Abas de Navegação (Sem a palavra 'Aba') + Botão Sincronizar Supabase */}
         <div className="flex flex-wrap items-center gap-2">
           {isSupabaseConfigured && (
-            <button
-              id="sync-supabase-btn"
-              onClick={handleSyncWithSupabase}
-              disabled={isSyncingSupabase}
-              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 rounded-xl text-xs font-black uppercase hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition shadow-xs disabled:opacity-50 cursor-pointer"
-              title="Salvar todas as amostras atuais na tabela 'laboratorio' do Supabase"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingSupabase ? 'animate-spin' : ''}`} />
-              <Database className="w-3.5 h-3.5" />
-              {isSyncingSupabase ? 'Sincronizando...' : `Salvar no Supabase (${amostras.length})`}
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                id="sync-supabase-btn"
+                onClick={handleSyncWithSupabase}
+                disabled={isSyncingSupabase}
+                className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 rounded-xl text-xs font-black uppercase hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition shadow-xs disabled:opacity-50 cursor-pointer"
+                title="Salvar todas as amostras atuais na tabela 'laboratorio' do Supabase"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncingSupabase ? 'animate-spin' : ''}`} />
+                <Database className="w-3.5 h-3.5" />
+                {isSyncingSupabase ? 'Sincronizando...' : `Salvar no Supabase (${amostras.length})`}
+              </button>
+
+              <button
+                id="sql-script-helper-btn"
+                onClick={() => setSqlModalOpen(true)}
+                className="flex items-center gap-1 px-2.5 py-2 bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-xl text-xs font-black uppercase hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+                title="Visualizar e copiar o Script SQL para criar a tabela no Supabase"
+              >
+                <Code className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                Script SQL
+              </button>
+            </div>
           )}
 
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900/60 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold">
@@ -691,22 +712,40 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
 
       {/* Banner de Feedback de Sincronização */}
       {syncFeedback && (
-        <div className={`mx-6 mt-4 p-3.5 rounded-xl border flex items-center justify-between text-xs font-bold ${
+        <div className={`mx-6 mt-4 p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-bold ${
           syncFeedback.type === 'success'
             ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
             : 'bg-red-50 dark:bg-red-950/60 border-red-300 dark:border-red-800 text-red-800 dark:text-red-200'
         }`}>
-          <div className="flex items-center gap-2">
+          <div className="flex items-start gap-2.5">
             {syncFeedback.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
             ) : (
-              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+              <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
             )}
-            <span>{syncFeedback.message}</span>
+            <div>
+              <p className="text-sm font-black">{syncFeedback.message}</p>
+              {syncFeedback.detail && (
+                <p className="text-[11px] font-mono opacity-80 mt-1 bg-black/5 dark:bg-black/20 p-1.5 rounded">
+                  Detalhe: {syncFeedback.detail}
+                </p>
+              )}
+            </div>
           </div>
-          <button onClick={() => setSyncFeedback(null)} className="text-slate-400 hover:text-slate-600 ml-3">
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+            {syncFeedback.type === 'error' && (
+              <button
+                onClick={() => setSqlModalOpen(true)}
+                className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg uppercase text-[10px] font-black flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Code className="w-3.5 h-3.5" />
+                Copiar Script SQL
+              </button>
+            )}
+            <button onClick={() => setSyncFeedback(null)} className="text-slate-400 hover:text-slate-600 p-1">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -2401,6 +2440,276 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                 className="flex-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-black text-xs py-2.5 rounded-xl uppercase transition cursor-pointer"
               >
                 Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Script SQL do Supabase */}
+      {sqlModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-850 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden text-left animate-in fade-in zoom-in duration-200">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 rounded-xl border border-cyan-500/20">
+                  <Code className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base uppercase text-slate-800 dark:text-white">
+                    Script SQL para o Supabase
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Execute este script no <b>SQL Editor</b> do seu painel do Supabase para criar as tabelas <code className="text-cyan-600 dark:text-cyan-400 font-bold">laboratorio</code> e <code className="text-cyan-600 dark:text-cyan-400 font-bold">pontos_coleta</code>.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSqlModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-2 rounded-lg transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Passos rápidos */}
+            <div className="bg-cyan-50 dark:bg-cyan-950/40 p-4 border-b border-cyan-100 dark:border-cyan-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+              <div className="space-y-1">
+                <p className="font-bold text-cyan-900 dark:text-cyan-200 flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-cyan-600 text-white flex items-center justify-center text-[10px] font-black">1</span>
+                  Acesse <b>supabase.com</b> &gt; Seu Projeto &gt; <b>SQL Editor</b>.
+                </p>
+                <p className="font-bold text-cyan-900 dark:text-cyan-200 flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-cyan-600 text-white flex items-center justify-center text-[10px] font-black">2</span>
+                  Clique em <b>+ New Query</b>, cole o código abaixo e clique em <b>RUN</b>.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  const sql = `-- 1. Tabela de Amostras e Laudos do Laboratório
+CREATE TABLE IF NOT EXISTS public.laboratorio (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    codigo_amostra TEXT UNIQUE NOT NULL,
+    protocolo TEXT,
+    mes_ano_referencia TEXT,
+    responsavel_distribuicao TEXT DEFAULT 'EMASA',
+    interessado TEXT,
+    cnpj_cpf TEXT,
+    numero_alvara TEXT,
+    local_coleta TEXT,
+    ponto_coleta_id TEXT,
+    ponto_coleta_nome TEXT,
+    bairro TEXT,
+    estabelecimento TEXT,
+    endereco TEXT,
+    data_coleta DATE,
+    hora_coleta TEXT,
+    fiscal_coletor TEXT,
+    tipo_matriz TEXT DEFAULT 'ÁGUA POTÁVEL',
+    temperatura_coleta TEXT,
+    observacoes TEXT,
+    
+    aspecto TEXT DEFAULT 'Límpido',
+    odor TEXT DEFAULT 'Inobjetável',
+    cor TEXT DEFAULT 'Incolor',
+    
+    ph TEXT,
+    equipamento_ph TEXT,
+    cloro TEXT,
+    equipamento_cloro TEXT,
+    fluoreto TEXT,
+    equipamento_fluor TEXT,
+    turbidez TEXT,
+    equipamento_turbidez TEXT,
+    fluoretacao TEXT,
+    
+    coliformes_totais TEXT DEFAULT 'AUSENTE',
+    metodologia_coliformes_totais TEXT,
+    escherichia_coli TEXT DEFAULT 'AUSENTE',
+    metodologia_escherichia_coli TEXT,
+    
+    status TEXT DEFAULT 'COLETA REALIZADA',
+    laudo_numero TEXT,
+    conclusao_laudo TEXT,
+    data_resultado DATE,
+    laboratorialista TEXT,
+    cargo_laboratorialista TEXT,
+    registro_conselho TEXT,
+    responsavel_analise TEXT,
+    
+    assinatura_digital_validada BOOLEAN DEFAULT false,
+    assinatura_digital_data TEXT,
+    assinatura_digital_hash TEXT,
+    
+    parametros JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 2. Tabela de Pontos de Coleta
+CREATE TABLE IF NOT EXISTS public.pontos_coleta (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    ponto TEXT,
+    nome_identificacao TEXT,
+    bairro TEXT NOT NULL,
+    endereco TEXT NOT NULL,
+    local TEXT,
+    local_especifico TEXT,
+    tipo_matriz_padrao TEXT DEFAULT 'ÁGUA POTÁVEL',
+    tipo_estabelecimento TEXT,
+    estabelecimento TEXT,
+    responsavel_contato TEXT,
+    telefone TEXT,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    ativo BOOLEAN DEFAULT true,
+    frequencia_meses INTEGER DEFAULT 1,
+    ultima_coleta_data DATE,
+    proxima_coleta_prevista DATE,
+    total_coletas_realizadas INTEGER DEFAULT 0,
+    observacao TEXT,
+    observacoes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 3. Habilita RLS e Permissões
+ALTER TABLE public.laboratorio ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pontos_coleta ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Permitir Acesso Anonimo Laboratorio" ON public.laboratorio;
+CREATE POLICY "Permitir Acesso Anonimo Laboratorio" ON public.laboratorio FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Permitir Acesso Anonimo Pontos Coleta" ON public.pontos_coleta;
+CREATE POLICY "Permitir Acesso Anonimo Pontos Coleta" ON public.pontos_coleta FOR ALL USING (true) WITH CHECK (true);`;
+                  navigator.clipboard.writeText(sql);
+                  setCopiedSql(true);
+                  setTimeout(() => setCopiedSql(false), 3000);
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-black uppercase text-xs transition shadow-sm shrink-0 cursor-pointer"
+              >
+                {copiedSql ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-300" />
+                    Copiado com Sucesso!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    Copiar Código SQL
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Visualizador de Código */}
+            <div className="p-4 flex-1 overflow-y-auto bg-slate-900 text-slate-100 font-mono text-xs leading-relaxed max-h-[50vh]">
+              <pre className="select-all whitespace-pre-wrap">{`-- 1. Cria a Tabela de Amostras e Laudos do Laboratório
+CREATE TABLE IF NOT EXISTS public.laboratorio (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    codigo_amostra TEXT UNIQUE NOT NULL,
+    protocolo TEXT,
+    mes_ano_referencia TEXT,
+    responsavel_distribuicao TEXT DEFAULT 'EMASA',
+    interessado TEXT,
+    cnpj_cpf TEXT,
+    numero_alvara TEXT,
+    local_coleta TEXT,
+    ponto_coleta_id TEXT,
+    ponto_coleta_nome TEXT,
+    bairro TEXT,
+    estabelecimento TEXT,
+    endereco TEXT,
+    data_coleta DATE,
+    hora_coleta TEXT,
+    fiscal_coletor TEXT,
+    tipo_matriz TEXT DEFAULT 'ÁGUA POTÁVEL',
+    temperatura_coleta TEXT,
+    observacoes TEXT,
+    
+    aspecto TEXT DEFAULT 'Límpido',
+    odor TEXT DEFAULT 'Inobjetável',
+    cor TEXT DEFAULT 'Incolor',
+    
+    ph TEXT,
+    equipamento_ph TEXT,
+    cloro TEXT,
+    equipamento_cloro TEXT,
+    fluoreto TEXT,
+    equipamento_fluor TEXT,
+    turbidez TEXT,
+    equipamento_turbidez TEXT,
+    fluoretacao TEXT,
+    
+    coliformes_totais TEXT DEFAULT 'AUSENTE',
+    metodologia_coliformes_totais TEXT,
+    escherichia_coli TEXT DEFAULT 'AUSENTE',
+    metodologia_escherichia_coli TEXT,
+    
+    status TEXT DEFAULT 'COLETA REALIZADA',
+    laudo_numero TEXT,
+    conclusao_laudo TEXT,
+    data_resultado DATE,
+    laboratorialista TEXT,
+    cargo_laboratorialista TEXT,
+    registro_conselho TEXT,
+    responsavel_analise TEXT,
+    
+    assinatura_digital_validada BOOLEAN DEFAULT false,
+    assinatura_digital_data TEXT,
+    assinatura_digital_hash TEXT,
+    
+    parametros JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 2. Cria a Tabela de Pontos de Coleta
+CREATE TABLE IF NOT EXISTS public.pontos_coleta (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    ponto TEXT,
+    nome_identificacao TEXT,
+    bairro TEXT NOT NULL,
+    endereco TEXT NOT NULL,
+    local TEXT,
+    local_especifico TEXT,
+    tipo_matriz_padrao TEXT DEFAULT 'ÁGUA POTÁVEL',
+    tipo_estabelecimento TEXT,
+    estabelecimento TEXT,
+    responsavel_contato TEXT,
+    telefone TEXT,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    ativo BOOLEAN DEFAULT true,
+    frequencia_meses INTEGER DEFAULT 1,
+    ultima_coleta_data DATE,
+    proxima_coleta_prevista DATE,
+    total_coletas_realizadas INTEGER DEFAULT 0,
+    observacao TEXT,
+    observacoes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 3. Habilita RLS e Permissões
+ALTER TABLE public.laboratorio ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pontos_coleta ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Permitir Acesso Anonimo Laboratorio" ON public.laboratorio;
+CREATE POLICY "Permitir Acesso Anonimo Laboratorio" ON public.laboratorio FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Permitir Acesso Anonimo Pontos Coleta" ON public.pontos_coleta;
+CREATE POLICY "Permitir Acesso Anonimo Pontos Coleta" ON public.pontos_coleta FOR ALL USING (true) WITH CHECK (true);`}</pre>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-end gap-3">
+              <button
+                onClick={() => setSqlModalOpen(false)}
+                className="px-5 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-xl text-xs font-black uppercase transition cursor-pointer"
+              >
+                Fechar
               </button>
             </div>
           </div>
