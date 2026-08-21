@@ -17,7 +17,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNavigate,
   onOpenExternal,
 }) => {
-  const isMaster = currentUser?.nivel_acesso === 'MASTER (TUDO)';
+  const isMaster = 
+    currentUser?.nivel_acesso?.toUpperCase().includes('MASTER') ||
+    currentUser?.nivel_acesso === 'MASTER (TUDO)';
   const todayDay = new Date().getDate();
 
   const visibleButtons = buttons.filter((b) => {
