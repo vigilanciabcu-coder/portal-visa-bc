@@ -82,9 +82,11 @@ import {
 import { LaboratorioView } from './components/LaboratorioView';
 import { CidadaoView } from './components/CidadaoView';
 import { CnaeView } from './components/CnaeView';
+import { TelefonesView } from './components/TelefonesView';
 
 const PORTAL_BUTTONS: PortalButton[] = [
   { id: 'cidadao_view', nome: 'Consulta Pública (Munícipe)', url: '', img: 'alvara', acao: 'view', view: 'cidadao', badgetext: 'PÚBLICO', perfisPermitidos: ['CIDADAO', 'SERVIDOR', 'CONTRIBUINTE', 'CONTABILIDADE'] },
+  { id: 'telefone_btn', nome: 'Telefones & Ramais', url: '', img: 'phone-icon', acao: 'view', view: 'telefone', badgetext: 'RAMAIS', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'cnae_btn', nome: 'CNAE', url: '', img: 'cnae-icon', acao: 'view', view: 'cnae', badgetext: 'VISA', perfisPermitidos: ['SERVIDOR'] },
   { id: 'pref', nome: 'Prefeitura', url: 'https://www.bc.sc.gov.br/', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/brasao__1_-removebg-preview%20(1).avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'proc', nome: 'Processos', url: 'https://script.google.com/macros/s/AKfycbyaTV2FDyJ2-tC5l7OXiEvD5DVw2QxH_CHO_rHKmdnYxu8bqDQapmP5K9h6C5TEaWWXTQ/exec', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/processos.avif', acao: 'link', somenteMaster: true, perfisPermitidos: ['SERVIDOR'] },
@@ -111,7 +113,7 @@ const PORTAL_BUTTONS: PortalButton[] = [
 
 export default function App() {
   // Navigation & View
-  const [currentView, setCurrentView] = useState<'home' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'cnae'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'cnae' | 'telefone'>('home');
 
   // App State with Persistence
   const [users, setUsers] = useState<UserProfile[]>(() => {
@@ -928,6 +930,13 @@ export default function App() {
                 <CnaeView
                   currentUser={currentUser}
                   onNavigate={(v) => setCurrentView(v as any)}
+                />
+              )}
+
+              {currentView === 'telefone' && (
+                <TelefonesView
+                  currentUser={currentUser}
+                  onBack={() => setCurrentView('home')}
                 />
               )}
 

@@ -37,7 +37,7 @@ interface HomeViewProps {
   mural: RecadoMural[];
   chat: ChatMessage[];
   currentUser: UserProfile | null;
-  onNavigate: (view: 'home' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae') => void;
+  onNavigate: (view: 'home' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone') => void;
   onOpenExternal: (url: string) => void;
   onSendMessage: (text: string) => void;
   onDeleteMessage?: (id: string) => void;
@@ -313,6 +313,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <FileSpreadsheet className="h-12 w-12 text-indigo-600 dark:text-indigo-400" />
           <span className="absolute -bottom-1 -right-1 bg-indigo-600 text-white text-[8px] font-black px-1 py-0.2 rounded uppercase">
             VISA
+          </span>
+        </div>
+      );
+    }
+    if (b.view === 'telefone' || b.id === 'telefone_btn' || b.img === 'phone-icon') {
+      return (
+        <div className="relative flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center text-white shadow-md">
+            <PhoneCall className="w-6 h-6 animate-pulse" />
+          </div>
+          <span className="absolute -bottom-1 -right-1 bg-emerald-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase shadow">
+            RAMAIS
           </span>
         </div>
       );

@@ -395,7 +395,7 @@ export interface PortalButton {
   url: string;
   img: string;
   acao: 'link' | 'view';
-  view?: 'home' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae';
+  view?: 'home' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone';
   badgetext?: string;
   somenteMaster?: boolean;
   perfisPermitidos?: ('SERVIDOR' | 'CONTABILIDADE' | 'CIDADAO' | 'CONTRIBUINTE')[];

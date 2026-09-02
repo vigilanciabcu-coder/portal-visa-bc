@@ -1,12 +1,12 @@
 import React from 'react';
 import { PortalButton, UserProfile } from '../types';
-import { ShieldCheck, Calendar, Microscope, Crown, User, Building2, Search, FileText, FileSpreadsheet } from 'lucide-react';
+import { ShieldCheck, Calendar, Microscope, Crown, User, Building2, Search, FileText, FileSpreadsheet, PhoneCall } from 'lucide-react';
 
 interface SidebarProps {
   buttons: PortalButton[];
   currentView: string;
   currentUser: UserProfile | null;
-  onNavigate: (view: 'home' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae') => void;
+  onNavigate: (view: 'home' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone') => void;
   onOpenExternal: (url: string) => void;
 }
 
@@ -105,6 +105,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
     if (b.view === 'cnae' || b.img === 'cnae-icon' || b.id === 'cnae_btn') {
       return <FileSpreadsheet className="w-6 h-6 text-indigo-400" />;
+    }
+    if (b.view === 'telefone' || b.id === 'telefone_btn' || b.img === 'phone-icon') {
+      return <PhoneCall className="w-6 h-6 text-blue-400" />;
     }
     if (b.img === 'alvara' || b.id === 'alva') {
       return (
