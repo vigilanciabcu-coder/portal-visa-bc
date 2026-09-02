@@ -19,12 +19,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const isMaster = 
     currentUser?.nivel_acesso?.toUpperCase().includes('MASTER') ||
-    currentUser?.nivel_acesso === 'MASTER (TUDO)';
+    currentUser?.nivel_acesso === 'MASTER (TUDO)' ||
+    currentUser?.cargo === 'MASTER ADM';
+
+  const isLabUser =
+    isMaster ||
+    currentUser?.nivel_acesso === 'VISA (LABORATÓRIO)' ||
+    currentUser?.setor?.toUpperCase().includes('LAB') ||
+    currentUser?.cargo?.toUpperCase().includes('LAB');
+
   const todayDay = new Date().getDate();
   const userType = currentUser?.tipo_usuario || 'SERVIDOR';
 
   const visibleButtons = buttons.filter((b) => {
-    // Verificação de perfis permitidos
+    // Verificação de perfis permitidos (tipo de usuário)
     if (b.perfisPermitidos && b.perfisPermitidos.length > 0) {
       if (!b.perfisPermitidos.includes(userType)) {
         return false;
@@ -35,16 +43,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
         const publicIds = ['pref', '1doc', 'alva', 'cnpj', 'debi', 'leis', 'mapa', 'cidadao_view'];
         if (!publicIds.includes(b.id)) return false;
       } else if (userType === 'CONTABILIDADE') {
-        const contabIds = ['tproc_lab', 'contab_carteira', 'pref', '1doc', 'alva', 'cnpj', 'debi', 'domm', 'leis', 'mapa', 'regi'];
+        const contabIds = ['pref', '1doc', 'alva', 'cnpj', 'debi', 'domm', 'leis', 'mapa', 'regi'];
         if (!contabIds.includes(b.id)) return false;
       }
     }
 
-    // Permite que Teste Laboratório fique liberado para todos os servidores
-    if (b.id === 'tlab') {
-      return userType === 'SERVIDOR';
+    // 1. Processos e Carteira de Processos (Lab): Apenas Master
+    if (
+      b.id === 'proc' ||
+      b.id === 'tproc' ||
+      b.id === 'tproc_lab' ||
+      b.view === 'processos' ||
+      b.view === 'processos_lab'
+    ) {
+      return isMaster && userType === 'SERVIDOR';
     }
-    if (b.somenteMaster || b.nome.toLowerCase().includes('teste')) {
+
+    // 2. Laboratório: Apenas VISA (LABORATÓRIO) e Master
+    if (b.id === 'tlab' || b.view === 'laboratorio') {
+      return isLabUser && userType === 'SERVIDOR';
+    }
+
+    // 3. Fiscalização e Feiras: Todos os servidores VISA e Master
+    if (b.id === 'fisc' || b.id === 'feir' || b.view === 'fiscalizacao' || b.view === 'feiras') {
+      return userType === 'SERVIDOR' || (b.id === 'feir' && userType === 'CONTRIBUINTE');
+    }
+
+    if (b.somenteMaster || (b.nome.toLowerCase().includes('teste') && b.id !== 'tlab')) {
       return isMaster;
     }
     return true;

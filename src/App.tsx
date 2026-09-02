@@ -87,9 +87,9 @@ const PORTAL_BUTTONS: PortalButton[] = [
   { id: 'cidadao_view', nome: 'Consulta Pública (Munícipe)', url: '', img: 'alvara', acao: 'view', view: 'cidadao', badgetext: 'PÚBLICO', perfisPermitidos: ['CIDADAO', 'SERVIDOR', 'CONTRIBUINTE', 'CONTABILIDADE'] },
   { id: 'cnae_btn', nome: 'CNAE', url: '', img: 'cnae-icon', acao: 'view', view: 'cnae', badgetext: 'VISA', perfisPermitidos: ['SERVIDOR'] },
   { id: 'pref', nome: 'Prefeitura', url: 'https://www.bc.sc.gov.br/', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/brasao__1_-removebg-preview%20(1).avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
-  { id: 'proc', nome: 'Processos', url: 'https://script.google.com/macros/s/AKfycbyaTV2FDyJ2-tC5l7OXiEvD5DVw2QxH_CHO_rHKmdnYxu8bqDQapmP5K9h6C5TEaWWXTQ/exec', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/processos.avif', acao: 'link', perfisPermitidos: ['SERVIDOR'] },
+  { id: 'proc', nome: 'Processos', url: 'https://script.google.com/macros/s/AKfycbyaTV2FDyJ2-tC5l7OXiEvD5DVw2QxH_CHO_rHKmdnYxu8bqDQapmP5K9h6C5TEaWWXTQ/exec', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/processos.avif', acao: 'link', somenteMaster: true, perfisPermitidos: ['SERVIDOR'] },
   { id: 'tproc', nome: 'Teste Processo', url: '', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/processos.avif', acao: 'view', view: 'processos', badgetext: 'SHEETS', somenteMaster: true, perfisPermitidos: ['SERVIDOR'] },
-  { id: 'tproc_lab', nome: 'Carteira de Processos (Lab)', url: '', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/processos.avif', acao: 'view', view: 'processos_lab', badgetext: 'LAB DEV', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CONTRIBUINTE'] },
+  { id: 'tproc_lab', nome: 'Carteira de Processos (Lab)', url: '', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/processos.avif', acao: 'view', view: 'processos_lab', badgetext: 'LAB DEV', somenteMaster: true, perfisPermitidos: ['SERVIDOR'] },
   { id: '1doc', nome: '1Doc', url: 'https://bc.1doc.com.br/b.php?pg=o/login&n=3', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/1Doc.avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'alva', nome: 'Emissão de Alvará Sanitário', url: 'https://cidadao.bc.sc.gov.br/cidadao/balneario_camboriu/portal/servicos/alvaras?params=MTQ%3D', img: 'alvara', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'fisc', nome: 'FISCALIZAÇÃO', url: '', img: 'shield', acao: 'view', view: 'fiscalizacao', perfisPermitidos: ['SERVIDOR'] },
@@ -815,42 +815,101 @@ export default function App() {
               )}
 
               {currentView === 'processos' && (
-                <ProcessosView
-                  processos={processos}
-                  currentUser={currentUser}
-                  users={users}
-                  onSaveProcesso={handleSaveProcesso}
-                  onDeleteProcesso={handleDeleteProcesso}
-                />
+                (currentUser?.nivel_acesso?.toUpperCase().includes('MASTER') || currentUser?.nivel_acesso === 'MASTER (TUDO)' || currentUser?.cargo === 'MASTER ADM') ? (
+                  <ProcessosView
+                    processos={processos}
+                    currentUser={currentUser}
+                    users={users}
+                    onSaveProcesso={handleSaveProcesso}
+                    onDeleteProcesso={handleDeleteProcesso}
+                  />
+                ) : (
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-xl mx-auto text-center border border-red-200 dark:border-red-900 shadow-xl space-y-4 my-12">
+                    <div className="w-16 h-16 bg-red-100 dark:bg-red-950/80 text-red-600 rounded-2xl flex items-center justify-center mx-auto text-2xl font-black">
+                      🚫
+                    </div>
+                    <h2 className="text-xl font-black uppercase text-slate-900 dark:text-white">Acesso Restrito ao Módulo de Processos</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Este módulo é exclusivo para administradores com nível de acesso <strong className="text-purple-600 dark:text-purple-400">MASTER (TUDO)</strong>.
+                    </p>
+                    <button
+                      onClick={() => setCurrentView('home')}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs uppercase cursor-pointer transition shadow"
+                    >
+                      Voltar ao Início
+                    </button>
+                  </div>
+                )
               )}
 
               {currentView === 'processos_lab' && (
-                <ProcessosLabView
-                  processos={processos}
-                  currentUser={currentUser}
-                  users={users}
-                  onSaveProcesso={handleSaveProcesso}
-                  onDeleteProcesso={handleDeleteProcesso}
-                />
+                (currentUser?.nivel_acesso?.toUpperCase().includes('MASTER') || currentUser?.nivel_acesso === 'MASTER (TUDO)' || currentUser?.cargo === 'MASTER ADM') ? (
+                  <ProcessosLabView
+                    processos={processos}
+                    currentUser={currentUser}
+                    users={users}
+                    onSaveProcesso={handleSaveProcesso}
+                    onDeleteProcesso={handleDeleteProcesso}
+                  />
+                ) : (
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-xl mx-auto text-center border border-red-200 dark:border-red-900 shadow-xl space-y-4 my-12">
+                    <div className="w-16 h-16 bg-red-100 dark:bg-red-950/80 text-red-600 rounded-2xl flex items-center justify-center mx-auto text-2xl font-black">
+                      🚫
+                    </div>
+                    <h2 className="text-xl font-black uppercase text-slate-900 dark:text-white">Acesso Restrito à Carteira de Processos</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Este módulo é exclusivo para usuários com perfil <strong className="text-purple-600 dark:text-purple-400">MASTER</strong>.
+                    </p>
+                    <button
+                      onClick={() => setCurrentView('home')}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs uppercase cursor-pointer transition shadow"
+                    >
+                      Voltar ao Início
+                    </button>
+                  </div>
+                )
               )}
 
               {currentView === 'laboratorio' && (
-                <LaboratorioView
-                  amostras={amostrasLaboratorio}
-                  pontos={pontosColeta}
-                  coletores={coletoresLaboratorio}
-                  laboratorialistas={laboratorialistas}
-                  currentUser={currentUser}
-                  users={users}
-                  onSaveAmostra={handleSaveLaboratorio}
-                  onDeleteAmostra={handleDeleteLaboratorio}
-                  onSavePonto={handleSavePontoColeta}
-                  onDeletePonto={handleDeletePontoColeta}
-                  onSaveColetor={handleSaveColetor}
-                  onDeleteColetor={handleDeleteColetor}
-                  onSaveLaboratorialista={handleSaveLaboratorialista}
-                  onDeleteLaboratorialista={handleDeleteLaboratorialista}
-                />
+                (currentUser?.nivel_acesso?.toUpperCase().includes('MASTER') ||
+                 currentUser?.nivel_acesso === 'MASTER (TUDO)' ||
+                 currentUser?.nivel_acesso === 'VISA (LABORATÓRIO)' ||
+                 currentUser?.cargo === 'MASTER ADM' ||
+                 currentUser?.setor?.toUpperCase().includes('LAB') ||
+                 currentUser?.cargo?.toUpperCase().includes('LAB')) ? (
+                  <LaboratorioView
+                    amostras={amostrasLaboratorio}
+                    pontos={pontosColeta}
+                    coletores={coletoresLaboratorio}
+                    laboratorialistas={laboratorialistas}
+                    currentUser={currentUser}
+                    users={users}
+                    onSaveAmostra={handleSaveLaboratorio}
+                    onDeleteAmostra={handleDeleteLaboratorio}
+                    onSavePonto={handleSavePontoColeta}
+                    onDeletePonto={handleDeletePontoColeta}
+                    onSaveColetor={handleSaveColetor}
+                    onDeleteColetor={handleDeleteColetor}
+                    onSaveLaboratorialista={handleSaveLaboratorialista}
+                    onDeleteLaboratorialista={handleDeleteLaboratorialista}
+                  />
+                ) : (
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-xl mx-auto text-center border border-cyan-200 dark:border-cyan-900 shadow-xl space-y-4 my-12">
+                    <div className="w-16 h-16 bg-cyan-100 dark:bg-cyan-950/80 text-cyan-600 rounded-2xl flex items-center justify-center mx-auto text-2xl font-black">
+                      🔬
+                    </div>
+                    <h2 className="text-xl font-black uppercase text-slate-900 dark:text-white">Módulo de Laboratório</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Acesso restrito ao setor de Laboratório. Seu perfil atual é <strong className="text-cyan-600 dark:text-cyan-400">{currentUser?.nivel_acesso || 'VISA'}</strong>. Requer permissão <strong className="text-cyan-600 dark:text-cyan-400">VISA (LABORATÓRIO)</strong> ou <strong className="text-purple-600 dark:text-purple-400">MASTER (TUDO)</strong>.
+                    </p>
+                    <button
+                      onClick={() => setCurrentView('home')}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs uppercase cursor-pointer transition shadow"
+                    >
+                      Voltar ao Início
+                    </button>
+                  </div>
+                )
               )}
 
               {currentView === 'cidadao' && (
