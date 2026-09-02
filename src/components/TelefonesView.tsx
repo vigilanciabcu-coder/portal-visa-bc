@@ -230,6 +230,8 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const isServidor = currentUser?.tipo_usuario === 'SERVIDOR';
+
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -254,12 +256,12 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
         item.setor.toLowerCase().includes(term) ||
         (item.sigla && item.sigla.toLowerCase().includes(term)) ||
         (item.telefone && item.telefone.toLowerCase().includes(term)) ||
-        (item.ramal && item.ramal.toLowerCase().includes(term)) ||
+        (isServidor && item.ramal && item.ramal.toLowerCase().includes(term)) ||
         item.categoria.toLowerCase().includes(term);
 
       return matchesCategory && matchesSearch;
     });
-  }, [searchTerm, selectedCategory]);
+  }, [searchTerm, selectedCategory, isServidor]);
 
   const categories = [
     { key: 'TODOS', label: 'Todos os Contatos', count: LISTA_TELEFONES_RAMAIS.length },
@@ -291,14 +293,16 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
                 <Phone className="w-5 h-5" />
               </div>
               <span className="text-xs font-black tracking-widest text-blue-300 uppercase">
-                Guia Telefônico & Ramais
+                {isServidor ? 'Guia Telefônico & Ramais' : 'Guia Telefônico & Contatos Úteis'}
               </span>
             </div>
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
-              Contatos e Ramais Úteis
+              {isServidor ? 'Contatos e Ramais Úteis' : 'Contatos Úteis da Prefeitura'}
             </h1>
             <p className="text-xs md:text-sm text-slate-300 max-w-2xl">
-              Diretório oficial de telefones, ramais e canais de atendimento da Prefeitura de Balneário Camboriú, Secretaria de Saúde e Vigilância Sanitária.
+              {isServidor
+                ? 'Diretório oficial de telefones, ramais e canais de atendimento da Prefeitura de Balneário Camboriú, Secretaria de Saúde e Vigilância Sanitária.'
+                : 'Diretório oficial de telefones e canais de atendimento da Prefeitura de Balneário Camboriú, Secretaria de Saúde e Vigilância Sanitária.'}
             </p>
           </div>
 
@@ -307,7 +311,7 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
               type="button"
               onClick={handlePrint}
               className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-              title="Imprimir lista de ramais"
+              title="Imprimir lista de contatos"
             >
               <Printer className="w-4 h-4 text-blue-300" />
               <span>Imprimir / PDF</span>
@@ -348,7 +352,11 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
           <Search className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Pesquisar por setor, sigla, telefone ou número de ramal (ex: 4034, DVIS, Ouvidoria)..."
+            placeholder={
+              isServidor
+                ? 'Pesquisar por setor, sigla, telefone ou número de ramal (ex: 4034, DVIS, Ouvidoria)...'
+                : 'Pesquisar por setor, sigla ou telefone (ex: DVIS, Ouvidoria, Saúde)...'
+            }
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
@@ -398,7 +406,6 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
       {viewMode === 'cards' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredContatos.map((item) => {
-            const isCopied = copiedId === item.id;
             const cleanPhone = item.telefone?.replace(/\D/g, '') || '';
             const isWpp = item.whatsapp;
 
@@ -411,28 +418,22 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
                     : 'border-slate-200 dark:border-slate-800'
                 }`}
               >
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                        {item.categoria}
-                      </span>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white leading-snug">
+                      {item.setor}
                       {item.sigla && (
-                        <span className="ml-1.5 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                          {item.sigla}
+                        <span className="ml-1.5 text-xs font-bold text-blue-600 dark:text-blue-400">
+                          ({item.sigla})
                         </span>
                       )}
-                    </div>
+                    </h3>
                     {item.horario && (
-                      <span className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
+                      <span className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800 shrink-0">
                         {item.horario}
                       </span>
                     )}
                   </div>
-
-                  <h3 className="text-sm font-black text-slate-900 dark:text-white leading-snug">
-                    {item.setor}
-                  </h3>
                 </div>
 
                 <div className="pt-3.5 mt-3 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
@@ -449,30 +450,22 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
                           {item.telefone}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        {isWpp ? (
+                      <div className="flex items-center gap-1.5">
+                        {isWpp && (
                           <a
                             href={`https://wa.me/55${cleanPhone}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded-lg transition flex items-center gap-1"
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg transition flex items-center gap-1 shadow-sm"
                             title="Conversar no WhatsApp"
                           >
                             <span>WhatsApp</span>
-                          </a>
-                        ) : (
-                          <a
-                            href={`tel:${cleanPhone}`}
-                            className="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold px-2 py-1 rounded-lg transition flex items-center gap-1"
-                            title="Ligar para o número"
-                          >
-                            <span>Ligar</span>
                           </a>
                         )}
                         <button
                           type="button"
                           onClick={() => handleCopy(item.telefone || '', item.id + '-tel')}
-                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 rounded-lg transition"
+                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 rounded-lg transition cursor-pointer"
                           title="Copiar telefone"
                         >
                           {copiedId === item.id + '-tel' ? (
@@ -485,8 +478,8 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
                     </div>
                   )}
 
-                  {/* Ramal */}
-                  {item.ramal && (
+                  {/* Ramal - Apenas para Servidores */}
+                  {isServidor && item.ramal && (
                     <div className="flex items-center justify-between gap-2 bg-amber-50/50 dark:bg-amber-950/20 p-2 rounded-xl border border-amber-100 dark:border-amber-900/50">
                       <div className="flex items-center gap-2">
                         <PhoneForwarded className="w-4 h-4 text-amber-500" />
@@ -534,7 +527,7 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
                   <th className="py-3 px-4">Setor / Órgão</th>
                   <th className="py-3 px-3">Sigla</th>
                   <th className="py-3 px-4">Telefone Principal</th>
-                  <th className="py-3 px-4">Ramal(is)</th>
+                  {isServidor && <th className="py-3 px-4">Ramal(is)</th>}
                   <th className="py-3 px-3 text-right">Ação</th>
                 </tr>
               </thead>
@@ -550,9 +543,11 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
                         <div className="font-black text-slate-900 dark:text-white">
                           {item.setor}
                         </div>
-                        <div className="text-[10px] text-slate-400">
-                          {item.categoria} {item.horario ? `• ${item.horario}` : ''}
-                        </div>
+                        {item.horario && (
+                          <div className="text-[10px] text-slate-400">
+                            {item.horario}
+                          </div>
+                        )}
                       </td>
                       <td className="py-3 px-3">
                         {item.sigla ? (
@@ -574,33 +569,44 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
                             )}
                           </div>
                         ) : (
-                          <span className="text-slate-400 italic">Central / Ramal</span>
+                          <span className="text-slate-400 italic">Central</span>
                         )}
                       </td>
-                      <td className="py-3 px-4">
-                        {item.ramal ? (
-                          <span className="font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800 inline-block">
-                            {item.ramal}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">-</span>
-                        )}
-                      </td>
+                      {isServidor && (
+                        <td className="py-3 px-4">
+                          {item.ramal ? (
+                            <span className="font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800 inline-block">
+                              {item.ramal}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">-</span>
+                          )}
+                        </td>
+                      )}
                       <td className="py-3 px-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {item.telefone && (
+                        <div className="flex items-center justify-end gap-1.5">
+                          {item.whatsapp && item.telefone && (
                             <a
-                              href={item.whatsapp ? `https://wa.me/55${cleanPhone}` : `tel:${cleanPhone}`}
-                              className="p-1.5 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 transition"
-                              title={item.whatsapp ? 'Abrir WhatsApp' : 'Ligar'}
+                              href={`https://wa.me/55${cleanPhone}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 transition"
+                              title="Abrir WhatsApp"
                             >
-                              <Phone className="w-3.5 h-3.5" />
+                              <MessageSquare className="w-3.5 h-3.5" />
                             </a>
                           )}
                           <button
                             type="button"
-                            onClick={() => handleCopy(`${item.setor}: ${item.telefone || ''} ${item.ramal ? `(Ramal: ${item.ramal})` : ''}`, item.id)}
-                            className="p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 transition"
+                            onClick={() =>
+                              handleCopy(
+                                `${item.setor}: ${item.telefone || ''}${
+                                  isServidor && item.ramal ? ` (Ramal: ${item.ramal})` : ''
+                                }`,
+                                item.id
+                              )
+                            }
+                            className="p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 transition cursor-pointer"
                             title="Copiar dados do contato"
                           >
                             {copiedId === item.id ? (
