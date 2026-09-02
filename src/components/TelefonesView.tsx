@@ -230,7 +230,10 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const isServidor = currentUser?.tipo_usuario === 'SERVIDOR';
+  const canViewRamal =
+    currentUser?.tipo_usuario === 'SERVIDOR' ||
+    Boolean(currentUser?.nivel_acesso?.toUpperCase().includes('MASTER')) ||
+    Boolean(currentUser?.cargo?.toUpperCase().includes('MASTER'));
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -256,12 +259,12 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
         item.setor.toLowerCase().includes(term) ||
         (item.sigla && item.sigla.toLowerCase().includes(term)) ||
         (item.telefone && item.telefone.toLowerCase().includes(term)) ||
-        (isServidor && item.ramal && item.ramal.toLowerCase().includes(term)) ||
+        (canViewRamal && item.ramal && item.ramal.toLowerCase().includes(term)) ||
         item.categoria.toLowerCase().includes(term);
 
       return matchesCategory && matchesSearch;
     });
-  }, [searchTerm, selectedCategory, isServidor]);
+  }, [searchTerm, selectedCategory, canViewRamal]);
 
   const categories = [
     { key: 'TODOS', label: 'Todos os Contatos', count: LISTA_TELEFONES_RAMAIS.length },
@@ -293,14 +296,14 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
                 <Phone className="w-5 h-5" />
               </div>
               <span className="text-xs font-black tracking-widest text-blue-300 uppercase">
-                {isServidor ? 'Guia Telefônico & Ramais' : 'Guia Telefônico & Contatos Úteis'}
+                {canViewRamal ? 'Guia Telefônico & Ramais' : 'Guia Telefônico & Contatos Úteis'}
               </span>
             </div>
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
-              {isServidor ? 'Contatos e Ramais Úteis' : 'Contatos Úteis da Prefeitura'}
+              {canViewRamal ? 'Contatos e Ramais Úteis' : 'Contatos Úteis da Prefeitura'}
             </h1>
             <p className="text-xs md:text-sm text-slate-300 max-w-2xl">
-              {isServidor
+              {canViewRamal
                 ? 'Diretório oficial de telefones, ramais e canais de atendimento da Prefeitura de Balneário Camboriú, Secretaria de Saúde e Vigilância Sanitária.'
                 : 'Diretório oficial de telefones e canais de atendimento da Prefeitura de Balneário Camboriú, Secretaria de Saúde e Vigilância Sanitária.'}
             </p>
@@ -353,7 +356,7 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
           <input
             type="text"
             placeholder={
-              isServidor
+              canViewRamal
                 ? 'Pesquisar por setor, sigla, telefone ou número de ramal (ex: 4034, DVIS, Ouvidoria)...'
                 : 'Pesquisar por setor, sigla ou telefone (ex: DVIS, Ouvidoria, Saúde)...'
             }
@@ -478,8 +481,8 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
                     </div>
                   )}
 
-                  {/* Ramal - Apenas para Servidores */}
-                  {isServidor && item.ramal && (
+                  {/* Ramal - Apenas para Servidores e Master */}
+                  {canViewRamal && item.ramal && (
                     <div className="flex items-center justify-between gap-2 bg-amber-50/50 dark:bg-amber-950/20 p-2 rounded-xl border border-amber-100 dark:border-amber-900/50">
                       <div className="flex items-center gap-2">
                         <PhoneForwarded className="w-4 h-4 text-amber-500" />
@@ -527,7 +530,7 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
                   <th className="py-3 px-4">Setor / Órgão</th>
                   <th className="py-3 px-3">Sigla</th>
                   <th className="py-3 px-4">Telefone Principal</th>
-                  {isServidor && <th className="py-3 px-4">Ramal(is)</th>}
+                  {canViewRamal && <th className="py-3 px-4">Ramal(is)</th>}
                   <th className="py-3 px-3 text-right">Ação</th>
                 </tr>
               </thead>
@@ -572,7 +575,7 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
                           <span className="text-slate-400 italic">Central</span>
                         )}
                       </td>
-                      {isServidor && (
+                      {canViewRamal && (
                         <td className="py-3 px-4">
                           {item.ramal ? (
                             <span className="font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800 inline-block">
@@ -601,7 +604,7 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
                             onClick={() =>
                               handleCopy(
                                 `${item.setor}: ${item.telefone || ''}${
-                                  isServidor && item.ramal ? ` (Ramal: ${item.ramal})` : ''
+                                  canViewRamal && item.ramal ? ` (Ramal: ${item.ramal})` : ''
                                 }`,
                                 item.id
                               )
