@@ -84,6 +84,11 @@ export const CnaeView: React.FC<CnaeViewProps> = ({ currentUser, onNavigate }) =
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccessMsg, setImportSuccessMsg] = useState<string | null>(null);
 
+  const isMaster =
+    currentUser?.nivel_acesso?.toUpperCase().includes('MASTER') ||
+    currentUser?.nivel_acesso === 'MASTER (TUDO)' ||
+    currentUser?.cargo === 'MASTER ADM';
+
   // Carregar dados na inicialização
   useEffect(() => {
     loadData();
@@ -538,14 +543,16 @@ Responsável pela Consulta: ${currentUser?.nome_completo || 'Fiscal Sanitário'}
               <span>{isSyncing ? 'Sincronizando...' : 'Sincronizar'}</span>
             </button>
 
-            <button
-              onClick={() => setImportModalOpen(true)}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 transition cursor-pointer shadow-lg shadow-indigo-600/20"
-              title="Importar dados de planilha Google Sheets ou CSV"
-            >
-              <UploadCloud className="w-4 h-4" />
-              <span>Importar / Planilha</span>
-            </button>
+            {isMaster && (
+              <button
+                onClick={() => setImportModalOpen(true)}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 transition cursor-pointer shadow-lg shadow-indigo-600/20"
+                title="Importar dados de planilha Google Sheets ou CSV (Exclusivo Master)"
+              >
+                <UploadCloud className="w-4 h-4" />
+                <span>Importar / Planilha (Master)</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -574,8 +581,8 @@ Responsável pela Consulta: ${currentUser?.nome_completo || 'Fiscal Sanitário'}
         </div>
       </div>
 
-      {/* Aviso Explicativo quando estiver com poucos registros (RLS ou Cache Inicial) */}
-      {!isFromSupabase && (
+      {/* Aviso Explicativo de RLS / Importação - Exclusivo para usuários Master */}
+      {!isFromSupabase && isMaster && (
         <div className="bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-200 dark:border-amber-900/60 rounded-3xl p-5 md:p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
             <div className="p-2.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-2xl shrink-0 mt-0.5">
@@ -583,10 +590,10 @@ Responsável pela Consulta: ${currentUser?.nome_completo || 'Fiscal Sanitário'}
             </div>
             <div className="space-y-1">
               <h4 className="text-sm font-black text-amber-900 dark:text-amber-200 uppercase tracking-tight">
-                Status da Base de Dados CNAE ({rawCnaes.length} itens locais exibidos)
+                Painel Master: Status da Base CNAE ({rawCnaes.length} itens locais)
               </h4>
               <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed max-w-3xl">
-                O aplicativo está consultando a tabela <code>CNAE</code> no Supabase, porém a consulta retornou 0 linhas. Isso ocorre porque o <strong>Row Level Security (RLS)</strong> do Supabase está ativado bloqueando a leitura pública da tabela <code>CNAE</code>, ou você pode carregar a base completa de 1400+ CNAEs clicando no botão <strong>Importar / Planilha</strong> acima.
+                O aplicativo está consultando a tabela <code>CNAE</code> no Supabase. Caso queira atualizar ou sobrescrever a base com a planilha completa, use a opção de importação abaixo.
               </p>
             </div>
           </div>
@@ -597,7 +604,7 @@ Responsável pela Consulta: ${currentUser?.nome_completo || 'Fiscal Sanitário'}
               className="w-full md:w-auto bg-amber-600 hover:bg-amber-500 text-white font-black text-xs px-4 py-2.5 rounded-xl transition cursor-pointer shadow-sm text-center flex items-center justify-center gap-2"
             >
               <UploadCloud className="w-4 h-4" />
-              Carregar Planilha (1400+ CNAEs)
+              Importar Planilha CNAE
             </button>
           </div>
         </div>
@@ -858,25 +865,27 @@ Responsável pela Consulta: ${currentUser?.nome_completo || 'Fiscal Sanitário'}
                     )}
                   </div>
 
-                  {/* Ação de Adicionar à Cesta Multi-CNAE */}
-                  <div className="pt-2 flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleAddToBasket('PRINCIPAL')}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Adicionar como CNAE Principal</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAddToBasket('SECUNDÁRIA')}
-                      className="bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Adicionar como CNAE Secundária</span>
-                    </button>
-                  </div>
+                  {/* Ação de Adicionar à Cesta Multi-CNAE - Exclusivo Master */}
+                  {isMaster && (
+                    <div className="pt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleAddToBasket('PRINCIPAL')}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Adicionar como CNAE Principal</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddToBasket('SECUNDÁRIA')}
+                        className="bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Adicionar como CNAE Secundária</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -884,8 +893,8 @@ Responsável pela Consulta: ${currentUser?.nome_completo || 'Fiscal Sanitário'}
         </div>
       </div>
 
-      {/* SIMULADOR MULTI-CNAE / CONSOLIDADO DO ESTABELECIMENTO */}
-      {basket.length > 0 && (
+      {/* SIMULADOR MULTI-CNAE / CONSOLIDADO DO ESTABELECIMENTO - Exclusivo Master */}
+      {isMaster && basket.length > 0 && (
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-xl border border-indigo-200 dark:border-indigo-900 space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
             <div className="space-y-1">
