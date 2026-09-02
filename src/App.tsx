@@ -85,6 +85,7 @@ import { CnaeView } from './components/CnaeView';
 import { TelefonesView } from './components/TelefonesView';
 
 const PORTAL_BUTTONS: PortalButton[] = [
+  { id: 'pref', nome: 'Prefeitura', url: 'https://www.bc.sc.gov.br/', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/brasao__1_-removebg-preview%20(1).avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: '1doc', nome: '1Doc', url: 'https://bc.1doc.com.br/b.php?pg=o/login&n=3', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/1Doc.avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'agen', nome: 'AGENDA', url: '', img: 'calendar', acao: 'view', view: 'agenda', perfisPermitidos: ['SERVIDOR'] },
   { id: 'ahgo', nome: 'Ahgora', url: 'https://app.ahgora.com.br/externo/index/prefeiturabc', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/sistemadepontobiometrico.avif', acao: 'link', perfisPermitidos: ['SERVIDOR'] },
@@ -103,7 +104,6 @@ const PORTAL_BUTTONS: PortalButton[] = [
   { id: 'tlab', nome: 'Laboratório', url: '', img: 'lab-icon', acao: 'view', view: 'laboratorio', perfisPermitidos: ['SERVIDOR'] },
   { id: 'leis', nome: 'Leis', url: 'https://leismunicipais.com.br/legislacao-municipal/4511/leis-de-balneario-camboriu', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/leismunicipais.avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'mapa', nome: 'Mapa', url: 'https://www.google.com.br/maps', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/mapa.avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
-  { id: 'pref', nome: 'Prefeitura', url: 'https://www.bc.sc.gov.br/', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/brasao__1_-removebg-preview%20(1).avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'proc', nome: 'Processos', url: 'https://script.google.com/macros/s/AKfycbyaTV2FDyJ2-tC5l7OXiEvD5DVw2QxH_CHO_rHKmdnYxu8bqDQapmP5K9h6C5TEaWWXTQ/exec', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/processos.avif', acao: 'link', somenteMaster: true, perfisPermitidos: ['SERVIDOR'] },
   { id: 'regi', nome: 'Regin', url: 'http://200.19.203.151:8080/SiarcoWeb/loginAction.do', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/regin.avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE'] },
   { id: 'rhwb', nome: 'RH Web', url: 'https://folhaweb.bc.sc.gov.br/e-servidor/web/#/login', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/rhweb.avif', acao: 'link', perfisPermitidos: ['SERVIDOR'] },

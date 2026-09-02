@@ -275,9 +275,9 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12 font-sans">
-      {/* Header Principal */}
-      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-3xl p-6 md:p-8 shadow-xl relative overflow-hidden border border-blue-800/50">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12 font-sans print:p-0 print:m-0 print:space-y-3 print:max-w-none">
+      {/* Header Principal - Oculto na Impressão */}
+      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-3xl p-6 md:p-8 shadow-xl relative overflow-hidden border border-blue-800/50 print:hidden">
         <div className="absolute -right-12 -top-12 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5">
@@ -349,8 +349,29 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
         </div>
       </div>
 
-      {/* Barra de Busca e Filtros Rápidos */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-5 shadow-sm border border-slate-200 dark:border-slate-800 space-y-3">
+      {/* Cabeçalho Oficial Exclusivo para Impressão */}
+      <div className="hidden print:block pb-4 mb-3 border-b-2 border-slate-900 text-slate-900">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-lg font-black uppercase tracking-tight text-slate-900">
+              PREFEITURA MUNICIPAL DE BALNEÁRIO CAMBORIÚ
+            </h1>
+            <h2 className="text-xs font-bold text-slate-700">
+              SECRETARIA DE SAÚDE • DIRETORIA DE VIGILÂNCIA SANITÁRIA (DVIS)
+            </h2>
+            <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
+              {canViewRamal ? 'Guia Oficial de Telefones e Ramais' : 'Guia Oficial de Telefones e Contatos Úteis'}
+            </p>
+          </div>
+          <div className="text-right text-[10px] text-slate-500 font-mono">
+            <p>Emissão: {new Date().toLocaleDateString('pt-BR')}</p>
+            <p>{filteredContatos.length} contato(s) listado(s)</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Barra de Busca e Filtros Rápidos (Chips) - Ocultos na Impressão */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-5 shadow-sm border border-slate-200 dark:border-slate-800 space-y-3 print:hidden">
         <div className="relative">
           <Search className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -407,7 +428,7 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
 
       {/* Resultados de Contatos */}
       {viewMode === 'cards' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 print:grid-cols-2 print:gap-3">
           {filteredContatos.map((item) => {
             const cleanPhone = item.telefone?.replace(/\D/g, '') || '';
             const isWpp = item.whatsapp;
@@ -415,45 +436,50 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
             return (
               <div
                 key={item.id}
-                className={`bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-5 shadow-sm border transition flex flex-col justify-between hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 ${
+                className={`bg-white dark:bg-slate-900 rounded-2xl p-4 md:p-5 shadow-sm border transition flex flex-col justify-between hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 print:border-slate-300 print:shadow-none print:p-3 print:rounded-lg print:break-inside-avoid ${
                   item.destaque
-                    ? 'border-indigo-300 dark:border-indigo-800 bg-indigo-50/20 dark:bg-indigo-950/10'
-                    : 'border-slate-200 dark:border-slate-800'
+                    ? 'border-indigo-300 dark:border-indigo-800 bg-indigo-50/20 dark:bg-indigo-950/10 print:bg-white'
+                    : 'border-slate-200 dark:border-slate-800 print:bg-white'
                 }`}
               >
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-sm font-black text-slate-900 dark:text-white leading-snug">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white print:text-black leading-snug">
                       {item.setor}
                       {item.sigla && (
-                        <span className="ml-1.5 text-xs font-bold text-blue-600 dark:text-blue-400">
+                        <span className="ml-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 print:text-slate-700">
                           ({item.sigla})
                         </span>
                       )}
                     </h3>
                     {item.horario && (
-                      <span className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800 shrink-0">
+                      <span className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800 shrink-0 print:border-slate-300 print:text-slate-700 print:bg-white">
                         {item.horario}
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="pt-3.5 mt-3 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
+                <div className="pt-3.5 mt-3 border-t border-slate-100 dark:border-slate-800 print:border-slate-200 print:pt-2 print:mt-2 space-y-2.5">
                   {/* Telefone */}
                   {item.telefone && (
-                    <div className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-800/80 p-2 rounded-xl border border-slate-100 dark:border-slate-700">
+                    <div className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-800/80 p-2 rounded-xl border border-slate-100 dark:border-slate-700 print:bg-white print:border-slate-200 print:p-1.5">
                       <div className="flex items-center gap-2">
                         {isWpp ? (
-                          <MessageSquare className="w-4 h-4 text-emerald-500" />
+                          <MessageSquare className="w-4 h-4 text-emerald-500 print:text-slate-700" />
                         ) : (
-                          <Phone className="w-4 h-4 text-blue-500" />
+                          <Phone className="w-4 h-4 text-blue-500 print:text-slate-700" />
                         )}
-                        <span className="text-xs font-black text-slate-800 dark:text-slate-100">
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-100 print:text-black">
                           {item.telefone}
                         </span>
+                        {isWpp && (
+                          <span className="hidden print:inline-block text-[9px] font-bold text-emerald-700 border border-emerald-300 px-1 rounded">
+                            WhatsApp
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 print:hidden">
                         {isWpp && (
                           <a
                             href={`https://wa.me/55${cleanPhone}`}
@@ -483,14 +509,14 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
 
                   {/* Ramal - Apenas para Servidores e Master */}
                   {canViewRamal && item.ramal && (
-                    <div className="flex items-center justify-between gap-2 bg-amber-50/50 dark:bg-amber-950/20 p-2 rounded-xl border border-amber-100 dark:border-amber-900/50">
+                    <div className="flex items-center justify-between gap-2 bg-amber-50/50 dark:bg-amber-950/20 p-2 rounded-xl border border-amber-100 dark:border-amber-900/50 print:bg-white print:border-slate-200 print:p-1.5">
                       <div className="flex items-center gap-2">
-                        <PhoneForwarded className="w-4 h-4 text-amber-500" />
+                        <PhoneForwarded className="w-4 h-4 text-amber-500 print:text-slate-700" />
                         <div className="text-xs">
-                          <span className="text-[10px] font-bold text-amber-800 dark:text-amber-400 block uppercase">
+                          <span className="text-[10px] font-bold text-amber-800 dark:text-amber-400 print:text-slate-600 block uppercase">
                             Ramal
                           </span>
-                          <span className="font-black text-amber-950 dark:text-amber-200">
+                          <span className="font-black text-amber-950 dark:text-amber-200 print:text-black">
                             {item.ramal}
                           </span>
                         </div>
@@ -498,7 +524,7 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
                       <button
                         type="button"
                         onClick={() => handleCopy(item.ramal || '', item.id + '-ramal')}
-                        className="bg-amber-200 hover:bg-amber-300 dark:bg-amber-900 dark:hover:bg-amber-800 text-amber-900 dark:text-amber-100 text-[10px] font-bold px-2 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer"
+                        className="bg-amber-200 hover:bg-amber-300 dark:bg-amber-900 dark:hover:bg-amber-800 text-amber-900 dark:text-amber-100 text-[10px] font-bold px-2 py-1 rounded-lg transition flex items-center gap-1 cursor-pointer print:hidden"
                         title="Copiar ramal"
                       >
                         {copiedId === item.id + '-ramal' ? (
@@ -522,63 +548,63 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
         </div>
       ) : (
         /* Visualização em Tabela Compacta */
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden print:border-slate-300 print:shadow-none">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-wider">
-                  <th className="py-3 px-4">Setor / Órgão</th>
-                  <th className="py-3 px-3">Sigla</th>
-                  <th className="py-3 px-4">Telefone Principal</th>
-                  {canViewRamal && <th className="py-3 px-4">Ramal(is)</th>}
-                  <th className="py-3 px-3 text-right">Ação</th>
+                <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-wider print:bg-slate-100 print:text-slate-800 print:border-slate-300">
+                  <th className="py-3 px-4 print:py-2 print:px-2">Setor / Órgão</th>
+                  <th className="py-3 px-3 print:py-2 print:px-2">Sigla</th>
+                  <th className="py-3 px-4 print:py-2 print:px-2">Telefone Principal</th>
+                  {canViewRamal && <th className="py-3 px-4 print:py-2 print:px-2">Ramal(is)</th>}
+                  <th className="py-3 px-3 text-right print:hidden">Ação</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 print:divide-slate-200">
                 {filteredContatos.map((item) => {
                   const cleanPhone = item.telefone?.replace(/\D/g, '') || '';
                   return (
                     <tr
                       key={item.id}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition"
+                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition print:hover:bg-transparent"
                     >
-                      <td className="py-3 px-4">
-                        <div className="font-black text-slate-900 dark:text-white">
+                      <td className="py-3 px-4 print:py-2 print:px-2">
+                        <div className="font-black text-slate-900 dark:text-white print:text-black">
                           {item.setor}
                         </div>
                         {item.horario && (
-                          <div className="text-[10px] text-slate-400">
+                          <div className="text-[10px] text-slate-400 print:text-slate-600">
                             {item.horario}
                           </div>
                         )}
                       </td>
-                      <td className="py-3 px-3">
+                      <td className="py-3 px-3 print:py-2 print:px-2">
                         {item.sigla ? (
-                          <span className="font-extrabold text-[10px] px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                          <span className="font-extrabold text-[10px] px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 print:bg-white print:border-slate-300 print:text-black">
                             {item.sigla}
                           </span>
                         ) : (
                           <span className="text-slate-400">-</span>
                         )}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 print:py-2 print:px-2">
                         {item.telefone ? (
-                          <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
+                          <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200 print:text-black">
                             <span>{item.telefone}</span>
                             {item.whatsapp && (
-                              <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1 py-0.2 rounded font-black">
+                              <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1 py-0.2 rounded font-black print:border print:border-emerald-300">
                                 WPP
                               </span>
                             )}
                           </div>
                         ) : (
-                          <span className="text-slate-400 italic">Central</span>
+                          <span className="text-slate-400 italic">-</span>
                         )}
                       </td>
                       {canViewRamal && (
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 print:py-2 print:px-2">
                           {item.ramal ? (
-                            <span className="font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800 inline-block">
+                            <span className="font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800 inline-block print:bg-white print:border-slate-300 print:text-black">
                               {item.ramal}
                             </span>
                           ) : (
@@ -586,7 +612,7 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
                           )}
                         </td>
                       )}
-                      <td className="py-3 px-3 text-right">
+                      <td className="py-3 px-3 text-right print:hidden">
                         <div className="flex items-center justify-end gap-1.5">
                           {item.whatsapp && item.telefone && (
                             <a
@@ -630,7 +656,7 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
       )}
 
       {filteredContatos.length === 0 && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 text-center border border-slate-200 dark:border-slate-800 space-y-2">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 text-center border border-slate-200 dark:border-slate-800 space-y-2 print:hidden">
           <Phone className="w-8 h-8 text-slate-400 mx-auto" />
           <h4 className="font-bold text-slate-800 dark:text-slate-200">Nenhum contato encontrado</h4>
           <p className="text-xs text-slate-500">
