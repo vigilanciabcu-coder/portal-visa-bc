@@ -33,12 +33,86 @@ export interface ContatoTelefone {
 
 export const LISTA_TELEFONES_RAMAIS: ContatoTelefone[] = [
   {
-    id: 'pref',
-    setor: 'PREFEITURA ( 12H ÀS 17h )',
-    telefone: '(47) 3267-7000',
-    ramal: '',
-    categoria: 'GERAL',
-    horario: '12h às 17h'
+    id: 'adm_saude',
+    setor: 'ADMINISTRAÇÃO SAÚDE',
+    telefone: '',
+    ramal: '4072',
+    categoria: 'SAÚDE'
+  },
+  {
+    id: 'alim',
+    setor: 'ALIMENTOS',
+    sigla: 'DAL',
+    telefone: '(47) 3261-6256',
+    ramal: '4034 / 8152',
+    categoria: 'VIGILÂNCIA'
+  },
+  {
+    id: 'alim2_sane',
+    setor: 'ALIMENTOS II / SANEAMENTO',
+    sigla: 'SANEAMENTO',
+    telefone: '(47) 3261-6233',
+    ramal: '4031',
+    categoria: 'VIGILÂNCIA'
+  },
+  {
+    id: 'as_social',
+    setor: 'ASSISTÊNCIA SOCIAL',
+    telefone: '',
+    ramal: '4203',
+    categoria: 'ADMINISTRATIVO'
+  },
+  {
+    id: 'ccpu',
+    setor: 'CCPU',
+    sigla: 'CCPU',
+    telefone: '(47) 3261-6208',
+    ramal: '4259',
+    categoria: 'VIGILÂNCIA'
+  },
+  {
+    id: 'compras',
+    setor: 'COMPRAS',
+    telefone: '(47) 3261-6238',
+    ramal: '8162',
+    categoria: 'ADMINISTRATIVO'
+  },
+  {
+    id: 'contab',
+    setor: 'CONTABILIDADE',
+    telefone: '(47) 3261-6282',
+    ramal: '8161',
+    categoria: 'ADMINISTRATIVO'
+  },
+  {
+    id: 'dengue',
+    setor: 'DENGUE',
+    sigla: 'DENGUE',
+    telefone: '(47) 3261-6264',
+    ramal: '8154 / 4037 / 4038 fiscal / 4039 diretor',
+    categoria: 'VIGILÂNCIA'
+  },
+  {
+    id: 'gab_saude',
+    setor: 'GABINETE SEC. SAÚDE',
+    telefone: '',
+    ramal: '8164',
+    categoria: 'SAÚDE'
+  },
+  {
+    id: 'ti',
+    setor: 'INFORMÁTICA',
+    sigla: 'TI',
+    telefone: '(47) 3261-6263',
+    ramal: '8002',
+    categoria: 'ADMINISTRATIVO'
+  },
+  {
+    id: 'jur',
+    setor: 'JURÍDICO',
+    telefone: '(47) 3261-6236',
+    ramal: '8163',
+    categoria: 'ADMINISTRATIVO'
   },
   {
     id: 'ouv',
@@ -64,103 +138,12 @@ export const LISTA_TELEFONES_RAMAIS: ContatoTelefone[] = [
     whatsapp: true
   },
   {
-    id: 'visa',
-    setor: 'VIGILÂNCIA SANITÁRIA',
-    sigla: 'DVIS',
-    telefone: '(47) 3261-6280',
+    id: 'pref',
+    setor: 'PREFEITURA ( 12H ÀS 17h )',
+    telefone: '(47) 3267-7000',
     ramal: '',
-    categoria: 'VIGILÂNCIA',
-    destaque: true
-  },
-  {
-    id: 'alim',
-    setor: 'ALIMENTOS',
-    sigla: 'DAL',
-    telefone: '(47) 3261-6256',
-    ramal: '4034 / 8152',
-    categoria: 'VIGILÂNCIA'
-  },
-  {
-    id: 'alim2_sane',
-    setor: 'ALIMENTOS II / SANEAMENTO',
-    sigla: 'SANEAMENTO',
-    telefone: '(47) 3261-6233',
-    ramal: '4031',
-    categoria: 'VIGILÂNCIA'
-  },
-  {
-    id: 'ccpu',
-    setor: 'CCPU',
-    sigla: 'CCPU',
-    telefone: '(47) 3261-6208',
-    ramal: '4259',
-    categoria: 'VIGILÂNCIA'
-  },
-  {
-    id: 'dengue',
-    setor: 'DENGUE',
-    sigla: 'DENGUE',
-    telefone: '(47) 3261-6264',
-    ramal: '8154 / 4037 / 4038 fiscal / 4039 diretor',
-    categoria: 'VIGILÂNCIA'
-  },
-  {
-    id: 'serv_saude',
-    setor: 'SERVIÇO SAÚDE',
-    sigla: 'DFSIS',
-    telefone: '(47) 3261-6252',
-    ramal: '4033 / 8151',
-    categoria: 'VIGILÂNCIA'
-  },
-  {
-    id: 'adm_saude',
-    setor: 'ADMINISTRAÇÃO SAÚDE',
-    telefone: '',
-    ramal: '4072',
-    categoria: 'SAÚDE'
-  },
-  {
-    id: 'as_social',
-    setor: 'ASSISTÊNCIA SOCIAL',
-    telefone: '',
-    ramal: '4203',
-    categoria: 'ADMINISTRATIVO'
-  },
-  {
-    id: 'compras',
-    setor: 'COMPRAS',
-    telefone: '(47) 3261-6238',
-    ramal: '8162',
-    categoria: 'ADMINISTRATIVO'
-  },
-  {
-    id: 'contab',
-    setor: 'CONTABILIDADE',
-    telefone: '(47) 3261-6282',
-    ramal: '8161',
-    categoria: 'ADMINISTRATIVO'
-  },
-  {
-    id: 'gab_saude',
-    setor: 'GABINETE SEC. SAÚDE',
-    telefone: '',
-    ramal: '8164',
-    categoria: 'SAÚDE'
-  },
-  {
-    id: 'ti',
-    setor: 'INFORMÁTICA',
-    sigla: 'TI',
-    telefone: '(47) 3261-6263',
-    ramal: '8002',
-    categoria: 'ADMINISTRATIVO'
-  },
-  {
-    id: 'jur',
-    setor: 'JURÍDICO',
-    telefone: '(47) 3261-6236',
-    ramal: '8163',
-    categoria: 'ADMINISTRATIVO'
+    categoria: 'GERAL',
+    horario: '12h às 17h'
   },
   {
     id: 'tfd_reg',
@@ -168,14 +151,6 @@ export const LISTA_TELEFONES_RAMAIS: ContatoTelefone[] = [
     sigla: 'TFD',
     telefone: '(47) 3264-8554',
     ramal: '8131',
-    categoria: 'SAÚDE'
-  },
-  {
-    id: 'tfd_fora',
-    setor: 'TDF / TRATAMENTO FORA DOMICÍLIO',
-    sigla: 'TFD',
-    telefone: '(47) 3264-8554',
-    ramal: '4027',
     categoria: 'SAÚDE'
   },
   {
@@ -187,12 +162,28 @@ export const LISTA_TELEFONES_RAMAIS: ContatoTelefone[] = [
     categoria: 'ADMINISTRATIVO'
   },
   {
+    id: 'serv_saude',
+    setor: 'SERVIÇO SAÚDE',
+    sigla: 'DFSIS',
+    telefone: '(47) 3261-6252',
+    ramal: '4033 / 8151',
+    categoria: 'VIGILÂNCIA'
+  },
+  {
     id: 'sim',
     setor: 'SIM / SERVIÇO DE INSPEÇÃO MUNICIPAL',
     sigla: 'SIM',
     telefone: '(47) 3261-6208',
     ramal: '8184',
     categoria: 'VIGILÂNCIA'
+  },
+  {
+    id: 'tfd_fora',
+    setor: 'TDF / TRATAMENTO FORA DOMICÍLIO',
+    sigla: 'TFD',
+    telefone: '(47) 3264-8554',
+    ramal: '4027',
+    categoria: 'SAÚDE'
   },
   {
     id: 'telefonista',
@@ -216,6 +207,15 @@ export const LISTA_TELEFONES_RAMAIS: ContatoTelefone[] = [
     telefone: '(47) 3261-6207',
     ramal: '8136',
     categoria: 'VIGILÂNCIA'
+  },
+  {
+    id: 'visa',
+    setor: 'VIGILÂNCIA SANITÁRIA',
+    sigla: 'DVIS',
+    telefone: '(47) 3261-6280',
+    ramal: '',
+    categoria: 'VIGILÂNCIA',
+    destaque: true
   }
 ];
 
@@ -263,7 +263,7 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
         item.categoria.toLowerCase().includes(term);
 
       return matchesCategory && matchesSearch;
-    });
+    }).sort((a, b) => a.setor.localeCompare(b.setor, 'pt-BR'));
   }, [searchTerm, selectedCategory, canViewRamal]);
 
   const categories = [
