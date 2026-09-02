@@ -25,7 +25,10 @@ export type UserNivelAcesso =
   | 'MASTER (TUDO)'
   | 'VISA (FEIRAS)'
   | 'VISA (FISCAL)'
-  | 'VISA (LABORATÓRIO)';
+  | 'VISA (LABORATÓRIO)'
+  | 'VISA (SAÚDE)'
+  | 'VISA (ALIMENTOS)'
+  | string;
 
 export type TipoUsuario = 'SERVIDOR' | 'CONTABILIDADE' | 'CIDADAO' | 'CONTRIBUINTE';
 

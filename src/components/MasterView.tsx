@@ -662,6 +662,8 @@ export const MasterView: React.FC<MasterViewProps> = ({
                   <option value="VISA (FEIRAS)">VISA (FEIRAS)</option>
                   <option value="VISA (FISCAL)">VISA (FISCAL)</option>
                   <option value="VISA (LABORATÓRIO)">VISA (LABORATÓRIO)</option>
+                  <option value="VISA (SAÚDE)">VISA (SAÚDE)</option>
+                  <option value="VISA (ALIMENTOS)">VISA (ALIMENTOS)</option>
                 </select>
               </div>
 
@@ -775,10 +777,25 @@ export const MasterView: React.FC<MasterViewProps> = ({
                               ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-700'
                               : nivel === 'VISA (LABORATÓRIO)'
                               ? 'bg-cyan-100 text-cyan-900 border-cyan-300 dark:bg-cyan-950 dark:text-cyan-200 dark:border-cyan-700'
+                              : nivel === 'VISA (SAÚDE)'
+                              ? 'bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950 dark:text-rose-200 dark:border-rose-700'
+                              : nivel === 'VISA (ALIMENTOS)'
+                              ? 'bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-950 dark:text-orange-200 dark:border-orange-700'
                               : 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-700'
                           }`}
                         >
-                          {nivel === 'MASTER (TUDO)' ? '👑' : nivel === 'VISA (FEIRAS)' ? '🎪' : nivel === 'VISA (LABORATÓRIO)' ? '🔬' : '📋'} {nivel}
+                          {nivel === 'MASTER (TUDO)'
+                            ? '👑'
+                            : nivel === 'VISA (FEIRAS)'
+                            ? '🎪'
+                            : nivel === 'VISA (LABORATÓRIO)'
+                            ? '🔬'
+                            : nivel === 'VISA (SAÚDE)'
+                            ? '🏥'
+                            : nivel === 'VISA (ALIMENTOS)'
+                            ? '🥗'
+                            : '📋'}{' '}
+                          {nivel}
                         </span>
                       </td>
                       <td className="py-3.5 px-3 text-center whitespace-nowrap">
