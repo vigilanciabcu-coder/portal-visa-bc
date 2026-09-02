@@ -248,7 +248,7 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
   };
 
   const filteredContatos = useMemo(() => {
-    return LISTA_TELEFONES_RAMAIS.filter((item) => {
+    const list = LISTA_TELEFONES_RAMAIS.filter((item) => {
       const matchesCategory =
         selectedCategory === 'TODOS' || item.categoria === selectedCategory;
 
@@ -263,7 +263,21 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
         item.categoria.toLowerCase().includes(term);
 
       return matchesCategory && matchesSearch;
-    }).sort((a, b) => a.setor.localeCompare(b.setor, 'pt-BR'));
+    });
+
+    if (selectedCategory === 'TODOS' && !searchTerm.trim()) {
+      const topIdsOrder = ['ouv_wpp', 'ouv_0800', 'pref'];
+      return list.sort((a, b) => {
+        const indexA = topIdsOrder.indexOf(a.id);
+        const indexB = topIdsOrder.indexOf(b.id);
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        return a.setor.localeCompare(b.setor, 'pt-BR');
+      });
+    }
+
+    return list.sort((a, b) => a.setor.localeCompare(b.setor, 'pt-BR'));
   }, [searchTerm, selectedCategory, canViewRamal]);
 
   const categories = [
