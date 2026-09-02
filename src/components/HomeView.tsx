@@ -725,16 +725,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <div className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between">
                           <span className="flex items-center gap-1.5 truncate">
                             <span className="text-amber-500">🎁</span>
-                            <span className="font-black text-slate-900 dark:text-white truncate">
-                              {proximosAniversariantes[0].nome_completo}
+                            <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                              {proximosAniversariantes[0].diffDays === 1
+                                ? 'Próximo aniversário: Amanhã!'
+                                : `Próximo aniversário em ${proximosAniversariantes[0].diffDays} dias`}
                             </span>
                           </span>
                           <span className="text-[11px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800 shrink-0 ml-1">
                             {proximosAniversariantes[0].diaMes}
                           </span>
-                        </div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400 pt-0.5">
-                          <span>{proximosAniversariantes[0].diffDays === 1 ? 'Próximo aniversário: Amanhã!' : `Próximo aniversário em ${proximosAniversariantes[0].diffDays} dias`}</span>
                         </div>
                       </div>
                     ) : (
