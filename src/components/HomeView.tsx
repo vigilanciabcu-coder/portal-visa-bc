@@ -718,13 +718,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <Cake className="w-4 h-4 text-amber-500" />
                         <span>🎂 Aniversariante do Dia</span>
                       </div>
-                      <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold px-2 py-0.5 rounded-md uppercase">
-                        Sem niver hoje
-                      </span>
                     </div>
 
                     {proximosAniversariantes.length > 0 ? (
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         <div className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between">
                           <span className="flex items-center gap-1.5 truncate">
                             <span className="text-amber-500">🎁</span>
@@ -736,9 +733,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             {proximosAniversariantes[0].diaMes}
                           </span>
                         </div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 pt-0.5">
                           <span>{proximosAniversariantes[0].diffDays === 1 ? 'Próximo aniversário: Amanhã!' : `Próximo aniversário em ${proximosAniversariantes[0].diffDays} dias`}</span>
-                          <span className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">Abrir Calendário →</span>
                         </div>
                       </div>
                     ) : (
