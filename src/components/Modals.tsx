@@ -26,7 +26,11 @@ import {
   KeyRound,
   AlertCircle,
   HelpCircle,
-  LogIn
+  LogIn,
+  Eye,
+  EyeOff,
+  X,
+  XCircle
 } from 'lucide-react';
 
 interface LoginModalProps {
@@ -61,22 +65,26 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   // Estado Servidor
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   // Estado Contabilista (Contabilidade)
   const [contabIdentificador, setContabIdentificador] = useState('');
   const [contabSenha, setContabSenha] = useState('');
+  const [showContabSenha, setShowContabSenha] = useState(false);
   const [contabError, setContabError] = useState('');
 
   // Estado Contribuinte (Empresário / Feirante)
   const [contribIdentificador, setContribIdentificador] = useState('');
   const [contribSenha, setContribSenha] = useState('');
+  const [showContribSenha, setShowContribSenha] = useState(false);
   const [contribError, setContribError] = useState('');
 
   // Estado Cidadão
   const [cidadaoMode, setCidadaoMode] = useState<'login' | 'cadastro'>(initialCidadaoMode);
   const [cidadaoIdentificador, setCidadaoIdentificador] = useState('');
   const [cidadaoSenha, setCidadaoSenha] = useState('');
+  const [showCidadaoSenha, setShowCidadaoSenha] = useState(false);
   const [cidadaoError, setCidadaoError] = useState('');
   const [cidadaoSuccess, setCidadaoSuccess] = useState('');
 
@@ -88,6 +96,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [novoBairro, setNovoBairro] = useState('Centro');
   const [novaSenha, setNovaSenha] = useState('');
   const [novaSenhaConfirm, setNovaSenhaConfirm] = useState('');
+  const [showNovaSenha, setShowNovaSenha] = useState(false);
 
   // Estado Modal Recuperar Senha
   const [recuperarSenhaOpen, setRecuperarSenhaOpen] = useState(false);
@@ -193,17 +202,22 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
+    if (!cleanPass) {
+      setErrorMsg('Por favor, digite a sua senha de acesso.');
+      return;
+    }
+
     const matched = users.find((u) => u.email.toLowerCase() === cleanEmail);
 
     if (matched) {
-      const expectedPassword = matched.senha || '123456';
-      if (cleanPass === expectedPassword || cleanPass === '123456' || (!cleanPass && expectedPassword === '123456')) {
+      const expectedPassword = (matched.senha || '123456').trim();
+      if (cleanPass === expectedPassword) {
         onLoginSuccess({
           ...matched,
           tipo_usuario: 'SERVIDOR'
         });
       } else {
-        setErrorMsg(`Senha incorreta para ${matched.nome_completo.split(' ')[0]}. Tente a senha padrão (123456) ou solicite ao Master.`);
+        setErrorMsg(`Senha incorreta para ${matched.nome_completo.split(' ')[0]}. Verifique os dados digitados ou utilize "Esqueceu a senha?".`);
       }
     } else {
       setErrorMsg('Operador não encontrado. Verifique o e-mail digitado ou solicite cadastro ao Master.');
@@ -220,6 +234,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
     if (!term) {
       setContabError('Informe o CNPJ, E-mail ou CRC do escritório contábil.');
+      return;
+    }
+
+    if (!cleanPass) {
+      setContabError('Por favor, digite sua senha de acesso.');
       return;
     }
 
@@ -240,9 +259,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     });
 
     if (matched) {
-      // Validação de senha: usa a senha cadastrada ou a padrão 123456
-      const expectedPassword = matched.senha || '123456';
-      if (cleanPass === expectedPassword || cleanPass === '123456' || (!cleanPass && expectedPassword === '123456')) {
+      // Validação de senha estrita
+      const expectedPassword = (matched.senha || '123456').trim();
+      if (cleanPass === expectedPassword) {
         const contabUser: UserProfile = {
           id: matched.id,
           email: matched.email || 'contabilidade@bc.sc.gov.br',
@@ -256,7 +275,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         };
         onLoginSuccess(contabUser);
       } else {
-        setContabError(`Senha incorreta para ${matched.nome_fantasia || matched.razao_social}. Se esqueceu a senha, tente 123456 ou atualize o cadastro.`);
+        setContabError(`Senha incorreta para ${matched.nome_fantasia || matched.razao_social}. Verifique a senha ou utilize a recuperação de senha.`);
       }
     } else {
       setContabError('Escritório contábil não localizado. Clique em "Cadastrar Novo Escritório Contábil" para registrar seu acesso.');
@@ -276,6 +295,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
+    if (!cleanPass) {
+      setContribError('Por favor, digite sua senha de acesso.');
+      return;
+    }
+
     const listaContribs = getSavedContribuintes();
 
     // Procura por CNPJ/CPF ou E-mail
@@ -286,8 +310,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     });
 
     if (matched) {
-      const expectedPassword = matched.senha || '123456';
-      if (cleanPass === expectedPassword || cleanPass === '123456' || (!cleanPass && expectedPassword === '123456')) {
+      const expectedPassword = (matched.senha || '123456').trim();
+      if (cleanPass === expectedPassword) {
         const contribUser: UserProfile = {
           id: matched.id,
           email: matched.email || 'contribuinte@bc.sc.gov.br',
@@ -302,7 +326,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         };
         onLoginSuccess(contribUser);
       } else {
-        setContribError(`Senha incorreta para ${matched.nome_fantasia || matched.razao_social}. Tente a senha padrão (123456) ou utilize a recuperação.`);
+        setContribError(`Senha incorreta para ${matched.nome_fantasia || matched.razao_social}. Verifique a senha ou utilize a recuperação.`);
       }
     } else {
       setContribError('Contribuinte não localizado. Clique em "Cadastrar Novo Contribuinte / Feirante" para registrar seu acesso.');
@@ -322,6 +346,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
+    if (!cleanPass) {
+      setCidadaoError('Por favor, digite sua senha de acesso.');
+      return;
+    }
+
     const listaCidadaos = getSavedCidadaos();
 
     // Procura por CPF ou E-mail
@@ -332,8 +361,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     });
 
     if (matched) {
-      const expectedPass = matched.senha || '123456';
-      if (cleanPass === expectedPass || cleanPass === '123456' || (!cleanPass && expectedPass === '123456')) {
+      const expectedPass = (matched.senha || '123456').trim();
+      if (cleanPass === expectedPass) {
         const cidadaoUser: UserProfile = {
           id: matched.id,
           email: matched.email || 'cidadao@bc.sc.gov.br',
@@ -348,7 +377,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         };
         onLoginSuccess(cidadaoUser);
       } else {
-        setCidadaoError(`Senha incorreta para ${matched.nome_completo.split(' ')[0]}. Tente a senha padrão (123456) ou crie um novo cadastro.`);
+        setCidadaoError(`Senha incorreta para ${matched.nome_completo.split(' ')[0]}. Verifique os dados digitados ou utilize a recuperação.`);
       }
     } else {
       // Se não encontrou na lista de cidadãos registrados
@@ -616,12 +645,21 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 <div className="relative">
                   <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
-                    type="password"
-                    placeholder="Digite sua senha (padrão: 123456)"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    placeholder="Digite sua senha de acesso"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="p-2.5 pl-9 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition text-xs"
+                    className="p-2.5 pl-9 pr-10 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition text-xs"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                    title={showPassword ? 'Ocultar senha' : 'Ver senha'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
 
@@ -688,12 +726,21 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 <div className="relative">
                   <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
-                    type="password"
-                    placeholder="Digite sua senha (padrão: 123456)"
+                    type={showContabSenha ? 'text' : 'password'}
+                    required
+                    placeholder="Digite a senha do escritório"
                     value={contabSenha}
                     onChange={(e) => setContabSenha(e.target.value)}
-                    className="p-2.5 pl-9 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition text-xs"
+                    className="p-2.5 pl-9 pr-10 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition text-xs"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowContabSenha(!showContabSenha)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                    title={showContabSenha ? 'Ocultar senha' : 'Ver senha'}
+                  >
+                    {showContabSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
 
@@ -785,12 +832,21 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 <div className="relative">
                   <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
-                    type="password"
-                    placeholder="Digite sua senha (padrão: 123456)"
+                    type={showContribSenha ? 'text' : 'password'}
+                    required
+                    placeholder="Digite sua senha de acesso"
                     value={contribSenha}
                     onChange={(e) => setContribSenha(e.target.value)}
-                    className="p-2.5 pl-9 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:outline-none transition text-xs"
+                    className="p-2.5 pl-9 pr-10 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:outline-none transition text-xs"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowContribSenha(!showContribSenha)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                    title={showContribSenha ? 'Ocultar senha' : 'Ver senha'}
+                  >
+                    {showContribSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
 
@@ -922,12 +978,21 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   <div className="relative">
                     <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
-                      type="password"
-                      placeholder="Digite sua senha (padrão: 123456)"
+                      type={showCidadaoSenha ? 'text' : 'password'}
+                      required
+                      placeholder="Digite sua senha de acesso"
                       value={cidadaoSenha}
                       onChange={(e) => setCidadaoSenha(e.target.value)}
-                      className="p-2.5 pl-9 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none transition text-xs"
+                      className="p-2.5 pl-9 pr-10 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none transition text-xs"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowCidadaoSenha(!showCidadaoSenha)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                      title={showCidadaoSenha ? 'Ocultar senha' : 'Ver senha'}
+                    >
+                      {showCidadaoSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
 
@@ -1179,60 +1244,195 @@ export const TrocaSenhaModal: React.FC<TrocaSenhaModalProps> = ({
   onSaveUser,
   onClose
 }) => {
+  const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [erroMsg, setErroMsg] = useState('');
   const [success, setSuccess] = useState(false);
+
+  // Reseta campos ao abrir
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentPass('');
+      setNewPass('');
+      setConfirmPass('');
+      setErroMsg('');
+      setSuccess(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleConfirm = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPass.trim()) return;
+    setErroMsg('');
 
-    if (currentUser) {
-      const updated = { ...currentUser, senha: newPass.trim() };
-      onSaveUser(updated);
+    if (!currentUser) {
+      setErroMsg('Nenhum usuário logado identificado.');
+      return;
     }
+
+    const expectedCurrent = (currentUser.senha || '123456').trim();
+    if (currentPass.trim() !== expectedCurrent) {
+      setErroMsg('Senha atual incorreta. Verifique a senha digitada.');
+      return;
+    }
+
+    if (newPass.trim().length < 6) {
+      setErroMsg('A nova senha deve ter no mínimo 6 caracteres.');
+      return;
+    }
+
+    if (newPass.trim() !== confirmPass.trim()) {
+      setErroMsg('A confirmação não coincide com a nova senha digitada.');
+      return;
+    }
+
+    const updated: UserProfile = { ...currentUser, senha: newPass.trim() };
+    onSaveUser(updated);
 
     setSuccess(true);
     setTimeout(() => {
       setSuccess(false);
+      setCurrentPass('');
       setNewPass('');
+      setConfirmPass('');
       onClose();
-    }, 1200);
+    }, 1800);
   };
 
   return (
     <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[1500] flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-800 w-full max-w-sm rounded-[2rem] p-8 border border-slate-200 dark:border-slate-700 text-center text-slate-900 dark:text-white shadow-2xl">
-        <h2 className="text-xl font-black text-blue-600 dark:text-blue-400 uppercase italic mb-4">
-          Alterar Senha Operacional
-        </h2>
+      <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-[2rem] p-6 sm:p-8 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white shadow-2xl">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-700">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-blue-50 dark:bg-blue-950/60 rounded-xl border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400">
+              <KeyRound className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-wide">
+                Alterar Senha de Acesso
+              </h2>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                {currentUser?.nome_completo || 'Operador'} ({currentUser?.cargo || 'VISA'})
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer"
+          >
+            <XCircle className="w-5 h-5" />
+          </button>
+        </div>
 
         {success ? (
-          <p className="text-emerald-600 font-bold text-xs py-4">Senha alterada com sucesso!</p>
+          <div className="py-6 text-center space-y-3">
+            <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-inner">
+              <CheckCircle2 className="w-7 h-7" />
+            </div>
+            <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+              Senha alterada com sucesso!
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Sua nova senha foi salva e sincronizada. A senha antiga e o padrão de fábrica não terão mais acesso.
+            </p>
+          </div>
         ) : (
-          <form onSubmit={handleConfirm} className="space-y-4">
-            <input
-              type="password"
-              required
-              placeholder="Digite a nova senha"
-              value={newPass}
-              onChange={(e) => setNewPass(e.target.value)}
-              className="p-3 text-center font-bold border rounded-xl w-full dark:bg-slate-700"
-            />
-            <button
-              type="submit"
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-2xl shadow-xl transition uppercase text-xs cursor-pointer"
-            >
-              Salvar Nova Senha
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full text-slate-500 font-bold uppercase text-xs mt-2 cursor-pointer"
-            >
-              Cancelar
-            </button>
+          <form onSubmit={handleConfirm} className="space-y-3.5">
+            {erroMsg && (
+              <div className="p-2.5 bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 text-xs font-bold rounded-xl border border-red-200 dark:border-red-800 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{erroMsg}</span>
+              </div>
+            )}
+
+            <div>
+              <label className="text-[10px] font-bold uppercase block mb-1 text-slate-600 dark:text-slate-400">
+                Senha Atual
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type={showCurrentPass ? 'text' : 'password'}
+                  required
+                  placeholder="Digite sua senha atual"
+                  value={currentPass}
+                  onChange={(e) => setCurrentPass(e.target.value)}
+                  className="p-2.5 pl-9 pr-10 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPass(!showCurrentPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  title={showCurrentPass ? 'Ocultar' : 'Ver'}
+                >
+                  {showCurrentPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold uppercase block mb-1 text-slate-600 dark:text-slate-400">
+                Nova Senha (Mínimo 6 caracteres)
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type={showNewPass ? 'text' : 'password'}
+                  required
+                  placeholder="Digite a nova senha segura"
+                  value={newPass}
+                  onChange={(e) => setNewPass(e.target.value)}
+                  className="p-2.5 pl-9 pr-10 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPass(!showNewPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  title={showNewPass ? 'Ocultar' : 'Ver'}
+                >
+                  {showNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold uppercase block mb-1 text-slate-600 dark:text-slate-400">
+                Confirmar Nova Senha
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type={showNewPass ? 'text' : 'password'}
+                  required
+                  placeholder="Repita a nova senha"
+                  value={confirmPass}
+                  onChange={(e) => setConfirmPass(e.target.value)}
+                  className="p-2.5 pl-9 pr-10 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-col gap-2">
+              <button
+                type="submit"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-xl shadow-lg transition uppercase text-xs cursor-pointer flex items-center justify-center gap-2"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Salvar Nova Senha</span>
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full py-2.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 font-bold uppercase text-xs rounded-xl transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
           </form>
         )}
       </div>
