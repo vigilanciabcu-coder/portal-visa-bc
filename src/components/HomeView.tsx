@@ -717,9 +717,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       ))}
                     </div>
 
-                    <div className="text-[10px] text-pink-100 mt-2.5 pt-2 border-t border-white/15 flex items-center justify-between">
+                    <div className="text-[10px] text-pink-100 mt-2.5 pt-2 border-t border-white/15 flex items-center justify-center text-center">
                       <span>Parabéns em nome de toda a equipe DVIS! 🥳</span>
-                      <span className="font-bold underline text-amber-200 hover:text-white">Ver Agenda →</span>
                     </div>
                   </div>
                 ) : (
