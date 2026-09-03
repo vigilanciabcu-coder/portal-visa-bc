@@ -698,8 +698,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <Cake className="w-4 h-4 text-amber-200 animate-bounce" />
                         <span>🎂 Aniversariante do Dia</span>
                       </div>
-                      <span className="text-[9px] bg-amber-400 text-slate-950 font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow animate-pulse">
-                        HOJE É FESTA! 🎉
+                      <span className="text-[8px] bg-amber-400 text-slate-950 font-black px-2 py-0.5 rounded-lg uppercase tracking-wider shadow animate-pulse flex flex-col items-center text-center leading-[1.1]">
+                        <span>hoje</span>
+                        <span>é</span>
+                        <span>festa</span>
                       </span>
                     </div>
 
