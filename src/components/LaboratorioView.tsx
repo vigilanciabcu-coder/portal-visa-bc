@@ -305,6 +305,7 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
   const [senhaColetor, setSenhaColetor] = useState<string>('');
   const [showSenhaColetor, setShowSenhaColetor] = useState<boolean>(false);
   const [erroSenhaColetor, setErroSenhaColetor] = useState<string>('');
+  const [modoPontoExtra, setModoPontoExtra] = useState<boolean>(false);
   const [coletaForm, setColetaForm] = useState<Partial<AmostraLaboratorioItem>>({
     codigo_amostra: String(amostras.length + 171),
     protocolo: `${Math.floor(60000 + Math.random() * 9000)}/${currentYear}`,
@@ -443,6 +444,17 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
 
   // Handler: Seleção de Ponto Cadastrado
   const handlePontoSelection = (pontoId: string) => {
+    if (pontoId === 'EXTRA') {
+      setModoPontoExtra(true);
+      setColetaForm((prev) => ({
+        ...prev,
+        ponto_coleta_id: 'EXTRA',
+        ponto_coleta_nome: prev.ponto_coleta_nome || 'Ponto Extra / Avulso'
+      }));
+      return;
+    }
+
+    setModoPontoExtra(false);
     const p = pontos.find((item) => item.id === pontoId);
     if (p) {
       setColetaForm((prev) => ({
@@ -1116,21 +1128,68 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                 {/* Linha: Ponto Cadastrado, Local de Coleta, Endereço e Bairro */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-black uppercase text-slate-600 dark:text-slate-300 mb-1">
-                      Ponto Cadastrado no Sistema (Opcional)
-                    </label>
-                    <select
-                      value={coletaForm.ponto_coleta_id || ''}
-                      onChange={(e) => handlePontoSelection(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500 outline-none"
-                    >
-                      <option value="">-- Selecione ponto cadastrado --</option>
-                      {pontos.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.ponto} ({p.local} - {p.bairro})
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-black uppercase text-slate-600 dark:text-slate-300">
+                        {modoPontoExtra ? 'Identificação do Ponto Extra (Manual) *' : 'Ponto Cadastrado no Sistema (Opcional)'}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextMode = !modoPontoExtra;
+                          setModoPontoExtra(nextMode);
+                          if (nextMode) {
+                            setColetaForm((prev) => ({
+                              ...prev,
+                              ponto_coleta_id: 'EXTRA',
+                              ponto_coleta_nome: prev.ponto_coleta_nome || 'Ponto Extra / Avulso'
+                            }));
+                          } else {
+                            setColetaForm((prev) => ({
+                              ...prev,
+                              ponto_coleta_id: '',
+                              ponto_coleta_nome: ''
+                            }));
+                          }
+                        }}
+                        className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 hover:underline cursor-pointer flex items-center gap-1"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        {modoPontoExtra ? 'Selecionar da Lista Cadastrada' : '✍️ Digitar Ponto Extra / Avulso'}
+                      </button>
+                    </div>
+
+                    {modoPontoExtra ? (
+                      <div className="relative">
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ex: PONTO EXTRA 01 - ESCOLA IVETE ou PONTO AVULSO"
+                          value={coletaForm.ponto_coleta_nome || ''}
+                          onChange={(e) =>
+                            setColetaForm({
+                              ...coletaForm,
+                              ponto_coleta_nome: e.target.value,
+                              ponto_coleta_id: 'EXTRA'
+                            })
+                          }
+                          className="w-full bg-cyan-50/50 dark:bg-cyan-950/40 border border-cyan-300 dark:border-cyan-700 rounded-xl px-3 py-2 text-sm font-bold uppercase focus:ring-2 focus:ring-cyan-500 outline-none text-slate-900 dark:text-white"
+                        />
+                      </div>
+                    ) : (
+                      <select
+                        value={coletaForm.ponto_coleta_id || ''}
+                        onChange={(e) => handlePontoSelection(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500 outline-none font-medium"
+                      >
+                        <option value="">-- Selecione ponto cadastrado --</option>
+                        <option value="EXTRA">✍️ + Ponto Extra / Digitação Manual Livre</option>
+                        {pontos.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.ponto} ({p.local} - {p.bairro})
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   <div>
@@ -1140,8 +1199,8 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                     <input
                       type="text"
                       required
-                      placeholder="Ex: TORNEIRA CAFETERIA"
-                      value={coletaForm.local_coleta}
+                      placeholder="Ex: TORNEIRA CAFETERIA, BEBEDOURO PÁTIO, CAVALETE EXTERNO"
+                      value={coletaForm.local_coleta || ''}
                       onChange={(e) => setColetaForm({ ...coletaForm, local_coleta: e.target.value })}
                       className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-sm uppercase font-bold focus:ring-2 focus:ring-cyan-500 outline-none"
                     />
@@ -1157,7 +1216,7 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                       type="text"
                       required
                       placeholder="Ex: Rua 1500, 381 - CENTRO - Balneário Camboriú/SC - 88.330-528"
-                      value={coletaForm.endereco}
+                      value={coletaForm.endereco || ''}
                       onChange={(e) => setColetaForm({ ...coletaForm, endereco: e.target.value })}
                       className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500 outline-none"
                     />
@@ -1165,19 +1224,24 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
 
                   <div>
                     <label className="block text-xs font-black uppercase text-slate-600 dark:text-slate-300 mb-1">
-                      Bairro *
+                      Bairro / Localidade *
                     </label>
-                    <select
-                      value={coletaForm.bairro}
-                      onChange={(e) => setColetaForm({ ...coletaForm, bairro: e.target.value })}
-                      className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500 outline-none font-bold"
-                    >
-                      {BAIRROS_BC.map((b) => (
-                        <option key={b} value={b}>
-                          {b}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        list="bairros-laboratorio-coleta-list"
+                        placeholder="Ex: Centro, Nações..."
+                        value={coletaForm.bairro || ''}
+                        onChange={(e) => setColetaForm({ ...coletaForm, bairro: e.target.value })}
+                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500 outline-none font-bold text-slate-900 dark:text-white"
+                      />
+                      <datalist id="bairros-laboratorio-coleta-list">
+                        {BAIRROS_BC.map((b) => (
+                          <option key={b} value={b} />
+                        ))}
+                      </datalist>
+                    </div>
                   </div>
                 </div>
 
