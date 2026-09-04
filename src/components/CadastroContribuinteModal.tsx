@@ -101,12 +101,6 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
           setBairro(bPadrao);
         }
 
-        // Preenche dados do proprietário sugeridos pelo CNPJ (caso vazios)
-        const socio = data.nome_proprietario || data.responsavel;
-        if (socio && !nomeProprietario) setNomeProprietario(socio);
-        if (data.email && !emailProprietario) setEmailProprietario(data.email);
-        if (data.telefone && !telefoneProprietario) setTelefoneProprietario(data.telefone);
-
         // Armazena dados de segundo plano do CNPJ (ocultos da tela)
         if (data.data_abertura) setDataAbertura(data.data_abertura);
         if (data.situacao_cadastral || data.situacao) setSituacaoCadastral(data.situacao_cadastral || data.situacao || '');
