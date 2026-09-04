@@ -13,6 +13,13 @@ export interface CnpjData {
   tipo_atividade: string;
   risco: 'BAIXO' | 'MÉDIO' | 'ALTO';
   situacao?: string;
+  data_abertura?: string;
+  situacao_cadastral?: string;
+  data_situacao_cadastral?: string;
+  cnae_principal_codigo?: string;
+  cnae_principal_descricao?: string;
+  nome_proprietario?: string;
+  email?: string;
 }
 
 function formatCnae(code: string | number | undefined, desc: string | undefined): string {
@@ -87,6 +94,10 @@ export async function fetchCnpj(cleanCnpj: string): Promise<CnpjData> {
         ? `(${d.ddd_telefone_1.slice(0, 2)}) ${d.ddd_telefone_1.slice(2)}` 
         : '(47) 3367-0000';
       const sit = d.descricao_situacao_cadastral || d.situacao_cadastral || d.descricao_situacao || d.situacao || 'ATIVA';
+      const dataAbertura = d.data_inicio_atividade || d.abertura || '';
+      const dataSit = d.data_situacao_cadastral || d.data_situacao || '';
+      const cnaeCode = String(d.cnae_fiscal || d.cnae_fiscal_codigo || d.codigo || '').trim();
+      const socioNome = d.qsa?.[0]?.nome_socio || d.qsa?.[0]?.nome || '';
 
       return {
         razao: d.razao_social || d.nome_fantasia || `ESTABELECIMENTO (${cleanVal}) LTDA`,
@@ -98,11 +109,18 @@ export async function fetchCnpj(cleanCnpj: string): Promise<CnpjData> {
         bairro: d.bairro || 'Centro',
         cnae: cnaeDesc,
         cnaes: allCnaes.length > 0 ? allCnaes : [primaryCnae || cnaeDesc],
-        responsavel: d.qsa?.[0]?.nome_socio || 'RESPONSÁVEL CADASTRADO',
+        responsavel: socioNome || 'RESPONSÁVEL CADASTRADO',
+        nome_proprietario: socioNome || '',
         telefone: tel,
         tipo_atividade: tipo,
         risco,
-        situacao: String(sit).toUpperCase()
+        situacao: String(sit).toUpperCase(),
+        situacao_cadastral: String(sit).toUpperCase(),
+        data_abertura: dataAbertura,
+        data_situacao_cadastral: dataSit,
+        cnae_principal_codigo: cnaeCode,
+        cnae_principal_descricao: cnaeDesc,
+        email: d.email || ''
       };
     }
   } catch (e) {
@@ -129,6 +147,10 @@ export async function fetchCnpj(cleanCnpj: string): Promise<CnpjData> {
         ? `(${d.ddd_telefone_1.slice(0, 2)}) ${d.ddd_telefone_1.slice(2)}` 
         : '(47) 3367-0000';
       const sit = d.descricao_situacao_cadastral || d.situacao_cadastral || d.descricao_situacao || d.situacao || 'ATIVA';
+      const dataAbertura = d.data_inicio_atividade || d.abertura || '';
+      const dataSit = d.data_situacao_cadastral || d.data_situacao || '';
+      const cnaeCode = String(d.cnae_fiscal || d.cnae_fiscal_codigo || d.codigo || '').trim();
+      const socioNome = d.qsa?.[0]?.nome_socio || d.qsa?.[0]?.nome || '';
 
       return {
         razao: d.razao_social || d.nome_fantasia || `ESTABELECIMENTO (${cleanVal}) LTDA`,
@@ -140,11 +162,18 @@ export async function fetchCnpj(cleanCnpj: string): Promise<CnpjData> {
         bairro: d.bairro || 'Centro',
         cnae: cnaeDesc,
         cnaes: allCnaes.length > 0 ? allCnaes : [primaryCnae || cnaeDesc],
-        responsavel: d.qsa?.[0]?.nome_socio || 'RESPONSÁVEL CADASTRADO',
+        responsavel: socioNome || 'RESPONSÁVEL CADASTRADO',
+        nome_proprietario: socioNome || '',
         telefone: tel,
         tipo_atividade: tipo,
         risco,
-        situacao: String(sit).toUpperCase()
+        situacao: String(sit).toUpperCase(),
+        situacao_cadastral: String(sit).toUpperCase(),
+        data_abertura: dataAbertura,
+        data_situacao_cadastral: dataSit,
+        cnae_principal_codigo: cnaeCode,
+        cnae_principal_descricao: cnaeDesc,
+        email: d.email || ''
       };
     }
   } catch (e) {
@@ -162,9 +191,15 @@ export async function fetchCnpj(cleanCnpj: string): Promise<CnpjData> {
     bairro: 'Centro',
     cnae: '5611-2/01 Alimentação',
     responsavel: 'PROPRIETÁRIO CADASTRADO',
+    nome_proprietario: 'PROPRIETÁRIO CADASTRADO',
     telefone: '(47) 3367-0000',
     tipo_atividade: 'Restaurante / Alimentação',
     risco: 'MÉDIO',
-    situacao: 'ATIVA'
+    situacao: 'ATIVA',
+    situacao_cadastral: 'ATIVA',
+    data_abertura: new Date().toISOString().split('T')[0],
+    data_situacao_cadastral: new Date().toISOString().split('T')[0],
+    cnae_principal_codigo: '5611-2/01',
+    cnae_principal_descricao: 'Restaurantes e similares'
   };
 }

@@ -192,6 +192,11 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
         const { tipo, risco } = classifyActivity(cnaeDesc);
         const rua = `${d.descricao_tipo_de_logradouro || ''} ${d.logradouro || ''}`.trim() || 'AVENIDA BRASIL';
         const sit = d.descricao_situacao_cadastral || d.situacao_cadastral || d.descricao_situacao || d.situacao || 'ATIVA';
+        const dataAbertura = d.data_inicio_atividade || d.abertura || '';
+        const dataSit = d.data_situacao_cadastral || d.data_situacao || '';
+        const cnaeCode = String(d.cnae_fiscal || d.cnae_fiscal_codigo || d.codigo || '').trim();
+        const socioNome = d.qsa?.[0]?.nome_socio || d.qsa?.[0]?.nome || '';
+
         res.json({
           razao: d.razao_social || d.nome_fantasia || 'ESTABELECIMENTO CADASTRADO',
           nome_fantasia: d.nome_fantasia || d.razao_social || 'ESTABELECIMENTO BC',
@@ -202,11 +207,18 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
           bairro: d.bairro || 'Centro',
           cnae: cnaeDesc,
           cnaes: allCnaes.length > 0 ? allCnaes : [primaryCnae || cnaeDesc],
-          responsavel: d.qsa?.[0]?.nome_socio || 'RESPONSÁVEL CADASTRADO',
+          responsavel: socioNome || 'RESPONSÁVEL CADASTRADO',
+          nome_proprietario: socioNome || '',
           telefone: d.ddd_telefone_1 ? `(${d.ddd_telefone_1.slice(0, 2)}) ${d.ddd_telefone_1.slice(2)}` : '(47) 3367-0000',
           tipo_atividade: tipo,
           risco,
-          situacao: String(sit).toUpperCase()
+          situacao: String(sit).toUpperCase(),
+          situacao_cadastral: String(sit).toUpperCase(),
+          data_abertura: dataAbertura,
+          data_situacao_cadastral: dataSit,
+          cnae_principal_codigo: cnaeCode,
+          cnae_principal_descricao: cnaeDesc,
+          email: d.email || ''
         });
         return;
       }
@@ -231,6 +243,10 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
         const cnaeDesc = d.cnae_fiscal_descricao || 'Alimentação e Serviços Diversos';
         const { tipo, risco } = classifyActivity(cnaeDesc);
         const sit = d.descricao_situacao_cadastral || d.situacao_cadastral || d.descricao_situacao || d.situacao || 'ATIVA';
+        const dataAbertura = d.data_inicio_atividade || d.abertura || '';
+        const dataSit = d.data_situacao_cadastral || d.data_situacao || '';
+        const cnaeCode = String(d.cnae_fiscal || d.cnae_fiscal_codigo || d.codigo || '').trim();
+        const socioNome = d.qsa?.[0]?.nome_socio || d.qsa?.[0]?.nome || '';
 
         res.json({
           razao: d.razao_social || d.nome_fantasia || 'ESTABELECIMENTO CADASTRADO',
@@ -242,11 +258,18 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
           bairro: d.bairro || 'Centro',
           cnae: cnaeDesc,
           cnaes: allCnaes.length > 0 ? allCnaes : [primaryCnae || cnaeDesc],
-          responsavel: d.qsa?.[0]?.nome_socio || d.qsa?.[0]?.nome || 'RESPONSÁVEL TÉCNICO',
+          responsavel: socioNome || 'RESPONSÁVEL TÉCNICO',
+          nome_proprietario: socioNome || '',
           telefone: d.ddd_telefone_1 ? `(${d.ddd_telefone_1.slice(0, 2)}) ${d.ddd_telefone_1.slice(2)}` : '(47) 3367-0000',
           tipo_atividade: tipo,
           risco,
-          situacao: String(sit).toUpperCase()
+          situacao: String(sit).toUpperCase(),
+          situacao_cadastral: String(sit).toUpperCase(),
+          data_abertura: dataAbertura,
+          data_situacao_cadastral: dataSit,
+          cnae_principal_codigo: cnaeCode,
+          cnae_principal_descricao: cnaeDesc,
+          email: d.email || ''
         });
         return;
       }
@@ -273,6 +296,12 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
 
           const cnaeDesc = d.atividade_principal?.[0]?.text || 'Alimentação e Serviços';
           const { tipo, risco } = classifyActivity(cnaeDesc);
+          const sit = d.situacao || 'ATIVA';
+          const dataAbertura = d.abertura || '';
+          const dataSit = d.data_situacao || '';
+          const cnaeCode = d.atividade_principal?.[0]?.code ? String(d.atividade_principal[0].code).replace(/\D/g, '') : '';
+          const socioNome = d.qsa?.[0]?.nome || '';
+
           res.json({
             razao: d.nome || d.fantasia || 'ESTABELECIMENTO CADASTRADO',
             nome_fantasia: d.fantasia || d.nome || 'ESTABELECIMENTO BC',
@@ -283,10 +312,18 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
             bairro: d.bairro || 'Centro',
             cnae: cnaeDesc,
             cnaes: allCnaes.length > 0 ? allCnaes : [primaryCnae || cnaeDesc],
-            responsavel: d.qsa?.[0]?.nome || 'RESPONSÁVEL TÉCNICO',
+            responsavel: socioNome || 'RESPONSÁVEL TÉCNICO',
+            nome_proprietario: socioNome || '',
             telefone: d.telefone || '(47) 3367-0000',
             tipo_atividade: tipo,
-            risco
+            risco,
+            situacao: String(sit).toUpperCase(),
+            situacao_cadastral: String(sit).toUpperCase(),
+            data_abertura: dataAbertura,
+            data_situacao_cadastral: dataSit,
+            cnae_principal_codigo: cnaeCode,
+            cnae_principal_descricao: cnaeDesc,
+            email: d.email || ''
           });
           return;
         }
@@ -308,9 +345,16 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
     bairro: 'Centro',
     cnae: '5611-2/01 Restaurantes e similares / Alimentação',
     responsavel: isCpf ? 'PROPRIETÁRIO CADASTRADO' : 'GERENTE RESPONSÁVEL',
+    nome_proprietario: isCpf ? 'PROPRIETÁRIO CADASTRADO' : 'PROPRIETÁRIO RESPONSÁVEL',
     telefone: '(47) 3367-0000',
     tipo_atividade: 'Restaurante / Alimentação',
-    risco: 'MÉDIO'
+    risco: 'MÉDIO',
+    situacao: 'ATIVA',
+    situacao_cadastral: 'ATIVA',
+    data_abertura: new Date().toISOString().split('T')[0],
+    data_situacao_cadastral: new Date().toISOString().split('T')[0],
+    cnae_principal_codigo: '5611-2/01',
+    cnae_principal_descricao: 'Restaurantes e similares / Alimentação'
   });
 });
 

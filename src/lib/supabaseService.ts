@@ -1505,12 +1505,21 @@ export async function fetchContribuintesFromSupabase(): Promise<any[] | null> {
         razao_social: item.razao_social || '',
         nome_fantasia: item.nome_fantasia || item.razao_social || '',
         responsavel: item.responsavel || '',
+        nome_proprietario: item.nome_proprietario || item.responsavel || '',
+        email_proprietario: item.email_proprietario || '',
+        telefone_proprietario: item.telefone_proprietario || '',
         email: item.email || '',
         telefone: item.telefone || '',
         ramo_atividade: item.ramo_atividade || '',
         bairro: item.bairro || '',
         endereco: item.endereco || '',
         senha: item.senha || '123456',
+        data_abertura: item.data_abertura || '',
+        situacao_cadastral: item.situacao_cadastral || '',
+        data_situacao_cadastral: item.data_situacao_cadastral || '',
+        cnae_principal: item.cnae_principal || '',
+        cnae_principal_codigo: item.cnae_principal_codigo || '',
+        cnae_principal_descricao: item.cnae_principal_descricao || '',
         data_cadastro: item.data_cadastro ? String(item.data_cadastro).split('T')[0] : new Date().toISOString().split('T')[0]
       }));
     }
@@ -1549,13 +1558,22 @@ export async function saveContribuinteToSupabase(item: any): Promise<boolean> {
       cnpj_cpf: cleanDoc,
       razao_social: item.razao_social || 'Contribuinte',
       nome_fantasia: item.nome_fantasia || item.razao_social || 'Contribuinte',
-      responsavel: item.responsavel || item.razao_social || 'Responsável',
+      responsavel: item.responsavel || item.nome_proprietario || item.razao_social || 'Responsável',
+      nome_proprietario: item.nome_proprietario || item.responsavel || null,
+      email_proprietario: item.email_proprietario ? (item.email_proprietario || '').trim().toLowerCase() : null,
+      telefone_proprietario: item.telefone_proprietario || null,
       email: (item.email || '').trim().toLowerCase(),
       telefone: item.telefone || '',
       ramo_atividade: item.ramo_atividade || '',
       bairro: item.bairro || 'Centro',
       endereco: item.endereco || '',
       senha: item.senha || '123456',
+      data_abertura: item.data_abertura || null,
+      situacao_cadastral: item.situacao_cadastral || null,
+      data_situacao_cadastral: item.data_situacao_cadastral || null,
+      cnae_principal: item.cnae_principal || null,
+      cnae_principal_codigo: item.cnae_principal_codigo || null,
+      cnae_principal_descricao: item.cnae_principal_descricao || null,
       data_cadastro: item.data_cadastro || new Date().toISOString()
     };
 
@@ -1587,7 +1605,29 @@ export async function saveContribuinteToSupabase(item: any): Promise<boolean> {
     const { error: insErr } = await supabase.from('contribuintes').insert(withoutId);
     if (!insErr) return true;
 
-    console.warn('Falha em todas as tentativas de salvar contribuinte no Supabase:', insErr.message);
+    // Se houve erro de coluna inexistente em banco antigo, tenta com payload básico de compatibilidade
+    if (upsertErr?.message?.includes('column') || insErr?.message?.includes('column')) {
+      const legacyPayload: any = {
+        id: recordId,
+        tipo_pessoa: item.tipo_pessoa || 'PJ',
+        categoria: item.categoria || 'EMPRESARIO',
+        cnpj_cpf: cleanDoc,
+        razao_social: item.razao_social || 'Contribuinte',
+        nome_fantasia: item.nome_fantasia || item.razao_social || 'Contribuinte',
+        responsavel: item.responsavel || item.razao_social || 'Responsável',
+        email: (item.email || '').trim().toLowerCase(),
+        telefone: item.telefone || '',
+        ramo_atividade: item.ramo_atividade || '',
+        bairro: item.bairro || 'Centro',
+        endereco: item.endereco || '',
+        senha: item.senha || '123456',
+        data_cadastro: item.data_cadastro || new Date().toISOString()
+      };
+      const { error: legacyErr } = await supabase.from('contribuintes').upsert(legacyPayload, { onConflict: 'cnpj_cpf' });
+      if (!legacyErr) return true;
+    }
+
+    console.warn('Falha em todas as tentativas de salvar contribuinte no Supabase:', insErr?.message || upsertErr?.message);
     return false;
   } catch (err) {
     console.error('Exceção ao salvar contribuinte no Supabase:', err);

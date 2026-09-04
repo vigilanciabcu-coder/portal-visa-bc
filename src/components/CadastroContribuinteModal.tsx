@@ -27,6 +27,20 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
   const [telefone, setTelefone] = useState('');
   const [bairro, setBairro] = useState('Centro');
   const [endereco, setEndereco] = useState('');
+  
+  // Campos obrigatórios do Proprietário (visíveis antes da senha)
+  const [nomeProprietario, setNomeProprietario] = useState('');
+  const [emailProprietario, setEmailProprietario] = useState('');
+  const [telefoneProprietario, setTelefoneProprietario] = useState('');
+
+  // Campos adicionais do CNPJ capturados em segundo plano (ocultos da visualização do usuário)
+  const [dataAbertura, setDataAbertura] = useState('');
+  const [situacaoCadastral, setSituacaoCadastral] = useState('');
+  const [dataSituacaoCadastral, setDataSituacaoCadastral] = useState('');
+  const [cnaePrincipalCodigo, setCnaePrincipalCodigo] = useState('');
+  const [cnaePrincipalDescricao, setCnaePrincipalDescricao] = useState('');
+  const [cnaePrincipal, setCnaePrincipal] = useState('');
+
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [buscandoCnpj, setBuscandoCnpj] = useState(false);
@@ -58,6 +72,24 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
           setEndereco(endCompl);
         }
         if (data.bairro) setBairro(data.bairro);
+
+        // Preenche dados do proprietário sugeridos pelo CNPJ (caso vazios)
+        const socio = data.nome_proprietario || data.responsavel;
+        if (socio && !nomeProprietario) setNomeProprietario(socio);
+        if (data.email && !emailProprietario) setEmailProprietario(data.email);
+        if (data.telefone && !telefoneProprietario) setTelefoneProprietario(data.telefone);
+
+        // Armazena dados de segundo plano do CNPJ (ocultos da tela)
+        if (data.data_abertura) setDataAbertura(data.data_abertura);
+        if (data.situacao_cadastral || data.situacao) setSituacaoCadastral(data.situacao_cadastral || data.situacao || '');
+        if (data.data_situacao_cadastral) setDataSituacaoCadastral(data.data_situacao_cadastral);
+        if (data.cnae_principal_codigo) setCnaePrincipalCodigo(data.cnae_principal_codigo);
+        if (data.cnae_principal_descricao) setCnaePrincipalDescricao(data.cnae_principal_descricao);
+        
+        const cnaeCompleto = data.cnae_principal_codigo
+          ? `${data.cnae_principal_codigo} - ${data.cnae_principal_descricao || data.cnae || ''}`.trim()
+          : (data.cnae || '');
+        setCnaePrincipal(cnaeCompleto);
       }
     } catch (e) {
       console.error(e);
@@ -98,7 +130,12 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
     setErroMsg('');
 
     if (!cnpjCpf.trim() || !razaoSocial.trim() || !email.trim()) {
-      setErroMsg('Por favor, preencha os campos obrigatórios: CPF/CNPJ, Nome/Razão Social e E-mail.');
+      setErroMsg('Por favor, preencha os campos obrigatórios: CPF/CNPJ, Razão Social/Nome e E-mail Oficial.');
+      return;
+    }
+
+    if (!nomeProprietario.trim() || !emailProprietario.trim() || !telefoneProprietario.trim()) {
+      setErroMsg('Por favor, preencha os campos obrigatórios do Proprietário: Nome, E-mail e Telefone.');
       return;
     }
 
@@ -119,7 +156,10 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
       cnpj_cpf: cnpjCpf.trim(),
       razao_social: razaoSocial.trim(),
       nome_fantasia: nomeFantasia.trim() || razaoSocial.trim(),
-      responsavel: responsavel.trim() || razaoSocial.trim(),
+      responsavel: responsavel.trim() || nomeProprietario.trim() || razaoSocial.trim(),
+      nome_proprietario: nomeProprietario.trim(),
+      email_proprietario: emailProprietario.trim().toLowerCase(),
+      telefone_proprietario: telefoneProprietario.trim(),
       email: email.trim().toLowerCase(),
       telefone: telefone.trim(),
       ramo_atividade: ramoAtividade.trim(),
@@ -127,6 +167,13 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
       endereco: endereco.trim(),
       senha: senha.trim() || '123456',
       data_cadastro: new Date().toISOString().split('T')[0],
+      // Dados de segundo plano sincronizados no Supabase (ocultos da UI)
+      data_abertura: dataAbertura.trim(),
+      situacao_cadastral: situacaoCadastral.trim(),
+      data_situacao_cadastral: dataSituacaoCadastral.trim(),
+      cnae_principal: cnaePrincipal.trim(),
+      cnae_principal_codigo: cnaePrincipalCodigo.trim(),
+      cnae_principal_descricao: cnaePrincipalDescricao.trim(),
     };
 
     // Salva no LocalStorage dos contribuintes
@@ -398,19 +445,24 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <label className="text-[10px] font-bold uppercase block mb-1 text-slate-600 dark:text-slate-400">
-                  Bairro em Balneário Camboriú
+                  Bairro / Distrito <span className="text-slate-400 font-normal">(Editável)</span>
                 </label>
-                <select
-                  value={bairro}
-                  onChange={(e) => setBairro(e.target.value)}
-                  className="p-2.5 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                >
-                  {BAIRROS_BC.map((b) => (
-                    <option key={b} value={b}>
-                      {b}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <MapPin className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    list="bairros-bc-list"
+                    placeholder="Ex: Centro, Nações, Pioneiros..."
+                    value={bairro}
+                    onChange={(e) => setBairro(e.target.value)}
+                    className="p-2.5 pl-9 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  />
+                  <datalist id="bairros-bc-list">
+                    {BAIRROS_BC.map((b) => (
+                      <option key={b} value={b} />
+                    ))}
+                  </datalist>
+                </div>
               </div>
 
               <div>
@@ -426,6 +478,67 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
                     onChange={(e) => setEndereco(e.target.value)}
                     className="p-2.5 pl-9 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
                   />
+                </div>
+              </div>
+            </div>
+
+            {/* Dados Obrigatórios do Proprietário (Visíveis) */}
+            <div className="p-3 bg-amber-500/5 dark:bg-amber-500/10 rounded-2xl border border-amber-500/20 space-y-2">
+              <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-black text-xs uppercase">
+                <User className="w-3.5 h-3.5" />
+                <span>Dados do Proprietário / Titular</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold uppercase block mb-1 text-slate-600 dark:text-slate-400">
+                    Nome do Proprietário <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <User className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Nome do proprietário"
+                      value={nomeProprietario}
+                      onChange={(e) => setNomeProprietario(e.target.value)}
+                      className="p-2.5 pl-9 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase block mb-1 text-slate-600 dark:text-slate-400">
+                    E-mail do Proprietário <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="proprietario@email.com"
+                      value={emailProprietario}
+                      onChange={(e) => setEmailProprietario(e.target.value)}
+                      className="p-2.5 pl-9 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase block mb-1 text-slate-600 dark:text-slate-400">
+                    Telefone do Proprietário <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Phone className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="(47) 99999-9999"
+                      value={telefoneProprietario}
+                      onChange={(e) => setTelefoneProprietario(formatTelefone(e.target.value))}
+                      className="p-2.5 pl-9 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

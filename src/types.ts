@@ -332,6 +332,9 @@ export interface ContribuinteProfile {
   razao_social: string;
   nome_fantasia?: string;
   responsavel?: string;
+  nome_proprietario?: string;
+  email_proprietario?: string;
+  telefone_proprietario?: string;
   email: string;
   telefone?: string;
   ramo_atividade?: string;
@@ -339,6 +342,13 @@ export interface ContribuinteProfile {
   endereco?: string;
   senha?: string;
   data_cadastro?: string;
+  // Campos de background do CNPJ (ocultos da visualização do formulário)
+  data_abertura?: string;
+  situacao_cadastral?: string;
+  data_situacao_cadastral?: string;
+  cnae_principal?: string;
+  cnae_principal_codigo?: string;
+  cnae_principal_descricao?: string;
 }
 
 // ================= CIDADÃO / USUÁRIO PÚBLICO =================

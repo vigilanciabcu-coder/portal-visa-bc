@@ -318,14 +318,34 @@ CREATE TABLE IF NOT EXISTS public.contribuintes (
     razao_social TEXT NOT NULL,
     nome_fantasia TEXT,
     responsavel TEXT NOT NULL,
+    nome_proprietario TEXT,
+    email_proprietario TEXT,
+    telefone_proprietario TEXT,
     email TEXT NOT NULL,
     telefone TEXT,
     ramo_atividade TEXT,
     bairro TEXT,
     endereco TEXT,
     senha TEXT DEFAULT '123456',
+    data_abertura TEXT,
+    situacao_cadastral TEXT,
+    data_situacao_cadastral TEXT,
+    cnae_principal TEXT,
+    cnae_principal_codigo TEXT,
+    cnae_principal_descricao TEXT,
     data_cadastro TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- MIGRATION PARA BANCOS EXISTENTES (ADICIONAR NOVAS COLUNAS CASO A TABELA JÁ EXISTA):
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS nome_proprietario TEXT;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS email_proprietario TEXT;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS telefone_proprietario TEXT;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS data_abertura TEXT;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS situacao_cadastral TEXT;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS data_situacao_cadastral TEXT;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS cnae_principal TEXT;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS cnae_principal_codigo TEXT;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS cnae_principal_descricao TEXT;
 
 -- 13. TABELA DE CIDADÃOS
 CREATE TABLE IF NOT EXISTS public.cidadaos (
