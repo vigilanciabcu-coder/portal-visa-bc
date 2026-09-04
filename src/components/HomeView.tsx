@@ -141,20 +141,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
         const publicIds = ['pref', '1doc', 'alva', 'cnpj', 'debi', 'leis', 'mapa', 'cidadao_view'];
         if (!publicIds.includes(b.id)) return false;
       } else if (userType === 'CONTABILIDADE') {
-        const contabIds = ['pref', '1doc', 'alva', 'cnpj', 'debi', 'domm', 'leis', 'mapa', 'regi'];
+        const contabIds = ['pref', '1doc', 'alva', 'cnpj', 'debi', 'domm', 'leis', 'mapa', 'regi', 'tproc_lab'];
         if (!contabIds.includes(b.id)) return false;
+      } else if (userType === 'CONTRIBUINTE') {
+        const contribIds = ['pref', '1doc', 'alva', 'cnpj', 'debi', 'leis', 'mapa', 'feir', 'cidadao_view', 'tproc_lab'];
+        if (!contribIds.includes(b.id)) return false;
       }
     }
 
-    // 1. Processos e Carteira de Processos (Lab): Apenas Master
-    if (
-      b.id === 'proc' ||
-      b.id === 'tproc' ||
-      b.id === 'tproc_lab' ||
-      b.view === 'processos' ||
-      b.view === 'processos_lab'
-    ) {
+    // 1. Processos (Google Sheets legado): Apenas Master
+    if (b.id === 'proc' || b.id === 'tproc' || b.view === 'processos') {
       return isMaster && userType === 'SERVIDOR';
+    }
+
+    // Carteira de Processos: Liberado para Contabilidade, Contribuinte e Servidores
+    if (b.id === 'tproc_lab' || b.view === 'processos_lab') {
+      return userType === 'CONTABILIDADE' || userType === 'CONTRIBUINTE' || userType === 'SERVIDOR';
     }
 
     // 2. Laboratório: Apenas VISA (LABORATÓRIO) e Master
@@ -458,6 +460,34 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
           )}
 
+          {/* Banner Especial para CONTRIBUINTE */}
+          {userType === 'CONTRIBUINTE' && (
+            <div
+              onClick={() => onNavigate('processos_lab')}
+              className="mb-5 bg-gradient-to-r from-blue-950 via-indigo-950 to-slate-900 p-4 sm:p-5 rounded-2xl border-2 border-blue-400 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xl cursor-pointer hover:scale-[1.01] transition"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="bg-blue-600 text-white p-3 rounded-2xl shadow-lg">
+                  <Building2 className="w-7 h-7" />
+                </div>
+                <div className="text-left">
+                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/30 border border-blue-400/40 rounded-md text-[10px] font-black uppercase text-blue-300 mb-1">
+                    🏢 Autoatendimento do Contribuinte
+                  </div>
+                  <h3 className="font-black uppercase text-base sm:text-lg text-white">
+                    Carteira de Processos & Alvará do Meu CNPJ
+                  </h3>
+                  <p className="text-xs text-blue-200">
+                    Acompanhe a tramitação sanitária, validade de licença, vistorias e notificações do seu estabelecimento em tempo real.
+                  </p>
+                </div>
+              </div>
+              <button className="bg-blue-400 hover:bg-blue-300 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl uppercase shadow-md transition cursor-pointer shrink-0">
+                Acessar Meus Processos →
+              </button>
+            </div>
+          )}
+
           <div className="mb-4 text-left">
             <h1 className="text-xl md:text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight flex items-center gap-2">
               {userType === 'CIDADAO'
@@ -586,6 +616,37 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <li>Anexe projetos e memoriais descritivos via <strong>1Doc</strong>.</li>
                   <li>Emita taxas sanitárias no portal de <strong>Débitos</strong>.</li>
                   <li>Consulte a legislação de saúde em <strong>Leis</strong>.</li>
+                </ul>
+              </div>
+            </div>
+          ) : userType === 'CONTRIBUINTE' ? (
+            /* Painel do Contribuinte */
+            <div className="space-y-4 text-left">
+              <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                <h3 className="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-2 mb-3">
+                  <Building2 className="w-4 h-4" /> Meu Estabelecimento Sanitário
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-3">
+                  Acompanhe a tramitação do seu processo, validade de licenças e notificações diretamente no portal oficial.
+                </p>
+                <button
+                  onClick={() => onNavigate('processos_lab')}
+                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow"
+                >
+                  <span>Acessar Carteira do Meu CNPJ</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-700">
+                <h4 className="text-xs font-black uppercase text-slate-800 dark:text-white flex items-center gap-1.5 mb-2.5">
+                  <FileText className="w-4 h-4 text-blue-500" /> Serviços ao Contribuinte
+                </h4>
+                <ul className="space-y-2 text-[11px] text-slate-600 dark:text-slate-300 list-disc pl-4">
+                  <li>Acompanhe em tempo real os relatórios de vistoria.</li>
+                  <li>Anexe laudos e documentos sanitários solicitados.</li>
+                  <li>Emita certidões e taxas no portal de <strong>Débitos</strong>.</li>
+                  <li>Protocolar novos pedidos ou renovação no <strong>1Doc</strong>.</li>
                 </ul>
               </div>
             </div>

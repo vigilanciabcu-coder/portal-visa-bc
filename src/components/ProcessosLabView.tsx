@@ -99,6 +99,14 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
   // Navigation Tabs: 'cadastro' | 'denuncias' | 'historico' | 'dashboard'
   const [currentTab, setCurrentTab] = useState<'cadastro' | 'denuncias' | 'historico' | 'dashboard'>('cadastro');
 
+  // Role helpers
+  const isMaster = currentUser?.nivel_acesso?.toUpperCase().includes('MASTER') ||
+    currentUser?.nivel_acesso === 'MASTER (TUDO)' ||
+    currentUser?.cargo === 'MASTER ADM';
+  const isServidorOrMaster = currentUser?.tipo_usuario === 'SERVIDOR' || isMaster;
+  const isContabilidade = currentUser?.tipo_usuario === 'CONTABILIDADE';
+  const isContribuinte = currentUser?.tipo_usuario === 'CONTRIBUINTE';
+
   // ================= ESTADOS DO MÓDULO DE CONTABILIDADES (LAB) =================
   const [abaAtivaLab, setAbaAtivaLab] = useState<'painel_contabilidade' | 'painel_contribuinte' | 'visa_processos'>(() => {
     return currentUser?.tipo_usuario === 'CONTRIBUINTE' ? 'painel_contribuinte' : 'painel_contabilidade';
@@ -665,20 +673,6 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
     loadContabilidadesFromCloud();
   }, []);
 
-  // Contabilidade Ativa Selecionada
-  const contabilidadeAtiva = contabilidades.find(c => c.id === selectedContabilidadeId) || contabilidades[0];
-
-  // Se a contabilidade modelo inicial ('contab-1') não tem vínculos salvos, inicializa para demonstração
-  useEffect(() => {
-    const defaultContab = contabilidades.find(c => c.id === 'contab-1');
-    if (defaultContab && defaultContab.cnpjs_vinculados.length === 0 && processos.length > 0) {
-      const cnpjsIniciais = processos.slice(0, 5).map(p => p.cnpj_cpf).filter(Boolean);
-      if (cnpjsIniciais.length > 0) {
-        setContabilidades(prev => prev.map(c => c.id === 'contab-1' ? { ...c, cnpjs_vinculados: Array.from(new Set(cnpjsIniciais)) } : c));
-      }
-    }
-  }, [processos, contabilidades]);
-
   // Limpeza de documento para busca
   const cleanDoc = (val?: string) => (val || '').replace(/\D/g, '');
 
@@ -693,13 +687,157 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
     }) || null;
   };
 
+  // Identifica o escritório contábil específico do usuário logado (se for CONTABILIDADE)
+  const contabilidadeDoUsuario = useMemo(() => {
+    if (currentUser?.tipo_usuario !== 'CONTABILIDADE') return null;
+    const cleanMat = cleanDoc(currentUser.matricula || '');
+    const uEmail = (currentUser.email || '').toLowerCase().trim();
+    const cId = currentUser.contabilidade_id || currentUser.id;
+
+    return contabilidades.find(c =>
+      (cId && c.id === cId) ||
+      (cleanMat && cleanDoc(c.cnpj) === cleanMat) ||
+      (cleanMat && c.crc && cleanDoc(c.crc) === cleanMat) ||
+      (uEmail && c.email && c.email.toLowerCase().trim() === uEmail)
+    ) || null;
+  }, [contabilidades, currentUser]);
+
+  // Se o usuário logado for CONTABILIDADE, garante que ele tenha seu escritório selecionado ou provisionado
+  useEffect(() => {
+    if (currentUser?.tipo_usuario === 'CONTABILIDADE') {
+      if (contabilidadeDoUsuario) {
+        if (selectedContabilidadeId !== contabilidadeDoUsuario.id) {
+          setSelectedContabilidadeId(contabilidadeDoUsuario.id);
+        }
+      } else if (currentUser.nome_completo) {
+        const newOffice: ContabilidadeProfile = {
+          id: currentUser.contabilidade_id || currentUser.id || 'contab-' + Date.now(),
+          razao_social: currentUser.nome_completo,
+          nome_fantasia: currentUser.nome_completo,
+          cnpj: currentUser.matricula || '',
+          crc: currentUser.matricula || 'SC-REGULAR',
+          responsavel: currentUser.nome_completo,
+          email: currentUser.email || '',
+          telefone: currentUser.telefone || '',
+          cnpjs_vinculados: [],
+          data_cadastro: new Date().toISOString().split('T')[0]
+        };
+        setContabilidades(prev => [newOffice, ...prev]);
+        setSelectedContabilidadeId(newOffice.id);
+        if (isSupabaseConfigured) {
+          saveContabilidadeToSupabase(newOffice).catch(console.warn);
+        }
+      }
+    }
+  }, [currentUser, contabilidadeDoUsuario, selectedContabilidadeId]);
+
+  // Se o usuário logado for CONTRIBUINTE, inicializa na aba de seu CNPJ
+  useEffect(() => {
+    if (currentUser?.tipo_usuario === 'CONTRIBUINTE') {
+      setAbaAtivaLab('painel_contribuinte');
+      if (currentUser.cpf && !buscaCnpjContribuinte) {
+        setBuscaCnpjContribuinte(currentUser.cpf);
+      }
+    }
+  }, [currentUser]);
+
+  // Contabilidade Ativa Selecionada (Para contabilista, é estritamente o seu próprio escritório)
+  const contabilidadeAtiva = useMemo(() => {
+    if (currentUser?.tipo_usuario === 'CONTABILIDADE' && contabilidadeDoUsuario) {
+      return contabilidadeDoUsuario;
+    }
+    return contabilidades.find(c => c.id === selectedContabilidadeId) || contabilidades[0];
+  }, [currentUser, contabilidadeDoUsuario, contabilidades, selectedContabilidadeId]);
+
+  // Desvincular CNPJ da carteira do escritório contábil
+  const handleDesvincularCNPJ = async (cnpjParaRemover: string) => {
+    if (!contabilidadeAtiva) return;
+    const cleanTarget = cleanDoc(cnpjParaRemover);
+    const updatedVinculos = (contabilidadeAtiva.cnpjs_vinculados || []).filter(c => cleanDoc(c) !== cleanTarget);
+    const updatedContab: ContabilidadeProfile = {
+      ...contabilidadeAtiva,
+      cnpjs_vinculados: updatedVinculos
+    };
+
+    setContabilidades(prev => prev.map(c => c.id === contabilidadeAtiva.id ? updatedContab : c));
+
+    // Salva localmente
+    const saved = localStorage.getItem('visa_contabilidades_lab');
+    if (saved) {
+      try {
+        const parsed: ContabilidadeProfile[] = JSON.parse(saved);
+        const nextList = parsed.map(c => c.id === contabilidadeAtiva.id ? updatedContab : c);
+        localStorage.setItem('visa_contabilidades_lab', JSON.stringify(nextList));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Sincroniza Supabase
+    if (isSupabaseConfigured) {
+      saveContabilidadeToSupabase(updatedContab).catch(err => console.warn('Erro ao desvincular no Supabase:', err));
+    }
+  };
+
+  // Vincular novo CNPJ à carteira do escritório contábil
+  const handleVincularCNPJ = async () => {
+    if (!cnpjParaVincular.trim() || !contabilidadeAtiva) return;
+    const novoCnpj = cnpjParaVincular.trim();
+    const cleanNovo = cleanDoc(novoCnpj);
+
+    const exist = (contabilidadeAtiva.cnpjs_vinculados || []).some(c => cleanDoc(c) === cleanNovo);
+    if (exist) {
+      alert('Este CNPJ/CPF já está vinculado à carteira deste escritório.');
+      return;
+    }
+
+    const updatedVinculos = Array.from(new Set([...(contabilidadeAtiva.cnpjs_vinculados || []), novoCnpj]));
+    const updatedContab: ContabilidadeProfile = {
+      ...contabilidadeAtiva,
+      cnpjs_vinculados: updatedVinculos
+    };
+
+    setContabilidades(prev => prev.map(c => c.id === contabilidadeAtiva.id ? updatedContab : c));
+
+    // Salva localmente
+    const saved = localStorage.getItem('visa_contabilidades_lab');
+    if (saved) {
+      try {
+        const parsed: ContabilidadeProfile[] = JSON.parse(saved);
+        const nextList = parsed.map(c => c.id === contabilidadeAtiva.id ? updatedContab : c);
+        localStorage.setItem('visa_contabilidades_lab', JSON.stringify(nextList));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Sincroniza Supabase
+    if (isSupabaseConfigured) {
+      saveContabilidadeToSupabase(updatedContab).catch(err => console.warn('Erro ao vincular no Supabase:', err));
+    }
+
+    setCnpjParaVincular('');
+    setModalNovoCNPJCarteira(false);
+  };
+
+  // Se a contabilidade modelo inicial ('contab-1') não tem vínculos salvos, inicializa para demonstração
+  useEffect(() => {
+    const defaultContab = contabilidades.find(c => c.id === 'contab-1');
+    if (defaultContab && defaultContab.cnpjs_vinculados.length === 0 && processos.length > 0) {
+      const cnpjsIniciais = processos.slice(0, 5).map(p => p.cnpj_cpf).filter(Boolean);
+      if (cnpjsIniciais.length > 0) {
+        setContabilidades(prev => prev.map(c => c.id === 'contab-1' ? { ...c, cnpjs_vinculados: Array.from(new Set(cnpjsIniciais)) } : c));
+      }
+    }
+  }, [processos, contabilidades]);
+
   // Obter processos do contribuinte pesquisado
   const processosContribuinte = useMemo(() => {
     const q = cleanDoc(buscaCnpjContribuinte);
     const qText = buscaCnpjContribuinte.trim().toLowerCase();
     if (!q && !qText) return [];
 
-    return processos.filter(p => {
+    const matches = processos.filter(p => {
       const pDoc = cleanDoc(p.cnpj_cpf);
       const pRazao = (p.razao_social || '').toLowerCase();
       const pFantasia = (p.nome_fantasia || '').toLowerCase();
@@ -708,18 +846,94 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
       return (q.length >= 4 && pDoc.includes(q)) || 
              (qText.length >= 3 && (pRazao.includes(qText) || pFantasia.includes(qText) || pProc.includes(qText)));
     });
+
+    if (matches.length === 0 && (q.length >= 8 || qText.length >= 3)) {
+      const savedContribs = (() => {
+        try {
+          const raw = localStorage.getItem('visa_contribuintes');
+          return raw ? JSON.parse(raw) : [];
+        } catch {
+          return [];
+        }
+      })();
+
+      const matchedContrib = savedContribs.find((c: any) => {
+        const cDoc = cleanDoc(c.cnpj_cpf);
+        const cRazao = (c.razao_social || '').toLowerCase();
+        return (q.length >= 8 && cDoc.includes(q)) || (qText.length >= 3 && cRazao.includes(qText));
+      });
+
+      if (matchedContrib) {
+        return [{
+          id: matchedContrib.id || 'contrib-' + matchedContrib.cnpj_cpf,
+          num_processo: 'Aguardando 1Doc',
+          data_protocolo: matchedContrib.data_cadastro ? String(matchedContrib.data_cadastro).split('T')[0] : new Date().toISOString().split('T')[0],
+          cnpj_cpf: matchedContrib.cnpj_cpf,
+          razao_social: matchedContrib.razao_social,
+          nome_fantasia: matchedContrib.nome_fantasia || '',
+          assunto: 'ALVARÁ SANITÁRIO',
+          bairro: matchedContrib.bairro || 'Balneário Camboriú',
+          endereco: matchedContrib.endereco || '',
+          status: 'EM ANÁLISE' as ProcessoStatus,
+          situacao_cadastral: 'EMPRESA REGISTRADA • AGUARDANDO PROTOCOLO OU VISTORIA',
+          grau_risco: 'BAIXO RISCO' as const,
+          fiscal_responsavel: 'A Definir'
+        }];
+      }
+    }
+
+    return matches;
   }, [buscaCnpjContribuinte, processos]);
 
   // Obter lista de processos/empresas que pertencem à carteira da contabilidade ativa
   const empresasCarteira = useMemo(() => {
     if (!contabilidadeAtiva) return [];
-    const vinculosSet = new Set(contabilidadeAtiva.cnpjs_vinculados.map(c => cleanDoc(c)));
+    const vinculosList = contabilidadeAtiva.cnpjs_vinculados || [];
+    const vinculosSet = new Set(vinculosList.map(c => cleanDoc(c)));
     
-    // Filtra os processos cadastrados que coincidem com os CNPJs vinculados
-    return processos.filter(p => {
+    // 1. Filtra os processos cadastrados que coincidem com os CNPJs vinculados
+    const matchProcessos = processos.filter(p => {
       const pDoc = cleanDoc(p.cnpj_cpf);
       return vinculosSet.has(pDoc);
     });
+
+    const foundDocs = new Set(matchProcessos.map(p => cleanDoc(p.cnpj_cpf)));
+
+    // 2. Contribuintes cadastrados para enriquecer CNPJs vinculados que ainda não têm processo
+    const savedContribs = (() => {
+      try {
+        const raw = localStorage.getItem('visa_contribuintes');
+        return raw ? JSON.parse(raw) : [];
+      } catch {
+        return [];
+      }
+    })();
+
+    const missingProcessos: ProcessoItem[] = [];
+    vinculosList.forEach(vCnpj => {
+      const cleanV = cleanDoc(vCnpj);
+      if (!cleanV || foundDocs.has(cleanV)) return;
+
+      const contribMatch = savedContribs.find((c: any) => cleanDoc(c.cnpj_cpf) === cleanV);
+
+      missingProcessos.push({
+        id: 'carteira-temp-' + cleanV,
+        num_processo: 'Aguardando 1Doc',
+        data_protocolo: contabilidadeAtiva.data_cadastro || new Date().toISOString().split('T')[0],
+        cnpj_cpf: vCnpj,
+        razao_social: contribMatch?.razao_social || 'Cliente Vinculado à Carteira',
+        nome_fantasia: contribMatch?.nome_fantasia || '',
+        assunto: 'ALVARÁ SANITÁRIO',
+        bairro: contribMatch?.bairro || 'Balneário Camboriú',
+        endereco: contribMatch?.endereco || 'Balneário Camboriú, SC',
+        status: 'EM ANÁLISE' as ProcessoStatus,
+        situacao_cadastral: 'VINCULADO AO ESCRITÓRIO • AGUARDANDO PROTOCOLO OU VISTORIA',
+        grau_risco: 'BAIXO RISCO' as const,
+        fiscal_responsavel: 'A Definir'
+      });
+    });
+
+    return [...matchProcessos, ...missingProcessos];
   }, [contabilidadeAtiva, processos]);
 
   // Métricas da Carteira
@@ -773,71 +987,82 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
 
   return (
     <div className="min-h-screen bg-[#181818] text-slate-100 p-2 md:p-4 font-sans selection:bg-blue-600 selection:text-white">
-      {/* 🧪 MASTER LAB DEV ENVIRONMENT BANNER */}
-      <div className="mb-2 bg-gradient-to-r from-purple-900/90 via-indigo-900/90 to-purple-900/90 border border-purple-500/50 rounded-md p-2 flex items-center justify-between shadow-md">
+      {/* 🛡️ CARTEIRA DE PROCESSOS BANNER */}
+      <div className="mb-2 bg-gradient-to-r from-blue-900/80 via-indigo-900/80 to-slate-900 border border-blue-500/40 rounded-md p-2 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-2">
-          <span className="bg-purple-600 text-white text-[10px] font-black px-2 py-0.5 rounded tracking-wider uppercase flex items-center gap-1 shadow">
-            <span>🧪</span> AMBIENTE DE TESTES (CÓPIA LAB)
+          <span className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded tracking-wider uppercase flex items-center gap-1 shadow">
+            <span>🛡️</span> CARTEIRA DE PROCESSOS
           </span>
-          <span className="text-xs text-purple-200 font-medium hidden sm:inline">
-            Espelho isolado e seguro para novos testes — visível apenas para o usuário Master.
+          <span className="text-xs text-blue-200 font-medium hidden sm:inline">
+            {isContabilidade
+              ? 'Painel Exclusivo do Escritório Contábil — Gestão compartilhada com a Vigilância Sanitária de Balneário Camboriú.'
+              : isContribuinte
+              ? 'Painel do Contribuinte — Acompanhamento em tempo real do seu CNPJ, laudos e alvarás sanitários.'
+              : 'Gestão Integrada de Processos, Carteira de Contabilidades e Tramitação Sanitária.'}
           </span>
         </div>
-        <span className="text-[10px] text-purple-300 font-mono font-bold bg-purple-950/60 px-2 py-0.5 rounded border border-purple-800">
-          PROCESSO_DEV_V2
+        <span className="text-[10px] text-blue-300 font-mono font-bold bg-blue-950/60 px-2 py-0.5 rounded border border-blue-800">
+          VISA_BC_2026
         </span>
       </div>
 
-      {/* 🌟 NAVEGADOR DE ABAS DO LABORATÓRIO */}
+      {/* 🌟 NAVEGADOR DE ABAS */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3 bg-[#202020] border border-[#333333] p-1.5 rounded-lg shadow-sm">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setAbaAtivaLab('painel_contabilidade')}
-            className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
-              abaAtivaLab === 'painel_contabilidade'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#2b2b2b]'
-            }`}
-          >
-            <Briefcase className="w-4 h-4 text-blue-300" />
-            🏢 Painel da Contabilidade (Contador)
-          </button>
+          {/* Aba Contabilidade: visível para Servidor, Master ou Contabilidade */}
+          {(isServidorOrMaster || isContabilidade) && (
+            <button
+              type="button"
+              onClick={() => setAbaAtivaLab('painel_contabilidade')}
+              className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                abaAtivaLab === 'painel_contabilidade'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-[#2b2b2b]'
+              }`}
+            >
+              <Briefcase className="w-4 h-4 text-blue-300" />
+              {isContabilidade ? '🏢 Minha Carteira de Clientes' : '🏢 Painel da Contabilidade (Contador)'}
+            </button>
+          )}
 
+          {/* Aba Contribuinte: visível para todos */}
           <button
             type="button"
             onClick={() => setAbaAtivaLab('painel_contribuinte')}
-            className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
               abaAtivaLab === 'painel_contribuinte'
                 ? 'bg-indigo-600 text-white shadow-md ring-1 ring-indigo-400'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-[#2b2b2b]'
             }`}
           >
             <Building2 className="w-4 h-4 text-indigo-300" />
-            👤 Meu CNPJ (Acompanhamento do Contribuinte)
+            {isContribuinte ? '👤 Meu CNPJ & Alvará Sanitário' : '🔍 Consultar Empresa / CNPJ'}
           </button>
 
-          <button
-            type="button"
-            onClick={() => setAbaAtivaLab('visa_processos')}
-            className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${
-              abaAtivaLab === 'visa_processos'
-                ? 'bg-emerald-700 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#2b2b2b]'
-            }`}
-          >
-            <Layers className="w-4 h-4 text-emerald-300" />
-            📋 Gestão VISA Processos Original
-          </button>
+          {/* Aba VISA Processos Original: Apenas Servidor / Master */}
+          {isServidorOrMaster && (
+            <button
+              type="button"
+              onClick={() => setAbaAtivaLab('visa_processos')}
+              className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                abaAtivaLab === 'visa_processos'
+                  ? 'bg-emerald-700 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-[#2b2b2b]'
+              }`}
+            >
+              <Layers className="w-4 h-4 text-emerald-300" />
+              📋 Gestão VISA Processos Original
+            </button>
+          )}
         </div>
 
-        {abaAtivaLab === 'painel_contabilidade' && (
+        {abaAtivaLab === 'painel_contabilidade' && contabilidadeAtiva && (
           <div className="flex items-center gap-2 text-xs">
             <span className="text-slate-400 font-semibold flex items-center gap-1">
-              <UserCheck className="w-3.5 h-3.5 text-blue-400" /> Escritório Ativo:
+              <UserCheck className="w-3.5 h-3.5 text-blue-400" /> {isContabilidade ? 'Meu Escritório:' : 'Escritório Ativo:'}
             </span>
             <span className="bg-blue-950/80 border border-blue-600/40 text-blue-200 font-bold px-2.5 py-1 rounded">
-              {contabilidadeAtiva?.nome_fantasia || 'Contabilidade Balneário & Associados'}
+              {contabilidadeAtiva?.nome_fantasia || contabilidadeAtiva?.razao_social}
             </span>
           </div>
         )}
@@ -2379,36 +2604,40 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
 
               {/* Ações Rápidas */}
               <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
-                {/* Seletor de Escritórios se houver mais de 1 */}
-                <div className="flex items-center gap-1.5 bg-[#13171f] border border-slate-700 px-2.5 py-1.5 rounded-lg text-xs">
-                  <span className="text-slate-400 font-bold">Trocar Escritório:</span>
-                  <select
-                    value={selectedContabilidadeId}
-                    onChange={(e) => setSelectedContabilidadeId(e.target.value)}
-                    className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
-                  >
-                    {contabilidades.map((c) => (
-                      <option key={c.id} value={c.id} className="bg-[#242424] text-white">
-                        {c.nome_fantasia || c.razao_social}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* Seletor de Escritórios e Novo Escritório: Apenas Servidores VISA ou Master */}
+                {isServidorOrMaster && (
+                  <>
+                    <div className="flex items-center gap-1.5 bg-[#13171f] border border-slate-700 px-2.5 py-1.5 rounded-lg text-xs">
+                      <span className="text-slate-400 font-bold">Trocar Escritório:</span>
+                      <select
+                        value={selectedContabilidadeId}
+                        onChange={(e) => setSelectedContabilidadeId(e.target.value)}
+                        className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
+                      >
+                        {contabilidades.map((c) => (
+                          <option key={c.id} value={c.id} className="bg-[#242424] text-white">
+                            {c.nome_fantasia || c.razao_social}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                <button
-                  type="button"
-                  onClick={() => setModalCadastroContabilidadeOpen(true)}
-                  className="bg-purple-700 hover:bg-purple-600 text-white font-bold text-xs px-3 py-2 rounded-md flex items-center justify-center gap-1.5 shadow transition active:scale-95"
-                  title="Cadastrar um novo escritório de contabilidade no sistema"
-                >
-                  <Briefcase className="w-3.5 h-3.5" />
-                  + Novo Escritório
-                </button>
+                    <button
+                      type="button"
+                      onClick={() => setModalCadastroContabilidadeOpen(true)}
+                      className="bg-purple-700 hover:bg-purple-600 text-white font-bold text-xs px-3 py-2 rounded-md flex items-center justify-center gap-1.5 shadow transition active:scale-95 cursor-pointer"
+                      title="Cadastrar um novo escritório de contabilidade no sistema"
+                    >
+                      <Briefcase className="w-3.5 h-3.5" />
+                      + Novo Escritório
+                    </button>
+                  </>
+                )}
 
                 <button
                   type="button"
                   onClick={() => setModalNovoCNPJCarteira(true)}
-                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3.5 py-2 rounded-md flex items-center justify-center gap-1.5 shadow-lg transition active:scale-95"
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3.5 py-2 rounded-md flex items-center justify-center gap-1.5 shadow-lg transition active:scale-95 cursor-pointer"
                 >
                   <FolderPlus className="w-4 h-4" />
                   + Vincular Novo CNPJ / Cliente
@@ -2624,23 +2853,41 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                                     razao: emp.razao_social
                                   });
                                 }}
-                                className="bg-blue-600/30 hover:bg-blue-600 text-blue-200 hover:text-white border border-blue-500/40 text-[11px] font-bold px-2.5 py-1.5 rounded flex items-center gap-1 transition-all"
+                                className="bg-blue-600/30 hover:bg-blue-600 text-blue-200 hover:text-white border border-blue-500/40 text-[11px] font-bold px-2.5 py-1.5 rounded flex items-center gap-1 transition-all cursor-pointer"
                                 title="Enviar PGRSS, Laudos e Documentos Solicitados"
                               >
-                                <UploadCloud className="w-3.5 h-3.5" /> Anexar Documento
+                                <UploadCloud className="w-3.5 h-3.5" /> Anexar
                               </button>
 
                               <button
                                 type="button"
                                 onClick={() => {
-                                  loadProcessoIntoForm(emp);
-                                  setCurrentTab('cadastro');
-                                  setAbaAtivaLab('visa_processos');
+                                  if (isServidorOrMaster) {
+                                    loadProcessoIntoForm(emp);
+                                    setCurrentTab('cadastro');
+                                    setAbaAtivaLab('visa_processos');
+                                  } else {
+                                    setBuscaCnpjContribuinte(emp.cnpj_cpf);
+                                    setAbaAtivaLab('painel_contribuinte');
+                                  }
                                 }}
-                                className="bg-slate-700 hover:bg-slate-600 text-slate-200 text-[11px] font-bold px-2 py-1.5 rounded flex items-center gap-1 transition-all"
-                                title="Ver ficha técnica sanitária completa"
+                                className="bg-slate-700 hover:bg-slate-600 text-slate-200 text-[11px] font-bold px-2 py-1.5 rounded flex items-center gap-1 transition-all cursor-pointer"
+                                title="Ver espelho técnico sanitário da empresa"
                               >
                                 <Eye className="w-3.5 h-3.5" /> Ficha
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (window.confirm(`Deseja realmente desvincular a empresa "${emp.razao_social || emp.cnpj_cpf}" da carteira deste escritório contábil?`)) {
+                                    handleDesvincularCNPJ(emp.cnpj_cpf);
+                                  }
+                                }}
+                                className="bg-rose-950/40 hover:bg-rose-900/80 text-rose-400 hover:text-rose-200 border border-rose-800/40 text-[11px] font-bold px-2 py-1.5 rounded flex items-center gap-1 transition-all cursor-pointer"
+                                title="Desvincular cliente da carteira"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>
@@ -2664,7 +2911,7 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setModalNovoCNPJCarteira(false)}
-                    className="text-slate-400 hover:text-white text-lg font-bold"
+                    className="text-slate-400 hover:text-white text-lg font-bold cursor-pointer"
                   >
                     ✕
                   </button>
@@ -2692,27 +2939,14 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setModalNovoCNPJCarteira(false)}
-                    className="px-3 py-1.5 rounded text-xs font-bold text-slate-400 hover:bg-[#333333]"
+                    className="px-3 py-1.5 rounded text-xs font-bold text-slate-400 hover:bg-[#333333] cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (!cnpjParaVincular.trim()) return;
-                      const novoCnpj = cnpjParaVincular.trim();
-                      const updatedContab = {
-                        ...contabilidadeAtiva,
-                        cnpjs_vinculados: Array.from(new Set([...contabilidadeAtiva.cnpjs_vinculados, novoCnpj]))
-                      };
-                      setContabilidades(prev => prev.map(c => c.id === contabilidadeAtiva.id ? updatedContab : c));
-                      if (isSupabaseConfigured) {
-                        saveContabilidadeToSupabase(updatedContab).catch(err => console.warn('Supabase sync CNPJ:', err));
-                      }
-                      setCnpjParaVincular('');
-                      setModalNovoCNPJCarteira(false);
-                    }}
-                    className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-1.5 rounded shadow"
+                    onClick={handleVincularCNPJ}
+                    className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-1.5 rounded shadow cursor-pointer transition active:scale-95"
                   >
                     Confirmar Vínculo
                   </button>

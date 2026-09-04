@@ -185,6 +185,9 @@ export interface ProcessoItem {
   cep?: string;
   numero_complemento?: string;
   situacao_cadastral?: string;
+  situacao_fiscal?: string;
+  descricao_atividade?: string;
+  cnae?: string;
   motivo_situacao?: string;
   data_situacao?: string;
   venc_licenca?: string;

@@ -43,20 +43,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         const publicIds = ['pref', '1doc', 'alva', 'cnpj', 'debi', 'leis', 'mapa', 'cidadao_view'];
         if (!publicIds.includes(b.id)) return false;
       } else if (userType === 'CONTABILIDADE') {
-        const contabIds = ['pref', '1doc', 'alva', 'cnpj', 'debi', 'domm', 'leis', 'mapa', 'regi'];
+        const contabIds = ['pref', '1doc', 'alva', 'cnpj', 'debi', 'domm', 'leis', 'mapa', 'regi', 'tproc_lab'];
         if (!contabIds.includes(b.id)) return false;
+      } else if (userType === 'CONTRIBUINTE') {
+        const contribIds = ['pref', '1doc', 'alva', 'cnpj', 'debi', 'leis', 'mapa', 'feir', 'cidadao_view', 'tproc_lab'];
+        if (!contribIds.includes(b.id)) return false;
       }
     }
 
-    // 1. Processos e Carteira de Processos (Lab): Apenas Master
-    if (
-      b.id === 'proc' ||
-      b.id === 'tproc' ||
-      b.id === 'tproc_lab' ||
-      b.view === 'processos' ||
-      b.view === 'processos_lab'
-    ) {
+    // 1. Processos (Google Sheets legado): Apenas Master
+    if (b.id === 'proc' || b.id === 'tproc' || b.view === 'processos') {
       return isMaster && userType === 'SERVIDOR';
+    }
+
+    // Carteira de Processos: Liberado para Contabilidade, Contribuinte e Servidores
+    if (b.id === 'tproc_lab' || b.view === 'processos_lab') {
+      return userType === 'CONTABILIDADE' || userType === 'CONTRIBUINTE' || userType === 'SERVIDOR';
     }
 
     // 2. Laboratório: Apenas VISA (LABORATÓRIO) e Master

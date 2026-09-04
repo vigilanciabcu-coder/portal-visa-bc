@@ -90,7 +90,7 @@ const PORTAL_BUTTONS: PortalButton[] = [
   { id: 'agen', nome: 'AGENDA', url: '', img: 'calendar', acao: 'view', view: 'agenda', perfisPermitidos: ['SERVIDOR'] },
   { id: 'ahgo', nome: 'Ahgora', url: 'https://app.ahgora.com.br/externo/index/prefeiturabc', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/sistemadepontobiometrico.avif', acao: 'link', perfisPermitidos: ['SERVIDOR'] },
   { id: 'mail', nome: 'BC Mail', url: 'https://mail.bc.sc.gov.br/', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/email.institucional.avif', acao: 'link', perfisPermitidos: ['SERVIDOR'] },
-  { id: 'tproc_lab', nome: 'Carteira de Processos (Lab)', url: '', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/processos.avif', acao: 'view', view: 'processos_lab', badgetext: 'LAB DEV', somenteMaster: true, perfisPermitidos: ['SERVIDOR'] },
+  { id: 'tproc_lab', nome: 'Carteira de Processos', url: '', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/processos.avif', acao: 'view', view: 'processos_lab', badgetext: 'CARTEIRA', somenteMaster: false, perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CONTRIBUINTE'] },
   { id: 'cnae_btn', nome: 'CNAE', url: '', img: 'cnae-icon', acao: 'view', view: 'cnae', badgetext: 'VISA', perfisPermitidos: ['SERVIDOR'] },
   { id: 'cnpj', nome: 'CNPJ', url: 'https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/cnpj_edited.avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'cidadao_view', nome: 'Consulta Pública (Munícipe)', url: '', img: 'alvara', acao: 'view', view: 'cidadao', badgetext: 'PÚBLICO', perfisPermitidos: ['CIDADAO', 'SERVIDOR', 'CONTRIBUINTE', 'CONTABILIDADE'] },
@@ -845,7 +845,12 @@ export default function App() {
               )}
 
               {currentView === 'processos_lab' && (
-                (currentUser?.nivel_acesso?.toUpperCase().includes('MASTER') || currentUser?.nivel_acesso === 'MASTER (TUDO)' || currentUser?.cargo === 'MASTER ADM') ? (
+                (currentUser?.tipo_usuario === 'CONTABILIDADE' ||
+                 currentUser?.tipo_usuario === 'CONTRIBUINTE' ||
+                 currentUser?.tipo_usuario === 'SERVIDOR' ||
+                 currentUser?.nivel_acesso?.toUpperCase().includes('MASTER') ||
+                 currentUser?.nivel_acesso === 'MASTER (TUDO)' ||
+                 currentUser?.cargo === 'MASTER ADM') ? (
                   <ProcessosLabView
                     processos={processos}
                     currentUser={currentUser}
@@ -860,7 +865,7 @@ export default function App() {
                     </div>
                     <h2 className="text-xl font-black uppercase text-slate-900 dark:text-white">Acesso Restrito à Carteira de Processos</h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Este módulo é exclusivo para usuários com perfil <strong className="text-purple-600 dark:text-purple-400">MASTER</strong>.
+                      Este módulo é exclusivo para Servidores da Vigilância Sanitária, Escritórios de Contabilidade e Contribuintes cadastrados.
                     </p>
                     <button
                       onClick={() => setCurrentView('home')}
