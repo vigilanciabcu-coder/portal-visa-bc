@@ -1005,11 +1005,23 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                     Preencha os dados oficiais do estabelecimento, ponto e parâmetros de coleta.
                   </p>
                 </div>
-                <div className="text-right">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Nº da Amostra</span>
-                  <span className="bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 text-xs font-mono font-bold px-2.5 py-1 rounded-lg border border-cyan-300 dark:border-cyan-800">
-                    {coletaForm.codigo_amostra}
-                  </span>
+                <div className="text-right flex flex-col items-end">
+                  <label htmlFor="input-codigo-amostra-coleta" className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 block mb-1 flex items-center gap-1 cursor-pointer">
+                    <Edit3 className="w-3 h-3 text-cyan-600 dark:text-cyan-400" />
+                    <span>Nº da Amostra (Editável)</span>
+                  </label>
+                  <div className="relative inline-flex items-center">
+                    <input
+                      id="input-codigo-amostra-coleta"
+                      type="text"
+                      required
+                      placeholder="Ex: 171"
+                      title="Número automático da amostra (você pode editar manualmente se necessário)"
+                      value={coletaForm.codigo_amostra || ''}
+                      onChange={(e) => setColetaForm({ ...coletaForm, codigo_amostra: e.target.value })}
+                      className="bg-cyan-50 dark:bg-cyan-950/60 hover:bg-cyan-100/80 dark:hover:bg-cyan-950/90 text-cyan-800 dark:text-cyan-200 text-xs font-mono font-black px-3 py-1.5 rounded-xl border border-cyan-300 dark:border-cyan-700/80 text-right w-32 sm:w-36 focus:w-44 transition-all focus:ring-2 focus:ring-cyan-500 focus:outline-none shadow-sm"
+                    />
+                  </div>
                 </div>
               </div>
 
