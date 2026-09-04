@@ -47,6 +47,31 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
   const [sucesso, setSucesso] = useState(false);
   const [erroMsg, setErroMsg] = useState('');
 
+  // Normaliza o bairro vindo da API para a grafia padrão oficial de Balneário Camboriú
+  const matchBairroPadrao = (raw: string): string => {
+    if (!raw) return 'Centro';
+    const clean = raw.trim();
+    const normalizedRaw = clean.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    
+    // Procura correspondência na lista oficial de Balneário Camboriú
+    const matched = BAIRROS_BC.find((b) => {
+      const normB = b.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return normB === normalizedRaw || normB.includes(normalizedRaw) || normalizedRaw.includes(normB);
+    });
+    
+    if (matched) return matched;
+    // Se for de outro município ou distrito personalizado, formata capitalizado
+    return clean.charAt(0).toUpperCase() + clean.slice(1);
+  };
+
+  // Garante que a lista suspensa contenha os bairros oficiais de BC e qualquer bairro especial da API
+  const listaBairrosDisponiveis = Array.from(
+    new Set([
+      ...BAIRROS_BC,
+      ...(bairro && !BAIRROS_BC.includes(bairro) ? [bairro] : [])
+    ])
+  );
+
   if (!isOpen) return null;
 
   // Auto preenchimento via CNPJ para PJ
@@ -71,7 +96,10 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
           const endCompl = data.num_api ? `${data.rua_api}, ${data.num_api}` : data.rua_api;
           setEndereco(endCompl);
         }
-        if (data.bairro) setBairro(data.bairro);
+        if (data.bairro) {
+          const bPadrao = matchBairroPadrao(data.bairro);
+          setBairro(bPadrao);
+        }
 
         // Preenche dados do proprietário sugeridos pelo CNPJ (caso vazios)
         const socio = data.nome_proprietario || data.responsavel;
@@ -445,23 +473,25 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <label className="text-[10px] font-bold uppercase block mb-1 text-slate-600 dark:text-slate-400">
-                  Bairro / Distrito <span className="text-slate-400 font-normal">(Editável)</span>
+                  Bairro / Distrito <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
-                  <MapPin className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    list="bairros-bc-list"
-                    placeholder="Ex: Centro, Nações, Pioneiros..."
+                  <MapPin className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10" />
+                  <select
+                    id="cadastro-contribuinte-bairro-select"
                     value={bairro}
                     onChange={(e) => setBairro(e.target.value)}
-                    className="p-2.5 pl-9 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl dark:bg-slate-700 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                  />
-                  <datalist id="bairros-bc-list">
-                    {BAIRROS_BC.map((b) => (
-                      <option key={b} value={b} />
+                    className="p-2.5 pl-9 pr-8 font-medium w-full border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none appearance-none cursor-pointer"
+                  >
+                    {listaBairrosDisponiveis.map((b) => (
+                      <option key={b} value={b} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                        {b}
+                      </option>
                     ))}
-                  </datalist>
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">
+                    ▼
+                  </div>
                 </div>
               </div>
 
