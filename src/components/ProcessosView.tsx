@@ -275,6 +275,7 @@ export const ProcessosView: React.FC<ProcessosViewProps> = ({
         nomeFantasia: apiData.nome_fantasia || apiData.razao || prev.nomeFantasia,
         nome_pj_api: apiData.nome_fantasia || apiData.razao || prev.nome_pj_api,
         nome_pf: cleanVal.length === 11 ? (apiData.razao || prev.nome_pf) : prev.nome_pf,
+        cep: apiData.cep || prev.cep || '88330-000',
         endereco: apiData.rua_api || prev.endereco,
         endereco_rua: apiData.rua_api || prev.endereco_rua,
         rua_api: apiData.rua_api || prev.rua_api,

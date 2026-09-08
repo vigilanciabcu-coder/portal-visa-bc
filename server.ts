@@ -44,6 +44,7 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
       nome_fantasia: 'QUIOSQUE 12 - SOL & MAR',
       municipio: 'BALNEÁRIO CAMBORIÚ',
       estado: 'SC',
+      cep: '88330-000',
       rua_api: 'AVENIDA ATLÂNTICA',
       num_api: '1500',
       bairro: 'Centro',
@@ -62,6 +63,7 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
       nome_fantasia: 'PASTELARIA ARTESANAL DO JOÃO',
       municipio: 'BALNEÁRIO CAMBORIÚ',
       estado: 'SC',
+      cep: '88330-000',
       rua_api: 'PRAÇA DA BÍBLIA',
       num_api: 'S/N',
       bairro: 'Centro',
@@ -80,6 +82,7 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
       nome_fantasia: 'MERCADO CENTRAL BC',
       municipio: 'BALNEÁRIO CAMBORIÚ',
       estado: 'SC',
+      cep: '88330-000',
       rua_api: 'AVENIDA BRASIL',
       num_api: '2200',
       bairro: 'Centro',
@@ -98,6 +101,7 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
       nome_fantasia: 'HOTEL BEIRA MAR BC',
       municipio: 'BALNEÁRIO CAMBORIÚ',
       estado: 'SC',
+      cep: '88330-000',
       rua_api: 'RUA 1500',
       num_api: '350',
       bairro: 'Centro',
@@ -116,6 +120,7 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
       nome_fantasia: 'NOSSA PADARIA',
       municipio: 'BALNEÁRIO CAMBORIÚ',
       estado: 'SC',
+      cep: '88338-010',
       rua_api: 'AVENIDA PALESTINA',
       num_api: '870',
       bairro: 'Nações',
@@ -136,7 +141,16 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
     return;
   }
 
-  // Helpers for formatting CNAE and activity classification
+  // Helpers for formatting CEP, CNAE and activity classification
+  const formatCep = (rawCep: string | number | undefined): string => {
+    if (!rawCep) return '';
+    const digits = String(rawCep).replace(/\D/g, '').slice(0, 8);
+    if (digits.length === 8) {
+      return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+    }
+    return digits;
+  };
+
   const formatCnae = (code: string | number | undefined, desc: string | undefined): string => {
     if (!code && !desc) return '';
     const strCode = String(code || '').replace(/\D/g, '');
@@ -202,6 +216,7 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
           nome_fantasia: d.nome_fantasia || d.razao_social || 'ESTABELECIMENTO BC',
           municipio: d.municipio || 'BALNEÁRIO CAMBORIÚ',
           estado: d.uf || 'SC',
+          cep: formatCep(d.cep) || '88330-000',
           rua_api: rua,
           num_api: d.numero || '100',
           bairro: d.bairro || 'Centro',
@@ -253,6 +268,7 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
           nome_fantasia: d.nome_fantasia || d.razao_social || 'ESTABELECIMENTO BC',
           municipio: d.municipio || 'BALNEÁRIO CAMBORIÚ',
           estado: d.uf || 'SC',
+          cep: formatCep(d.cep) || '88330-000',
           rua_api: `${d.descricao_tipo_de_logradouro || ''} ${d.logradouro || ''}`.trim() || 'AVENIDA BRASIL',
           num_api: d.numero || '100',
           bairro: d.bairro || 'Centro',
@@ -307,6 +323,7 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
             nome_fantasia: d.fantasia || d.nome || 'ESTABELECIMENTO BC',
             municipio: d.municipio || 'BALNEÁRIO CAMBORIÚ',
             estado: d.uf || 'SC',
+            cep: formatCep(d.cep) || '88330-000',
             rua_api: d.logradouro || 'AVENIDA BRASIL',
             num_api: d.numero || '100',
             bairro: d.bairro || 'Centro',
@@ -340,6 +357,7 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
     nome_fantasia: isCpf ? 'ESTABELECIMENTO / AMBULANTE BC' : 'RESTAURANTE E GASTRONOMIA BC',
     municipio: 'BALNEÁRIO CAMBORIÚ',
     estado: 'SC',
+    cep: '88330-000',
     rua_api: 'AVENIDA BRASIL',
     num_api: '1500',
     bairro: 'Centro',

@@ -3,6 +3,7 @@ export interface CnpjData {
   nome_fantasia: string;
   municipio: string;
   estado: string;
+  cep?: string;
   rua_api: string;
   num_api: string;
   bairro: string;
@@ -20,6 +21,15 @@ export interface CnpjData {
   cnae_principal_descricao?: string;
   nome_proprietario?: string;
   email?: string;
+}
+
+function formatCep(rawCep: string | number | undefined): string {
+  if (!rawCep) return '';
+  const digits = String(rawCep).replace(/\D/g, '').slice(0, 8);
+  if (digits.length === 8) {
+    return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+  }
+  return digits;
 }
 
 function formatCnae(code: string | number | undefined, desc: string | undefined): string {
@@ -98,12 +108,14 @@ export async function fetchCnpj(cleanCnpj: string): Promise<CnpjData> {
       const dataSit = d.data_situacao_cadastral || d.data_situacao || '';
       const cnaeCode = String(d.cnae_fiscal || d.cnae_fiscal_codigo || d.codigo || '').trim();
       const socioNome = d.qsa?.[0]?.nome_socio || d.qsa?.[0]?.nome || '';
+      const cepFormatado = formatCep(d.cep);
 
       return {
         razao: d.razao_social || d.nome_fantasia || `ESTABELECIMENTO (${cleanVal}) LTDA`,
         nome_fantasia: d.nome_fantasia || d.razao_social || `ESTABELECIMENTO (${cleanVal})`,
         municipio: d.municipio || 'BALNEÁRIO CAMBORIÚ',
         estado: d.uf || 'SC',
+        cep: cepFormatado || '88330-000',
         rua_api: rua,
         num_api: d.numero || '100',
         bairro: d.bairro || 'Centro',
@@ -151,12 +163,14 @@ export async function fetchCnpj(cleanCnpj: string): Promise<CnpjData> {
       const dataSit = d.data_situacao_cadastral || d.data_situacao || '';
       const cnaeCode = String(d.cnae_fiscal || d.cnae_fiscal_codigo || d.codigo || '').trim();
       const socioNome = d.qsa?.[0]?.nome_socio || d.qsa?.[0]?.nome || '';
+      const cepFormatado = formatCep(d.cep);
 
       return {
         razao: d.razao_social || d.nome_fantasia || `ESTABELECIMENTO (${cleanVal}) LTDA`,
         nome_fantasia: d.nome_fantasia || d.razao_social || `ESTABELECIMENTO (${cleanVal})`,
         municipio: d.municipio || 'BALNEÁRIO CAMBORIÚ',
         estado: d.uf || 'SC',
+        cep: cepFormatado || '88330-000',
         rua_api: rua,
         num_api: d.numero || '100',
         bairro: d.bairro || 'Centro',
@@ -186,6 +200,7 @@ export async function fetchCnpj(cleanCnpj: string): Promise<CnpjData> {
     nome_fantasia: `ESTABELECIMENTO (${cleanVal})`,
     municipio: 'BALNEÁRIO CAMBORIÚ',
     estado: 'SC',
+    cep: '88330-000',
     rua_api: 'AVENIDA BRASIL',
     num_api: '100',
     bairro: 'Centro',
