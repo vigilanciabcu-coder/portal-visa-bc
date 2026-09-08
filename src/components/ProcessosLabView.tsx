@@ -439,11 +439,12 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
       setServidoresDesignados(p.servidores);
     } else if (p.fiscal_responsavel) {
       const names = p.fiscal_responsavel.split(',').map(s => s.trim()).filter(Boolean);
-      const matched = names.map(n => {
-        const foundU = users.find(u => u.nome_completo.toLowerCase() === n.toLowerCase());
+      const matched = names.map(rawName => {
+        const cleanName = rawName.replace(/\s*\(P\)\s*$/i, '').trim();
+        const foundU = users.find(u => u.nome_completo.toLowerCase() === cleanName.toLowerCase());
         return {
           id: foundU?.id || `s-${Math.random()}`,
-          nome: n,
+          nome: cleanName,
           matricula: foundU?.matricula || 'FIS-BC'
         };
       });
@@ -594,8 +595,8 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
     setSearchNotice('💾 Salvando no sistema e enviando para o Google Sheets...');
 
     const fiscalNames = servidoresDesignados.length > 0 
-      ? servidoresDesignados.map(s => s.nome).join(', ') 
-      : (formData.fiscalResponsavel !== 'Selecione...' && formData.fiscalResponsavel ? formData.fiscalResponsavel : (currentUser?.nome_completo || 'Carlos Eduardo Silva'));
+      ? servidoresDesignados.map((s, idx) => idx === 0 ? `${s.nome} (P)` : s.nome).join(', ') 
+      : (formData.fiscalResponsavel !== 'Selecione...' && formData.fiscalResponsavel ? formData.fiscalResponsavel : (currentUser?.nome_completo ? `${currentUser.nome_completo} (P)` : 'Carlos Eduardo Silva (P)'));
 
     const itemToSave: ProcessoItem = {
       id: formData.id || `proc-${Date.now()}`,
@@ -1768,29 +1769,57 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
               <div className="md:col-span-5 bg-slate-50 border border-slate-300 rounded p-2 min-h-[38px] flex flex-col justify-center gap-1 shadow-inner">
                 <div className="flex items-center justify-between text-[9px] font-black text-slate-500 uppercase tracking-wider mb-0.5 border-b border-slate-200 pb-0.5">
                   <span>Fiscais Atribuídos ({servidoresDesignados.length})</span>
+                  {servidoresDesignados.length > 0 && (
+                    <span className="text-[8px] text-blue-700 font-bold lowercase">
+                      1º selecionado é o principal (P)
+                    </span>
+                  )}
                 </div>
                 {servidoresDesignados.length === 0 ? (
                   <span className="text-slate-400 text-xs italic">Nenhum servidor atribuído. Selecione ao lado.</span>
                 ) : (
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {servidoresDesignados.map((s) => (
-                      <span
-                        key={s.id || s.nome}
-                        className="bg-white text-slate-900 border border-slate-300 text-xs font-mono font-bold px-2 py-0.5 rounded flex items-center gap-1 shadow-sm"
-                      >
-                        <span className="bg-slate-800 text-white text-[9px] font-black px-1 py-0.5 rounded font-mono uppercase">
-                          {s.matricula || 'FIS-BC'}
-                        </span>
-                        <span className="font-sans font-bold text-slate-900 text-[11px]">{s.nome}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveServidor(s.id || s.nome)}
-                          className="text-slate-400 hover:text-rose-600 rounded-full w-4 h-4 flex items-center justify-center font-black text-xs transition cursor-pointer"
+                    {servidoresDesignados.map((s, idx) => {
+                      const isPrincipal = idx === 0;
+                      return (
+                        <span
+                          key={s.id || s.nome}
+                          className={`text-xs font-mono font-bold px-2 py-0.5 rounded flex items-center gap-1.5 shadow-sm transition ${
+                            isPrincipal
+                              ? 'bg-blue-700 text-white border border-blue-800 ring-2 ring-blue-300'
+                              : 'bg-white text-slate-900 border border-slate-300'
+                          }`}
                         >
-                          ×
-                        </button>
-                      </span>
-                    ))}
+                          {isPrincipal ? (
+                            <span className="bg-amber-400 text-slate-950 text-[9px] font-black px-1.5 py-0.2 rounded font-sans uppercase tracking-wider shadow-xs flex items-center gap-0.5">
+                              <span>★</span> (P)
+                            </span>
+                          ) : (
+                            <span className="bg-slate-200 text-slate-700 text-[9px] font-bold px-1 py-0.2 rounded font-sans uppercase">
+                              APOIO
+                            </span>
+                          )}
+                          <span className={`text-[9px] font-black px-1 py-0.5 rounded font-mono uppercase ${
+                            isPrincipal ? 'bg-blue-900 text-blue-100' : 'bg-slate-800 text-white'
+                          }`}>
+                            {s.matricula || 'FIS-BC'}
+                          </span>
+                          <span className={`font-sans font-bold text-[11px] ${isPrincipal ? 'text-white' : 'text-slate-900'}`}>
+                            {s.nome}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveServidor(s.id || s.nome)}
+                            className={`rounded-full w-4 h-4 flex items-center justify-center font-black text-xs transition cursor-pointer ${
+                              isPrincipal ? 'text-blue-200 hover:text-white hover:bg-blue-800' : 'text-slate-400 hover:text-rose-600'
+                            }`}
+                            title={isPrincipal ? "Remover Fiscal Principal" : "Remover Fiscal"}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1995,7 +2024,36 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                           {p.grau_risco || 'MÉDIO'}
                         </span>
                       </td>
-                      <td className="p-2.5">{p.fiscal_responsavel}</td>
+                      <td className="p-2.5">
+                        {p.fiscal_responsavel ? (
+                          <div className="flex flex-wrap items-center gap-1">
+                            {p.fiscal_responsavel.split(',').map((fItem, fIdx) => {
+                              const trimmed = fItem.trim();
+                              const isP = trimmed.includes('(P)') || fIdx === 0;
+                              const cleanName = trimmed.replace(/\s*\(P\)\s*$/i, '');
+                              return (
+                                <span
+                                  key={fIdx}
+                                  className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                    isP
+                                      ? 'bg-blue-100 text-blue-900 border border-blue-300 font-bold'
+                                      : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                  }`}
+                                >
+                                  {isP && (
+                                    <span className="bg-amber-400 text-slate-950 text-[9px] font-black px-1 rounded shadow-xs">
+                                      (P)
+                                    </span>
+                                  )}
+                                  <span>{cleanName}</span>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 italic text-[11px]">-</span>
+                        )}
+                      </td>
                       <td className="p-2.5 text-center">
                         <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase bg-slate-100 text-slate-800 border border-slate-300">
                           {p.status}
