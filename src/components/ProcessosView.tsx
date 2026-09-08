@@ -1092,7 +1092,7 @@ export const ProcessosView: React.FC<ProcessosViewProps> = ({
                   </div>
                 </div>
 
-                {/* Badge de Risco do Estabelecimento - Conforme Tabela Supabase CNAE */}
+                {/* Badge de Risco do Estabelecimento */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[10px] font-black text-slate-600 uppercase">CLASSIFICAÇÃO SANITÁRIA:</span>
                   <span className={`px-3 py-1 rounded text-xs font-black uppercase tracking-wider shadow ${
@@ -1103,12 +1103,6 @@ export const ProcessosView: React.FC<ProcessosViewProps> = ({
                         : 'bg-emerald-600 text-white'
                   }`}>
                     {formData.grauRisco}
-                  </span>
-                  <span
-                    className="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded shadow-xs"
-                    title="Classificação obtida diretamente a partir da tabela oficial CNAE do Supabase"
-                  >
-                    ✓ Supabase CNAE
                   </span>
                 </div>
               </div>
@@ -1180,11 +1174,6 @@ export const ProcessosView: React.FC<ProcessosViewProps> = ({
                           }`}>
                             {cnaesCalculados.detalhes[0].risco}
                           </span>
-                          {cnaesCalculados.detalhes[0].origemSupabase && (
-                            <span className="text-[9px] font-bold text-blue-800 bg-white/90 border border-blue-300 px-1.5 py-0.5 rounded">
-                              Tabela Supabase
-                            </span>
-                          )}
                         </div>
                       </div>
 
