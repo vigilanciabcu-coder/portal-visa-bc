@@ -10,6 +10,7 @@ import {
   formatCnaeCode
 } from '../lib/cnaeService';
 import { ConfirmModal } from './ConfirmModal';
+import { CnaeSearchModal } from './CnaeSearchModal';
 import { CadastroContabilidadeModal } from './CadastroContabilidadeModal';
 import {
   fetchContabilidadesFromSupabase,
@@ -191,6 +192,7 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
   // CNAE List
   const [cnaeInput, setCnaeInput] = useState('');
   const [cnaeList, setCnaeList] = useState<string[]>([]);
+  const [cnaeModalOpen, setCnaeModalOpen] = useState(false);
 
   // Servidores / Fiscais Designados List
   const [servidoresDesignados, setServidoresDesignados] = useState<{ id: string; nome: string; matricula: string }[]>([]);
@@ -537,6 +539,30 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
         setCnaeList([...cnaeList, formatted]);
       }
       setCnaeInput('');
+    }
+  };
+
+  const handleSelectModalCnae = (selected: {
+    codigo: string;
+    denominacao: string;
+    risco: 'ALTO RISCO' | 'MÉDIO RISCO' | 'BAIXO RISCO' | 'A DEFINIR' | string;
+    observacao?: string;
+    asPrincipal?: boolean;
+  }) => {
+    // Formata string com tag de risco explícito caso tenha sido selecionado
+    const formatted = `${selected.codigo} - ${selected.denominacao.toUpperCase()}${selected.risco ? ` | RISCO:${selected.risco}` : ''}`;
+    
+    // Remove se já existe uma ocorrência deste código
+    const withoutSameCode = cnaeList.filter(c => {
+      const codeOnly = c.split(' - ')[0].replace(/\D/g, '');
+      const selCodeOnly = selected.codigo.replace(/\D/g, '');
+      return codeOnly !== selCodeOnly;
+    });
+
+    if (selected.asPrincipal) {
+      setCnaeList([formatted, ...withoutSameCode]);
+    } else {
+      setCnaeList([...withoutSameCode, formatted]);
     }
   };
 
@@ -1570,7 +1596,7 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-200 pb-2">
                 <div className="flex items-center gap-2">
                   <label className="text-[10px] font-black text-blue-700 uppercase">ADICIONAR CNAE:</label>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <input
                       type="text"
                       placeholder="Ex: 5611201 ou 4729699"
@@ -1582,9 +1608,18 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                     <button
                       type="button"
                       onClick={handleAddCnae}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-2.5 py-1 rounded shadow cursor-pointer"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-2.5 py-1 rounded shadow cursor-pointer transition active:scale-95 flex items-center gap-1"
+                      title="Enviar CNAE para a tabela"
                     >
-                      +
+                      OK
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCnaeModalOpen(true)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-black text-xs px-2.5 py-1 rounded shadow cursor-pointer transition active:scale-95 flex items-center gap-1"
+                      title="Pesquisar CNAE e enquadrar risco oficial na tabela"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -3243,6 +3278,14 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
               setContabilidades(prev => [...prev, novoEscritorio]);
               setSelectedContabilidadeId(novoEscritorio.id);
             }}
+          />
+
+          {/* Modal de Pesquisa e Classificação Oficial de CNAE */}
+          <CnaeSearchModal
+            isOpen={cnaeModalOpen}
+            onClose={() => setCnaeModalOpen(false)}
+            cnaeDatabase={cnaeDatabase}
+            onSelectCnae={handleSelectModalCnae}
           />
         </div>
       )}

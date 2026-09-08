@@ -188,7 +188,16 @@ export function normalizeRiskLevel(riskRaw: string | null | undefined): 'Alto Ri
  */
 export function lookupCnaeInDatabase(rawCnae: string, db?: CnaeItem[]): CnaeRiskDetail {
   const cleanInput = (rawCnae || '').trim();
-  const digits = cleanInput.replace(/\D/g, '');
+  // Verifica se há override explícito de risco na string (ex: " | RISCO:ALTO RISCO")
+  let explicitRisk: string | null = null;
+  let parsedInput = cleanInput;
+  if (cleanInput.includes(' | RISCO:')) {
+    const parts = cleanInput.split(' | RISCO:');
+    parsedInput = parts[0].trim();
+    explicitRisk = parts[1].trim();
+  }
+
+  const digits = parsedInput.replace(/\D/g, '');
   const cnaeCode7 = digits.length >= 7 ? digits.slice(0, 7) : digits;
 
   // Fonte de consulta
@@ -200,7 +209,7 @@ export function lookupCnaeInDatabase(rawCnae: string, db?: CnaeItem[]): CnaeRisk
     : [];
 
   // 2. Se não encontrou por 7 dígitos, busca pelo texto exato de subclasse ou inclusão
-  if (matchingItems.length === 0 && cleanInput) {
+  if (matchingItems.length === 0 && parsedInput) {
     const formattedCode = formatCnaeCode(cnaeCode7);
     matchingItems = activeDb.filter((it) => {
       const itSub = (it.subclasse || '').trim();
@@ -217,28 +226,32 @@ export function lookupCnaeInDatabase(rawCnae: string, db?: CnaeItem[]): CnaeRisk
     const itemOficial = matchingItems.find(it => it.denominacao && !it.denominacao.includes('?') && !normalizeText(it.risco).includes('definir')) || matchingItems[0];
     
     // Identifica o maior risco associado a esta subclasse na tabela
-    let highestRisk: 'ALTO RISCO' | 'MÉDIO RISCO' | 'BAIXO RISCO' | 'A DEFINIR' = 'BAIXO RISCO';
-    const hasAlto = matchingItems.some(it => {
-      const r = normalizeText(it.risco);
-      return r.includes('alto') || r.includes('iii') || r.includes('3');
-    });
-    const hasMedio = matchingItems.some(it => {
-      const r = normalizeText(it.risco);
-      return r.includes('medio') || r.includes('ii') || r.includes('2');
-    });
-    const hasDefinir = matchingItems.some(it => {
-      const r = normalizeText(it.risco);
-      return r.includes('definir') || r.includes('variavel');
-    });
-
-    if (hasAlto) {
-      highestRisk = 'ALTO RISCO';
-    } else if (hasMedio) {
-      highestRisk = 'MÉDIO RISCO';
-    } else if (hasDefinir) {
-      highestRisk = 'A DEFINIR';
+    let highestRisk: 'ALTO RISCO' | 'MÉDIO RISCO' | 'BAIXO RISCO' | 'A DEFINIR' | string = 'BAIXO RISCO';
+    if (explicitRisk) {
+      highestRisk = explicitRisk;
     } else {
-      highestRisk = 'BAIXO RISCO';
+      const hasAlto = matchingItems.some(it => {
+        const r = normalizeText(it.risco);
+        return r.includes('alto') || r.includes('iii') || r.includes('3');
+      });
+      const hasMedio = matchingItems.some(it => {
+        const r = normalizeText(it.risco);
+        return r.includes('medio') || r.includes('ii') || r.includes('2');
+      });
+      const hasDefinir = matchingItems.some(it => {
+        const r = normalizeText(it.risco);
+        return r.includes('definir') || r.includes('variavel');
+      });
+
+      if (hasAlto) {
+        highestRisk = 'ALTO RISCO';
+      } else if (hasMedio) {
+        highestRisk = 'MÉDIO RISCO';
+      } else if (hasDefinir) {
+        highestRisk = 'A DEFINIR';
+      } else {
+        highestRisk = 'BAIXO RISCO';
+      }
     }
 
     const obs = matchingItems
@@ -258,13 +271,15 @@ export function lookupCnaeInDatabase(rawCnae: string, db?: CnaeItem[]): CnaeRisk
   }
 
   // Fallback: se não encontrado no Supabase, deduz a partir da string fornecida
-  const hasDesc = cleanInput.includes(' - ');
-  const codePart = hasDesc ? cleanInput.split(' - ')[0].trim() : cleanInput;
-  const descPart = hasDesc ? cleanInput.split(' - ').slice(1).join(' - ').trim() : '';
+  const hasDesc = parsedInput.includes(' - ');
+  const codePart = hasDesc ? parsedInput.split(' - ')[0].trim() : parsedInput;
+  const descPart = hasDesc ? parsedInput.split(' - ').slice(1).join(' - ').trim() : '';
 
-  const lower = cleanInput.toLowerCase();
-  let fallbackRisco: 'ALTO RISCO' | 'MÉDIO RISCO' | 'BAIXO RISCO' | 'A DEFINIR' = 'BAIXO RISCO';
-  if (lower.includes('alto risco') || lower.includes('açougue') || lower.includes('supermercado') || lower.includes('hospital')) {
+  const lower = parsedInput.toLowerCase();
+  let fallbackRisco: 'ALTO RISCO' | 'MÉDIO RISCO' | 'BAIXO RISCO' | 'A DEFINIR' | string = 'BAIXO RISCO';
+  if (explicitRisk) {
+    fallbackRisco = explicitRisk;
+  } else if (lower.includes('alto risco') || lower.includes('açougue') || lower.includes('supermercado') || lower.includes('hospital')) {
     fallbackRisco = 'ALTO RISCO';
   } else if (lower.includes('médio risco') || lower.includes('medio risco') || lower.includes('restaurante') || lower.includes('farmacia') || lower.includes('estetica')) {
     fallbackRisco = 'MÉDIO RISCO';
