@@ -26,7 +26,9 @@ import {
   AmostraLaboratorioItem,
   PontoColetaLaboratorio,
   ServidorColetaLaboratorio,
-  LaboratorialistaResponsavel
+  LaboratorialistaResponsavel,
+  isUserMaster,
+  userHasAccessToPage
 } from './types';
 
 import {
@@ -947,7 +949,7 @@ export default function App() {
               )}
 
               {currentView === 'master' && (
-                (currentUser?.nivel_acesso?.toUpperCase().includes('MASTER') || currentUser?.nivel_acesso === 'MASTER (TUDO)') ? (
+                isUserMaster(currentUser) ? (
                   <MasterView
                     currentUser={currentUser}
                     users={users}

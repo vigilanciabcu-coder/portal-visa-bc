@@ -25,6 +25,7 @@ ALTER TABLE public.operadores ADD COLUMN IF NOT EXISTS conselho_regional TEXT;
 ALTER TABLE public.operadores ADD COLUMN IF NOT EXISTS setor TEXT DEFAULT 'VIGILÂNCIA SANITÁRIA';
 ALTER TABLE public.operadores ADD COLUMN IF NOT EXISTS nivel_acesso TEXT DEFAULT 'VISA (FISCAL)';
 ALTER TABLE public.operadores ADD COLUMN IF NOT EXISTS senha TEXT DEFAULT '123456';
+ALTER TABLE public.operadores ADD COLUMN IF NOT EXISTS paginas_permitidas JSONB DEFAULT '[]'::jsonb;
 
 -- 2. Tabela de Escala de Plantão
 CREATE TABLE IF NOT EXISTS public.escala (

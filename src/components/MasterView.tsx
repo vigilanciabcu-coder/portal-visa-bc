@@ -1,5 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { UserProfile, UserRole, UserSetor, UserNivelAcesso, EscalaItem, RecadoMural, FiscalizacaoItem, FeiranteItem } from '../types';
+import {
+  UserProfile,
+  UserRole,
+  UserSetor,
+  UserNivelAcesso,
+  EscalaItem,
+  RecadoMural,
+  FiscalizacaoItem,
+  FeiranteItem,
+  MODULOS_SISTEMA,
+  PRESET_PAGINAS,
+  isUserMaster
+} from '../types';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { ConfirmModal } from './ConfirmModal';
 import { AutoLinkText } from './AutoLinkText';
@@ -25,7 +37,12 @@ import {
   X,
   Link as LinkIcon,
   Search,
-  Database
+  Database,
+  CheckSquare,
+  Square,
+  Layers,
+  Lock,
+  ExternalLink
 } from 'lucide-react';
 
 interface MasterViewProps {
@@ -96,7 +113,19 @@ export const MasterView: React.FC<MasterViewProps> = ({
   // --- TAB 1: USERS FORM STATE ---
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
-  const [userForm, setUserForm] = useState({
+  const [userForm, setUserForm] = useState<{
+    nome_completo: string;
+    email: string;
+    data_nascimento: string;
+    cargo: UserRole;
+    setor: UserSetor;
+    conselho_regional: string;
+    nivel_acesso: UserNivelAcesso;
+    matricula: string;
+    telefone: string;
+    senha: string;
+    paginas_permitidas: string[];
+  }>({
     nome_completo: '',
     email: '',
     data_nascimento: '',
@@ -106,13 +135,15 @@ export const MasterView: React.FC<MasterViewProps> = ({
     nivel_acesso: 'VISA (FISCAL)' as UserNivelAcesso,
     matricula: '',
     telefone: '',
-    senha: ''
+    senha: '',
+    paginas_permitidas: PRESET_PAGINAS.FISCAL
   });
 
   const [isSavingUser, setIsSavingUser] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const handleEditUser = (u: UserProfile) => {
+    const isTargetMaster = isUserMaster(u);
     setEditingUserId(u.id);
     setUserForm({
       nome_completo: u.nome_completo,
@@ -121,10 +152,13 @@ export const MasterView: React.FC<MasterViewProps> = ({
       cargo: u.cargo,
       setor: u.setor || 'VIGILÂNCIA SANITÁRIA',
       conselho_regional: u.conselho_regional || '',
-      nivel_acesso: u.nivel_acesso || (u.cargo === 'MASTER' || u.cargo === 'MASTER ADM' ? 'MASTER (TUDO)' : 'VISA (FISCAL)'),
+      nivel_acesso: u.nivel_acesso || (isTargetMaster ? 'MASTER (TUDO)' : 'VISA (FISCAL)'),
       matricula: u.matricula || '',
       telefone: u.telefone || '',
-      senha: u.senha || ''
+      senha: u.senha || '',
+      paginas_permitidas: isTargetMaster
+        ? PRESET_PAGINAS.TODAS
+        : (u.paginas_permitidas && u.paginas_permitidas.length > 0 ? [...u.paginas_permitidas] : PRESET_PAGINAS.FISCAL)
     });
     setSaveStatus(null);
   };
@@ -141,7 +175,8 @@ export const MasterView: React.FC<MasterViewProps> = ({
       nivel_acesso: 'VISA (FISCAL)',
       matricula: '',
       telefone: '',
-      senha: ''
+      senha: '',
+      paginas_permitidas: PRESET_PAGINAS.FISCAL
     });
   };
 
@@ -155,12 +190,35 @@ export const MasterView: React.FC<MasterViewProps> = ({
     setTimeout(() => setSaveStatus(null), 5000);
   };
 
+  const handleToggleModuloPermissao = (moduloId: string) => {
+    setUserForm((prev) => {
+      const exists = prev.paginas_permitidas.includes(moduloId);
+      const updated = exists
+        ? prev.paginas_permitidas.filter((id) => id !== moduloId)
+        : [...prev.paginas_permitidas, moduloId];
+      return { ...prev, paginas_permitidas: updated };
+    });
+  };
+
+  const handleSetPresetPaginas = (presetKey: keyof typeof PRESET_PAGINAS | 'LIMPAR') => {
+    if (presetKey === 'LIMPAR') {
+      setUserForm((prev) => ({ ...prev, paginas_permitidas: [] }));
+    } else {
+      setUserForm((prev) => ({ ...prev, paginas_permitidas: [...PRESET_PAGINAS[presetKey]] }));
+    }
+  };
+
   const handleSaveUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userForm.nome_completo.trim()) return;
 
     setIsSavingUser(true);
     setSaveStatus(null);
+
+    const isFormMaster =
+      userForm.cargo === 'MASTER' ||
+      userForm.cargo === 'MASTER ADM' ||
+      userForm.nivel_acesso === 'MASTER (TUDO)';
 
     const userToSave: UserProfile = {
       id: editingUserId || `u-${Date.now()}`,
@@ -173,7 +231,8 @@ export const MasterView: React.FC<MasterViewProps> = ({
       nivel_acesso: userForm.nivel_acesso,
       matricula: userForm.matricula ? userForm.matricula.trim() : `FIS-${Math.floor(1000 + Math.random() * 9000)}`,
       telefone: userForm.telefone ? userForm.telefone.trim() : '',
-      senha: userForm.senha ? userForm.senha.trim() : '123456'
+      senha: userForm.senha ? userForm.senha.trim() : '123456',
+      paginas_permitidas: isFormMaster ? PRESET_PAGINAS.TODAS : userForm.paginas_permitidas
     };
 
     try {
@@ -655,7 +714,16 @@ export const MasterView: React.FC<MasterViewProps> = ({
                 </label>
                 <select
                   value={userForm.nivel_acesso}
-                  onChange={(e) => setUserForm({ ...userForm, nivel_acesso: e.target.value as UserNivelAcesso })}
+                  onChange={(e) => {
+                    const newNivel = e.target.value as UserNivelAcesso;
+                    const isNowMaster = newNivel === 'MASTER (TUDO)';
+                    setUserForm({
+                      ...userForm,
+                      nivel_acesso: newNivel,
+                      cargo: isNowMaster && userForm.cargo !== 'MASTER ADM' ? 'MASTER ADM' : userForm.cargo,
+                      paginas_permitidas: isNowMaster ? PRESET_PAGINAS.TODAS : userForm.paginas_permitidas
+                    });
+                  }}
                   className="w-full font-black text-[11px] border-purple-300 dark:border-purple-700 bg-purple-50/60 dark:bg-purple-950/40 text-purple-900 dark:text-purple-200 px-2 py-2 rounded-xl"
                 >
                   <option value="MASTER (TUDO)">MASTER (TUDO)</option>
@@ -690,6 +758,183 @@ export const MasterView: React.FC<MasterViewProps> = ({
               </div>
             </div>
 
+            {/* 🛡️ SELEÇÃO DE PÁGINAS E MÓDULOS DE ACESSO DO SERVIDOR */}
+            {(() => {
+              const isFormMaster =
+                userForm.cargo === 'MASTER' ||
+                userForm.cargo === 'MASTER ADM' ||
+                userForm.nivel_acesso === 'MASTER (TUDO)';
+
+              return (
+                <div className="mt-4 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black uppercase text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                          Páginas & Módulos Autorizados
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                            {isFormMaster ? '👑 Acesso Total (Master)' : `${userForm.paginas_permitidas.length} de ${MODULOS_SISTEMA.length} autorizadas`}
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Marque quais páginas este servidor poderá visualizar e acessar nos botões do portal e menu lateral.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Predefinições Rápidas (Apenas se não for Master) */}
+                    {!isFormMaster && (
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Atalhos:</span>
+                        <button
+                          type="button"
+                          onClick={() => handleSetPresetPaginas('TODAS')}
+                          className="text-[10px] font-bold px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+                        >
+                          Todas
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetPresetPaginas('FISCAL')}
+                          className="text-[10px] font-bold px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 cursor-pointer"
+                        >
+                          Fiscal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetPresetPaginas('LABORATORIO')}
+                          className="text-[10px] font-bold px-2 py-1 rounded-lg bg-cyan-50 dark:bg-cyan-950/60 border border-cyan-300 dark:border-cyan-700 text-cyan-800 dark:text-cyan-300 hover:bg-cyan-100 cursor-pointer"
+                        >
+                          Laboratório
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetPresetPaginas('FEIRAS')}
+                          className="text-[10px] font-bold px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 cursor-pointer"
+                        >
+                          Feiras
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetPresetPaginas('ADMINISTRATIVO')}
+                          className="text-[10px] font-bold px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-300 dark:border-indigo-700 text-indigo-800 dark:text-indigo-300 hover:bg-indigo-100 cursor-pointer"
+                        >
+                          Admin
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetPresetPaginas('LIMPAR')}
+                          className="text-[10px] font-bold px-2 py-1 rounded-lg bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 hover:bg-red-100 cursor-pointer"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Se o perfil for MASTER: Acesso total preservado */}
+                  {isFormMaster ? (
+                    <div className="p-3.5 rounded-xl bg-amber-50/90 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700/80 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-200 flex items-center justify-center shrink-0">
+                        <Crown className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-black text-amber-900 dark:text-amber-200 uppercase flex items-center gap-1.5">
+                          Perfil Master (Acesso Total e Irrestrito Preservado)
+                        </h5>
+                        <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90">
+                          O usuário <strong>Master</strong> mantém acesso nativo, permanente e irrestrito a 100% de todas as páginas, relatórios, carteiras, configurações e botões do sistema. Suas permissões não são bloqueadas.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Grupo 1: Módulos do Sistema VISA */}
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-blue-700 dark:text-blue-400 tracking-wider flex items-center gap-1.5 mb-2">
+                          🏛️ Módulos do Sistema VISA
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                          {MODULOS_SISTEMA.filter((m) => m.categoria === 'MODULO').map((mod) => {
+                            const isChecked = userForm.paginas_permitidas.includes(mod.id);
+                            return (
+                              <div
+                                key={mod.id}
+                                onClick={() => handleToggleModuloPermissao(mod.id)}
+                                className={`p-2.5 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-2.5 ${
+                                  isChecked
+                                    ? 'bg-blue-50/80 dark:bg-blue-950/50 border-blue-400 dark:border-blue-600 text-blue-950 dark:text-blue-100 shadow-xs'
+                                    : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                                }`}
+                              >
+                                <div className="mt-0.5 shrink-0">
+                                  {isChecked ? (
+                                    <CheckSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                  ) : (
+                                    <Square className="w-4 h-4 text-slate-300 dark:text-slate-600" />
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className={`text-xs font-bold leading-tight ${isChecked ? 'text-blue-900 dark:text-blue-200' : 'text-slate-700 dark:text-slate-300'}`}>
+                                    {mod.nome}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-snug line-clamp-1 mt-0.5">
+                                    {mod.descricao}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Grupo 2: Sistemas & Links Externos */}
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-400 tracking-wider flex items-center gap-1.5 mb-2">
+                          🌐 Ferramentas & Links Externos Integrados
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                          {MODULOS_SISTEMA.filter((m) => m.categoria === 'LINK').map((mod) => {
+                            const isChecked = userForm.paginas_permitidas.includes(mod.id);
+                            return (
+                              <div
+                                key={mod.id}
+                                onClick={() => handleToggleModuloPermissao(mod.id)}
+                                className={`p-2.5 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-2.5 ${
+                                  isChecked
+                                    ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-600 text-emerald-950 dark:text-emerald-100 shadow-xs'
+                                    : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                                }`}
+                              >
+                                <div className="mt-0.5 shrink-0">
+                                  {isChecked ? (
+                                    <CheckSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                  ) : (
+                                    <Square className="w-4 h-4 text-slate-300 dark:text-slate-600" />
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className={`text-xs font-bold leading-tight ${isChecked ? 'text-emerald-900 dark:text-emerald-200' : 'text-slate-700 dark:text-slate-300'}`}>
+                                    {mod.nome}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-snug line-clamp-1 mt-0.5">
+                                    {mod.descricao}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="p-3 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl text-[10px] text-blue-900 dark:text-blue-200 flex items-start gap-2">
               <span className="text-sm">🔑</span>
               <div>
@@ -714,6 +959,7 @@ export const MasterView: React.FC<MasterViewProps> = ({
                     <th className="py-3.5 px-4">Cargo / Função</th>
                     <th className="py-3.5 px-4">Setor</th>
                     <th className="py-3.5 px-4 text-center">Nível de Acesso</th>
+                    <th className="py-3.5 px-3 text-center">Páginas Autorizadas</th>
                     <th className="py-3.5 px-3 text-center">Senha Atual</th>
                     <th className="py-3.5 px-4 text-center">Ações de Controle</th>
                   </tr>
@@ -797,6 +1043,24 @@ export const MasterView: React.FC<MasterViewProps> = ({
                             : '📋'}{' '}
                           {nivel}
                         </span>
+                      </td>
+                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                        {isUserMaster(u) ? (
+                          <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-lg bg-purple-100 text-purple-900 border border-purple-300 dark:bg-purple-950 dark:text-purple-200 dark:border-purple-700 inline-flex items-center gap-1 shadow-xs">
+                            👑 Total (Master)
+                          </span>
+                        ) : u.paginas_permitidas && u.paginas_permitidas.length > 0 ? (
+                          <span
+                            className="text-[10px] font-black uppercase px-2.5 py-1 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 inline-flex items-center gap-1 cursor-help shadow-xs"
+                            title={u.paginas_permitidas.join(', ')}
+                          >
+                            🔓 {u.paginas_permitidas.length} liberadas
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                            Padrão ({u.nivel_acesso?.split(' ')[1] || 'Fiscal'})
+                          </span>
+                        )}
                       </td>
                       <td className="py-3.5 px-3 text-center whitespace-nowrap">
                         <span className="font-mono font-black text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded border border-slate-200 dark:border-slate-700">

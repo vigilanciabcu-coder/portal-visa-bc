@@ -51,6 +51,113 @@ export interface UserProfile {
   contabilidade_id?: string;
   contribuinte_id?: string;
   categoria_contribuinte?: 'EMPRESARIO' | 'FEIRANTE' | 'AUTONOMO';
+  paginas_permitidas?: string[];
+}
+
+export interface ModuloPermissao {
+  id: string; // chave correspondente a id do botao ou view
+  nome: string;
+  categoria: 'MODULO' | 'LINK';
+  descricao: string;
+  icon?: string;
+}
+
+export const MODULOS_SISTEMA: ModuloPermissao[] = [
+  // Módulos Internos do Sistema VISA
+  { id: 'processos_lab', nome: 'Carteira de Processos', categoria: 'MODULO', descricao: 'Gestão completa de processos, alvarás e vistorias sanitárias', icon: 'Building2' },
+  { id: 'fiscalizacao', nome: 'Fiscalização Sanitária', categoria: 'MODULO', descricao: 'Roteiro de inspeção, checklists e emissão de autos', icon: 'ShieldCheck' },
+  { id: 'feiras', nome: 'Feiras Livres', categoria: 'MODULO', descricao: 'Cadastro, alvarás e localização de feirantes', icon: 'Tent' },
+  { id: 'agenda', nome: 'Agenda & Escala', categoria: 'MODULO', descricao: 'Escala de plantão, vistorias e eventos', icon: 'Calendar' },
+  { id: 'laboratorio', nome: 'Laboratório & Amostras', categoria: 'MODULO', descricao: 'Controle de análises de água, balneabilidade e laudos', icon: 'Microscope' },
+  { id: 'cnae', nome: 'Consulta CNAE (VISA)', categoria: 'MODULO', descricao: 'Tabela de códigos CNAE e classificação de risco sanitário', icon: 'FileSpreadsheet' },
+  { id: 'telefone', nome: 'Telefones & Ramais', categoria: 'MODULO', descricao: 'Guia telefônico e ramais internos da vigilância', icon: 'PhoneCall' },
+  { id: 'cidadao', nome: 'Consulta Cidadão (Munícipe)', categoria: 'MODULO', descricao: 'Autoatendimento e consulta de regularidade sanitária', icon: 'Search' },
+
+  // Ferramentas & Sistemas Externos Integrados
+  { id: '1doc', nome: '1Doc Protocolo', categoria: 'LINK', descricao: 'Comunicação interna e despachos da Prefeitura', icon: 'ExternalLink' },
+  { id: 'epub', nome: 'e-Publica', categoria: 'LINK', descricao: 'Sistema de gestão tributária e cadastral do município', icon: 'ExternalLink' },
+  { id: 'ahgo', nome: 'Ahgora (Ponto)', categoria: 'LINK', descricao: 'Ponto biométrico e registro de frequência dos servidores', icon: 'ExternalLink' },
+  { id: 'rhwb', nome: 'RH Web', categoria: 'LINK', descricao: 'Folha de pagamento e contracheque do servidor', icon: 'ExternalLink' },
+  { id: 'mail', nome: 'BC Mail', categoria: 'LINK', descricao: 'Webmail institucional @bc.sc.gov.br', icon: 'Mail' },
+  { id: 'geoo', nome: 'GEO+', categoria: 'LINK', descricao: 'Sistema georreferenciado e mapas municipais', icon: 'ExternalLink' },
+  { id: 'regi', nome: 'Regin (JUCESC)', categoria: 'LINK', descricao: 'Integração de registro mercantil e viabilidades', icon: 'ExternalLink' },
+  { id: 'domm', nome: 'Diário Oficial (DOM)', categoria: 'LINK', descricao: 'Publicações oficiais e editais municipais', icon: 'ExternalLink' },
+  { id: 'cnpj', nome: 'Consulta CNPJ', categoria: 'LINK', descricao: 'Comprovante de inscrição da Receita Federal', icon: 'ExternalLink' },
+  { id: 'alva', nome: 'Emissão de Alvarás', categoria: 'LINK', descricao: 'Portal de emissão de taxas e licenças', icon: 'ExternalLink' },
+  { id: 'debi', nome: 'Consulta de Débitos', categoria: 'LINK', descricao: 'Certidões e débitos tributários municipais', icon: 'ExternalLink' },
+  { id: 'leis', nome: 'Legislação Municipal', categoria: 'LINK', descricao: 'Códigos de posturas, sanitário e decretos', icon: 'ExternalLink' },
+  { id: 'mapa', nome: 'Google Maps', categoria: 'LINK', descricao: 'Navegação e rotas para fiscalização de campo', icon: 'ExternalLink' },
+  { id: 'pref', nome: 'Portal da Prefeitura', categoria: 'LINK', descricao: 'Site oficial de Balneário Camboriú', icon: 'ExternalLink' }
+];
+
+export const PRESET_PAGINAS = {
+  FISCAL: ['processos_lab', 'fiscalizacao', 'agenda', 'cnae', 'telefone', '1doc', 'epub', 'ahgo', 'mail', 'geoo', 'cnpj', 'leis', 'mapa', 'pref'],
+  LABORATORIO: ['processos_lab', 'laboratorio', 'agenda', 'telefone', '1doc', 'ahgo', 'mail', 'cnpj', 'pref'],
+  FEIRAS: ['processos_lab', 'feiras', 'agenda', 'telefone', '1doc', 'ahgo', 'mail', 'cnpj', 'pref'],
+  ADMINISTRATIVO: ['processos_lab', 'agenda', 'telefone', '1doc', 'epub', 'ahgo', 'rhwb', 'mail', 'domm', 'cnpj', 'alva', 'debi', 'leis', 'pref'],
+  TODAS: MODULOS_SISTEMA.map((m) => m.id)
+};
+
+export function isUserMaster(user: UserProfile | null | undefined): boolean {
+  if (!user) return false;
+  const cargo = (user.cargo || '').toUpperCase();
+  const nivel = (user.nivel_acesso || '').toUpperCase();
+  return (
+    cargo === 'MASTER' ||
+    cargo === 'MASTER ADM' ||
+    nivel === 'MASTER (TUDO)' ||
+    nivel.includes('MASTER')
+  );
+}
+
+export function userHasAccessToPage(user: UserProfile | null | undefined, pageOrButtonId: string): boolean {
+  if (!user) return false;
+  // O usuário MASTER tem acesso 100% irrestrito e incondicional a TUDO SEMPRE
+  if (isUserMaster(user)) return true;
+
+  // Se o módulo for exclusivo do Master (como Painel Master ou Processos Sheets legado)
+  if (
+    pageOrButtonId === 'master' ||
+    pageOrButtonId === 'processos' ||
+    pageOrButtonId === 'proc' ||
+    pageOrButtonId === 'tproc' ||
+    pageOrButtonId === 'setores'
+  ) {
+    return false;
+  }
+
+  // Se o usuário possui lista explícita de páginas permitidas configurada pelo Master
+  if (user.paginas_permitidas && Array.isArray(user.paginas_permitidas) && user.paginas_permitidas.length > 0) {
+    // Permite por id direto ou mapeando views equivalentes
+    if (user.paginas_permitidas.includes(pageOrButtonId)) return true;
+    if (pageOrButtonId === 'fisc' && user.paginas_permitidas.includes('fiscalizacao')) return true;
+    if (pageOrButtonId === 'fiscalizacao' && user.paginas_permitidas.includes('fiscalizacao')) return true;
+    if (pageOrButtonId === 'feir' && user.paginas_permitidas.includes('feiras')) return true;
+    if (pageOrButtonId === 'feiras' && user.paginas_permitidas.includes('feiras')) return true;
+    if (pageOrButtonId === 'agen' && user.paginas_permitidas.includes('agenda')) return true;
+    if (pageOrButtonId === 'agenda' && user.paginas_permitidas.includes('agenda')) return true;
+    if (pageOrButtonId === 'tlab' && user.paginas_permitidas.includes('laboratorio')) return true;
+    if (pageOrButtonId === 'laboratorio' && user.paginas_permitidas.includes('laboratorio')) return true;
+    if (pageOrButtonId === 'tproc_lab' && user.paginas_permitidas.includes('processos_lab')) return true;
+    if (pageOrButtonId === 'processos_lab' && user.paginas_permitidas.includes('processos_lab')) return true;
+    if (pageOrButtonId === 'cnae_btn' && user.paginas_permitidas.includes('cnae')) return true;
+    if (pageOrButtonId === 'cnae' && user.paginas_permitidas.includes('cnae')) return true;
+    if (pageOrButtonId === 'telefone_btn' && user.paginas_permitidas.includes('telefone')) return true;
+    if (pageOrButtonId === 'telefone' && user.paginas_permitidas.includes('telefone')) return true;
+    if (pageOrButtonId === 'cidadao_view' && user.paginas_permitidas.includes('cidadao')) return true;
+    if (pageOrButtonId === 'cidadao' && user.paginas_permitidas.includes('cidadao')) return true;
+    return false;
+  }
+
+  // Se não foi configurado individualmente ainda, aplica as permissões base por perfil
+  if (user.tipo_usuario === 'SERVIDOR' || !user.tipo_usuario) {
+    if (pageOrButtonId === 'laboratorio' || pageOrButtonId === 'tlab') {
+      return (user.nivel_acesso === 'VISA (LABORATÓRIO)' || (user.setor || '').toUpperCase().includes('LAB'));
+    }
+    return true;
+  }
+
+  return true;
 }
 
 export interface EscalaItem {

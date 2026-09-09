@@ -1,5 +1,5 @@
 import React from 'react';
-import { PortalButton, UserProfile } from '../types';
+import { PortalButton, UserProfile, userHasAccessToPage } from '../types';
 import { ShieldCheck, Calendar, Microscope, Crown, User, Building2, Search, FileText, FileSpreadsheet, PhoneCall } from 'lucide-react';
 
 interface SidebarProps {
@@ -32,6 +32,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const userType = currentUser?.tipo_usuario || 'SERVIDOR';
 
   const visibleButtons = buttons.filter((b) => {
+    // 0. Verificação granular de permissão do servidor configurada pelo Master
+    // (Master possui acesso a 100% dos botões; Servidores acessam conforme páginas permitidas)
+    if (!userHasAccessToPage(currentUser, b.id)) {
+      return false;
+    }
+
     // Verificação de perfis permitidos (tipo de usuário)
     if (b.perfisPermitidos && b.perfisPermitidos.length > 0) {
       if (!b.perfisPermitidos.includes(userType)) {

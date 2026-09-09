@@ -39,7 +39,8 @@ export async function fetchOperadoresFromSupabase(): Promise<UserProfile[] | nul
         nivel_acesso: item.nivel_acesso || (item.cargo === 'MASTER' || item.cargo === 'MASTER ADM' ? 'MASTER (TUDO)' : 'VISA (FISCAL)'),
         matricula: item.matricula || '',
         telefone: item.telefone || '',
-        senha: item.senha || '123456'
+        senha: item.senha || '123456',
+        paginas_permitidas: Array.isArray(item.paginas_permitidas) ? item.paginas_permitidas : undefined
       }));
     }
   } catch (err) {
@@ -110,7 +111,8 @@ export async function saveOperadorToSupabase(user: UserProfile): Promise<boolean
         nivel_acesso: user.nivel_acesso || (user.cargo === 'MASTER' || user.cargo === 'MASTER ADM' ? 'MASTER (TUDO)' : 'VISA (FISCAL)'),
         matricula: (user.matricula || '').trim(),
         telefone: (user.telefone || '').trim(),
-        senha: (user.senha || '123456').trim()
+        senha: (user.senha || '123456').trim(),
+        paginas_permitidas: user.paginas_permitidas || []
       };
 
       let { error: err1 } = await supabase
@@ -179,7 +181,8 @@ export async function saveOperadorToSupabase(user: UserProfile): Promise<boolean
         nivel_acesso: user.nivel_acesso || (user.cargo === 'MASTER' || user.cargo === 'MASTER ADM' ? 'MASTER (TUDO)' : 'VISA (FISCAL)'),
         matricula: (user.matricula || '').trim(),
         telefone: (user.telefone || '').trim(),
-        senha: (user.senha || '123456').trim()
+        senha: (user.senha || '123456').trim(),
+        paginas_permitidas: user.paginas_permitidas || []
       };
 
       const { error: insErr1 } = await supabase
@@ -670,12 +673,27 @@ export async function fetchProcessosFromSupabase(): Promise<any[] | null> {
   }
 }
 
+function safeDateForPg(d?: string | null): string | null {
+  if (!d || typeof d !== 'string' || !d.trim()) return null;
+  const s = d.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+    const parts = s.split('/');
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  const parsed = new Date(s);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toISOString().split('T')[0];
+  }
+  return null;
+}
+
 export async function saveProcessoToSupabase(proc: any): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) return false;
   try {
     const payload: any = {
       num_processo: proc.num_processo || proc.numProcesso || `1DOC-${new Date().getFullYear()}/${Math.floor(1000 + Math.random() * 9000)}`,
-      data_protocolo: proc.data_protocolo || proc.dataProtocolo || new Date().toISOString().split('T')[0],
+      data_protocolo: safeDateForPg(proc.data_protocolo || proc.dataProtocolo) || new Date().toISOString().split('T')[0],
       cnpj_cpf: proc.cnpj_cpf || proc.cnpjCpf || '',
       razao_social: proc.razao_social || proc.razaoSocial || '',
       nome_fantasia: proc.nome_fantasia || proc.nomeFantasia || '',
@@ -686,23 +704,23 @@ export async function saveProcessoToSupabase(proc: any): Promise<boolean> {
       cep: proc.cep || '',
       fiscal_responsavel: proc.fiscal_responsavel || proc.fiscalResponsavel || 'Carlos Eduardo Silva',
       status: proc.status || 'EM ANÁLISE',
-      validade: proc.validade || null,
+      validade: safeDateForPg(proc.validade),
       observacoes: proc.observacoes || '',
       cnaes: proc.cnaes || [],
       setor: proc.setor || '',
       motivacao: proc.motivacao || '',
-      data_entrada: proc.data_entrada || proc.dataEntrada || null,
-      data_1doc: proc.data_1doc || proc.data1Doc || null,
-      venc_1doc: proc.venc_1doc || proc.venc1Doc || null,
+      data_entrada: safeDateForPg(proc.data_entrada || proc.dataEntrada),
+      data_1doc: safeDateForPg(proc.data_1doc || proc.data1Doc),
+      venc_1doc: safeDateForPg(proc.venc_1doc || proc.venc1Doc),
       prot_1doc: proc.prot_1doc || proc.prot1Doc || '',
       pasta: proc.pasta || '',
       situacao_cadastral: proc.situacao_cadastral || proc.situacaoCadastral || 'ATIVA',
       motivo_situacao: proc.motivo_situacao || '',
-      data_situacao: proc.data_situacao || null,
-      venc_licenca: proc.venc_licenca || proc.vencLicenca || null,
+      data_situacao: safeDateForPg(proc.data_situacao),
+      venc_licenca: safeDateForPg(proc.venc_licenca || proc.vencLicenca),
       grau_risco: proc.grau_risco || proc.grauRisco || 'MÉDIO RISCO',
-      data_entregue_fiscal: proc.data_entregue_fiscal || proc.dataEntregueFiscal || null,
-      agendado_para: proc.agendado_para || proc.agendadoPara || null,
+      data_entregue_fiscal: safeDateForPg(proc.data_entregue_fiscal || proc.dataEntregueFiscal),
+      agendado_para: safeDateForPg(proc.agendado_para || proc.agendadoPara),
       conclusao: proc.conclusao || '',
       pas: proc.pas || '',
       updated_at: new Date().toISOString()

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PortalButton, EscalaItem, UserProfile, RecadoMural, ChatMessage } from '../types';
+import { PortalButton, EscalaItem, UserProfile, RecadoMural, ChatMessage, userHasAccessToPage } from '../types';
 import { 
   ShieldCheck, 
   Calendar, 
@@ -131,6 +131,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
     currentUser?.cargo?.toUpperCase().includes('LAB');
 
   const visibleButtons = buttons.filter((b) => {
+    // 0. Verificação granular de permissão do servidor configurada pelo Master
+    // (Master possui acesso a 100% dos botões; Servidores acessam conforme páginas autorizadas)
+    if (!userHasAccessToPage(currentUser, b.id)) {
+      return false;
+    }
+
     // Verificação de perfis permitidos (tipo de usuário)
     if (b.perfisPermitidos && b.perfisPermitidos.length > 0) {
       if (!b.perfisPermitidos.includes(userType)) {
