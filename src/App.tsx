@@ -777,7 +777,7 @@ export default function App() {
 
           {/* Main Display Area */}
           <main className="flex-1 overflow-y-auto bg-slate-100 dark:bg-slate-950 flex flex-col relative">
-            <div className="flex-1 p-2 sm:p-4 md:p-5 lg:p-6 pb-28">
+            <div className="flex-1 px-1 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-3 pb-28">
               {currentView === 'home' && (
                 <HomeView
                   buttons={PORTAL_BUTTONS}

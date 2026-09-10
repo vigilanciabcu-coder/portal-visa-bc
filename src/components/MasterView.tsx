@@ -428,7 +428,7 @@ export const MasterView: React.FC<MasterViewProps> = ({
   });
 
   return (
-    <div className="w-full max-w-[1750px] mx-auto space-y-8 text-left pb-24 px-2 sm:px-6">
+    <div className="w-full max-w-[1850px] mx-auto space-y-8 text-left pb-24 px-1 sm:px-3">
       {/* Top Banner Header */}
       <section className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 text-white rounded-[2.5rem] p-7 md:p-10 shadow-2xl border border-slate-800 relative overflow-hidden">
         <div className="absolute -right-6 -bottom-6 opacity-10 pointer-events-none">
