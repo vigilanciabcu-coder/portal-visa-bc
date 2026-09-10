@@ -928,16 +928,16 @@ export function PastaVisaView({ onBack, currentUser, processos = [] }: PastaVisa
                 )}
               </div>
 
-              {/* 2/3: Filtro Status RF */}
+              {/* 2/3: Filtro Status de Referência */}
               <div className="w-full">
                 <select
                   id="filtro_status_rf"
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  title="Filtrar por Status RF"
+                  title="Filtrar por Status de Referência"
                   className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50 cursor-pointer"
                 >
-                  <option value="TODOS">Status RF: Todos</option>
+                  <option value="TODOS">Status de Referência: Todos</option>
                   <option value="ATIVA">Ativa</option>
                   <option value="BAIXADA">Baixada</option>
                   <option value="SUSPENSA">Suspensa</option>
