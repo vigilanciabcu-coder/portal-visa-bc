@@ -51,7 +51,8 @@ export const SupabaseTab: React.FC<SupabaseTabProps> = ({ onRefreshData }) => {
     { name: 'contabilidades', description: 'Escritórios contábeis e contabilistas credenciados', status: 'checking' },
     { name: 'documentos_contabilidade', description: 'Protocolos e documentos enviados por contabilistas', status: 'checking' },
     { name: 'contribuintes', description: 'Empresários, comerciantes, feirantes e autônomos', status: 'checking' },
-    { name: 'cidadaos', description: 'Cidadãos cadastrados para consultas e solicitações', status: 'checking' }
+    { name: 'cidadaos', description: 'Cidadãos cadastrados para consultas e solicitações', status: 'checking' },
+    { name: 'pastas_visa', description: 'Pastas físicas, arquivos e situação cadastral do setor administrativo', status: 'checking' }
   ]);
 
   const checkTables = async () => {
@@ -360,12 +361,28 @@ CREATE TABLE IF NOT EXISTS public.cidadaos (
     data_cadastro TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 14. TABELA DE PASTAS SANITÁRIAS VISA (ARQUIVO ADMINISTRATIVO)
+CREATE TABLE IF NOT EXISTS public.pastas_visa (
+    id TEXT PRIMARY KEY,
+    cnpj_cpf TEXT NOT NULL,
+    pasta TEXT,
+    razao_social TEXT,
+    status_rf TEXT DEFAULT 'ATIVA',
+    alvara_atualizado TEXT DEFAULT 'SIM',
+    setor TEXT DEFAULT 'VIGILÂNCIA SANITÁRIA',
+    observacoes TEXT,
+    criado_por TEXT,
+    criado_em TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    atualizado_em TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
 -- HABILITAR REALTIME NAS TABELAS CRÍTICAS
 ALTER PUBLICATION supabase_realtime ADD TABLE public.portal_chat;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.recados_mural;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.escala_plantao;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.fiscalizacoes;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.amostras_laboratorio;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.pastas_visa;
 
 -- DESABILITAR RLS TEMPORARIAMENTE OU CRIAR POLÍTICAS PÚBLICAS PARA AMBIENTE INTERNO
 ALTER TABLE public.operadores DISABLE ROW LEVEL SECURITY;
@@ -381,6 +398,7 @@ ALTER TABLE public.contabilidades DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.documentos_contabilidade DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.contribuintes DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cidadaos DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pastas_visa DISABLE ROW LEVEL SECURITY;
 `;
 
   const copyToClipboard = () => {

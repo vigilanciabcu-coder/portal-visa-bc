@@ -21,7 +21,8 @@ import {
   ArrowLeft,
   Calendar,
   ShieldCheck,
-  ExternalLink
+  ExternalLink,
+  Database
 } from 'lucide-react';
 import { PastaVisaItem, ProcessoItem, UserProfile } from '../types';
 import { fetchCnpj } from '../lib/cnpjService';
@@ -79,6 +80,12 @@ export function PastaVisaView({ onBack, currentUser, processos = [] }: PastaVisa
   });
   const [copiedScript, setCopiedScript] = useState<boolean>(false);
   const [testWebhookStatus, setTestWebhookStatus] = useState<string | null>(null);
+
+  // Modal e Ações Supabase
+  const [showSupabaseModal, setShowSupabaseModal] = useState<boolean>(false);
+  const [copiedSupabaseSql, setCopiedSupabaseSql] = useState<boolean>(false);
+  const [syncingAllSupabase, setSyncingAllSupabase] = useState<boolean>(false);
+  const [syncSupabaseStatus, setSyncSupabaseStatus] = useState<string | null>(null);
 
   // 1. Carregar pastas iniciais (Supabase com fallback localStorage)
   useEffect(() => {
@@ -449,6 +456,88 @@ export function PastaVisaView({ onBack, currentUser, processos = [] }: PastaVisa
     setTimeout(() => setCopiedScript(false), 3000);
   };
 
+  const SUPABASE_PASTAS_SQL = `-- ====================================================================
+-- TABELA DO MÓDULO PASTA VISA NO SUPABASE POSTGRESQL (VIGILÂNCIA SANITÁRIA BC)
+-- Copie este script e execute no SQL Editor do seu projeto Supabase
+-- ====================================================================
+
+CREATE TABLE IF NOT EXISTS public.pastas_visa (
+    id TEXT PRIMARY KEY,
+    cnpj_cpf TEXT NOT NULL,
+    pasta TEXT,
+    razao_social TEXT,
+    status_rf TEXT DEFAULT 'ATIVA',
+    alvara_atualizado TEXT DEFAULT 'SIM',
+    setor TEXT DEFAULT 'VIGILÂNCIA SANITÁRIA',
+    observacoes TEXT,
+    criado_por TEXT,
+    criado_em TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    atualizado_em TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Migrações seguras (caso a tabela já exista):
+ALTER TABLE public.pastas_visa ADD COLUMN IF NOT EXISTS pasta TEXT;
+ALTER TABLE public.pastas_visa ADD COLUMN IF NOT EXISTS razao_social TEXT;
+ALTER TABLE public.pastas_visa ADD COLUMN IF NOT EXISTS status_rf TEXT DEFAULT 'ATIVA';
+ALTER TABLE public.pastas_visa ADD COLUMN IF NOT EXISTS alvara_atualizado TEXT DEFAULT 'SIM';
+ALTER TABLE public.pastas_visa ADD COLUMN IF NOT EXISTS setor TEXT DEFAULT 'VIGILÂNCIA SANITÁRIA';
+ALTER TABLE public.pastas_visa ADD COLUMN IF NOT EXISTS observacoes TEXT;
+ALTER TABLE public.pastas_visa ADD COLUMN IF NOT EXISTS criado_por TEXT;
+ALTER TABLE public.pastas_visa ADD COLUMN IF NOT EXISTS criado_em TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+ALTER TABLE public.pastas_visa ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
+-- Índices de busca rápida:
+CREATE INDEX IF NOT EXISTS idx_pastas_visa_cnpj_cpf ON public.pastas_visa(cnpj_cpf);
+CREATE INDEX IF NOT EXISTS idx_pastas_visa_pasta ON public.pastas_visa(pasta);
+CREATE INDEX IF NOT EXISTS idx_pastas_visa_razao ON public.pastas_visa(razao_social);
+
+-- Segurança e Políticas de Acesso (RLS):
+ALTER TABLE public.pastas_visa ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir Acesso Completo Pastas Visa" ON public.pastas_visa;
+CREATE POLICY "Permitir Acesso Completo Pastas Visa" ON public.pastas_visa FOR ALL USING (true) WITH CHECK (true);
+`;
+
+  // Copiar SQL do Supabase
+  const copiarSupabaseSql = () => {
+    navigator.clipboard.writeText(SUPABASE_PASTAS_SQL);
+    setCopiedSupabaseSql(true);
+    setTimeout(() => setCopiedSupabaseSql(false), 3000);
+  };
+
+  // Enviar / Sincronizar todas as pastas locais para o Supabase
+  const sincronizarTodasSupabase = async () => {
+    if (!isSupabaseConfigured) {
+      alert('Supabase ainda não configurado nas variáveis de ambiente (.env).');
+      return;
+    }
+    if (pastas.length === 0) {
+      alert('Não há pastas cadastradas para sincronizar.');
+      return;
+    }
+
+    setSyncingAllSupabase(true);
+    setSyncSupabaseStatus('Enviando registros para o Supabase...');
+
+    let enviados = 0;
+    let falhas = 0;
+
+    for (const item of pastas) {
+      const res = await savePastaVisaToSupabase(item);
+      if (res.success) {
+        enviados++;
+      } else {
+        falhas++;
+      }
+    }
+
+    setSyncingAllSupabase(false);
+    if (falhas === 0) {
+      setSyncSupabaseStatus(`✓ Sucesso! Todas as ${enviados} pastas foram gravadas no Supabase.`);
+    } else {
+      setSyncSupabaseStatus(`Concluído: ${enviados} salvas com sucesso e ${falhas} falhas. Verifique se executou o script SQL no Supabase.`);
+    }
+  };
+
   // Exportar para CSV / Planilha Excel
   const exportarCsv = () => {
     if (pastas.length === 0) {
@@ -556,6 +645,19 @@ export function PastaVisaView({ onBack, currentUser, processos = [] }: PastaVisa
 
           {/* Botões de Ação do Topo */}
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setShowSupabaseModal(true)}
+              id="btn-config-supabase-pastas"
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-colors"
+              title="Configuração da Tabela e Envio para o Supabase"
+            >
+              <Database className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              <span>Supabase</span>
+              {isSupabaseConfigured ? (
+                <span className="w-2 h-2 rounded-full bg-teal-500 inline-block" title="Supabase configurado"></span>
+              ) : null}
+            </button>
+
             <button
               onClick={() => setShowSheetsModal(true)}
               id="btn-config-sheets"
@@ -1259,6 +1361,143 @@ export function PastaVisaView({ onBack, currentUser, processos = [] }: PastaVisa
               <button
                 type="button"
                 onClick={() => setShowSheetsModal(false)}
+                className="px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-semibold hover:opacity-90 transition-opacity"
+              >
+                Concluir e Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL / DIALOG: CONFIGURAÇÃO E ENVIO SUPABASE            */}
+      {/* ========================================================= */}
+      {showSupabaseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                  <Database className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                    Salvar Arquivos e Pastas no Supabase
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Criação da tabela <code>pastas_visa</code> e sincronização do banco de dados na nuvem
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSupabaseModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body com Scroll */}
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-6 text-sm text-slate-600 dark:text-slate-300">
+              {/* Status da Conexão */}
+              <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${isSupabaseConfigured ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                      Status do Supabase: {isSupabaseConfigured ? 'CONECTADO' : 'NÃO CONFIGURADO'}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {isSupabaseConfigured
+                        ? 'O sistema está pronto para ler e salvar automaticamente na nuvem.'
+                        : 'Configure as variáveis VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env.'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={sincronizarTodasSupabase}
+                  disabled={syncingAllSupabase || !isSupabaseConfigured}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-bold transition shadow"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${syncingAllSupabase ? 'animate-spin' : ''}`} />
+                  <span>{syncingAllSupabase ? 'Enviando...' : 'Sincronizar Todas as Pastas'}</span>
+                </button>
+              </div>
+
+              {syncSupabaseStatus && (
+                <div className="p-3 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-300 text-xs font-medium">
+                  {syncSupabaseStatus}
+                </div>
+              )}
+
+              {/* Instruções */}
+              <div className="space-y-3 bg-amber-50/50 dark:bg-amber-950/20 p-4 rounded-2xl border border-amber-200/60 dark:border-amber-900/40">
+                <h4 className="text-sm font-bold text-amber-900 dark:text-amber-300 flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-teal-600 text-white text-xs flex items-center justify-center font-bold">1</span>
+                  Como aplicar o arquivo no seu Supabase
+                </h4>
+                <ol className="list-decimal list-inside space-y-1.5 text-xs text-slate-600 dark:text-slate-300 pl-1 leading-relaxed">
+                  <li>
+                    Acesse seu painel do Supabase em <strong><a href="https://supabase.com/dashboard" target="_blank" rel="noreferrer" className="text-teal-600 dark:text-teal-400 underline">supabase.com/dashboard</a></strong>.
+                  </li>
+                  <li>
+                    No menu lateral esquerdo, clique no ícone do <strong>SQL Editor</strong>.
+                  </li>
+                  <li>
+                    Clique em <strong>+ New Query</strong> para abrir uma consulta em branco.
+                  </li>
+                  <li>
+                    Clique no botão <strong>&quot;Copiar Código SQL&quot;</strong> logo abaixo, cole no editor do Supabase e clique no botão verde <strong>RUN</strong>.
+                  </li>
+                  <li>
+                    O arquivo SQL também foi gerado na raiz do projeto com o nome <code>supabase_pasta_visa.sql</code> para consulta a qualquer momento.
+                  </li>
+                </ol>
+              </div>
+
+              {/* Código SQL Pronto */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-teal-600 text-white text-xs flex items-center justify-center font-bold">2</span>
+                    Script SQL da Tabela <code>pastas_visa</code> (Copiar e Executar)
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={copiarSupabaseSql}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 text-xs font-semibold border border-teal-200 dark:border-teal-800 transition-colors"
+                  >
+                    {copiedSupabaseSql ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        <span className="text-emerald-600 dark:text-emerald-400">Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copiar Código SQL</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <pre className="bg-slate-900 text-slate-200 p-4 rounded-2xl text-xs font-mono max-h-60 overflow-y-auto overflow-x-auto border border-slate-800 select-all">
+                    {SUPABASE_PASTAS_SQL}
+                  </pre>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex justify-end bg-slate-50/50 dark:bg-slate-800/50">
+              <button
+                type="button"
+                onClick={() => setShowSupabaseModal(false)}
                 className="px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-semibold hover:opacity-90 transition-opacity"
               >
                 Concluir e Fechar
