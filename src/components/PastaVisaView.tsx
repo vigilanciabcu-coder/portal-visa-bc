@@ -927,28 +927,30 @@ export function PastaVisaView({ onBack, currentUser, processos = [] }: PastaVisa
                 )}
               </div>
 
-              {/* Filtro Status RF (tamanho reduzido pela metade) */}
+              {/* Filtro Status RF (tamanho compacto de metade do tamanho) */}
               <select
+                id="filtro_status_rf"
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
                 title="Filtrar por Status RF"
-                className="w-full sm:w-24 sm:min-w-[96px] px-2 py-2 text-xs truncate rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50 cursor-pointer"
+                className="w-full sm:w-16 sm:min-w-[64px] sm:max-w-[72px] px-1.5 py-2 text-[11px] font-medium truncate rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50 cursor-pointer text-center"
               >
-                <option value="TODOS">RF: Todos</option>
+                <option value="TODOS">RF</option>
                 <option value="ATIVA">Ativa</option>
                 <option value="BAIXADA">Baixada</option>
                 <option value="SUSPENSA">Suspensa</option>
                 <option value="INAPTA">Inapta</option>
               </select>
 
-              {/* Filtro Setor (tamanho reduzido pela metade) */}
+              {/* Filtro Setor (tamanho compacto de metade do tamanho) */}
               <select
+                id="filtro_setor"
                 value={filterSetor}
                 onChange={(e) => setFilterSetor(e.target.value)}
                 title="Filtrar por Setor"
-                className="w-full sm:w-24 sm:min-w-[96px] px-2 py-2 text-xs truncate rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50 cursor-pointer"
+                className="w-full sm:w-20 sm:min-w-[72px] sm:max-w-[80px] px-1.5 py-2 text-[11px] font-medium truncate rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50 cursor-pointer text-center"
               >
-                <option value="TODOS">Setor: Todos</option>
+                <option value="TODOS">Setor</option>
                 <option value="ALIMENTOS">Alimentos</option>
                 <option value="SAÚDE">Saúde</option>
                 <option value="SANEAMENTO">Saneamento</option>
