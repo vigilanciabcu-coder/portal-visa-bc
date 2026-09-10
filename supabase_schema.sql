@@ -414,3 +414,23 @@ CREATE POLICY "Permitir Acesso Anonimo Contribuintes" ON public.contribuintes FO
 DROP POLICY IF EXISTS "Permitir Acesso Anonimo Cidadaos" ON public.cidadaos;
 CREATE POLICY "Permitir Acesso Anonimo Cidadaos" ON public.cidadaos FOR ALL USING (true) WITH CHECK (true);
 
+-- 11. Tabela de Pastas Sanitárias VISA (Arquivo e Controle Administrativo)
+CREATE TABLE IF NOT EXISTS public.pastas_visa (
+    id TEXT PRIMARY KEY,
+    cnpj_cpf TEXT NOT NULL,
+    pasta TEXT,
+    razao_social TEXT,
+    status_rf TEXT,
+    alvara_atualizado TEXT,
+    setor TEXT,
+    observacoes TEXT,
+    criado_por TEXT,
+    criado_em TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    atualizado_em TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.pastas_visa ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir Acesso Anonimo Pastas Visa" ON public.pastas_visa;
+CREATE POLICY "Permitir Acesso Anonimo Pastas Visa" ON public.pastas_visa FOR ALL USING (true) WITH CHECK (true);
+
+

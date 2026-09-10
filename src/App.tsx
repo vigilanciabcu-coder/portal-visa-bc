@@ -85,9 +85,11 @@ import { LaboratorioView } from './components/LaboratorioView';
 import { CidadaoView } from './components/CidadaoView';
 import { CnaeView } from './components/CnaeView';
 import { TelefonesView } from './components/TelefonesView';
+import { PastaVisaView } from './components/PastaVisaView';
 
 const PORTAL_BUTTONS: PortalButton[] = [
   { id: 'pref', nome: 'Prefeitura', url: 'https://www.bc.sc.gov.br/', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/brasao__1_-removebg-preview%20(1).avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
+  { id: 'pasta_visa', nome: 'PASTA VISA', url: '', img: 'folder-archive', acao: 'view', view: 'pasta_visa', badgetext: 'ADM', perfisPermitidos: ['SERVIDOR'] },
   { id: '1doc', nome: '1Doc', url: 'https://bc.1doc.com.br/b.php?pg=o/login&n=3', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/1Doc.avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'agen', nome: 'AGENDA', url: '', img: 'calendar', acao: 'view', view: 'agenda', perfisPermitidos: ['SERVIDOR'] },
   { id: 'ahgo', nome: 'Ahgora', url: 'https://app.ahgora.com.br/externo/index/prefeiturabc', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/sistemadepontobiometrico.avif', acao: 'link', perfisPermitidos: ['SERVIDOR'] },
@@ -116,7 +118,7 @@ const PORTAL_BUTTONS: PortalButton[] = [
 
 export default function App() {
   // Navigation & View
-  const [currentView, setCurrentView] = useState<'home' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'cnae' | 'telefone'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'cnae' | 'telefone' | 'pasta_visa'>('home');
 
   // App State with Persistence
   const [users, setUsers] = useState<UserProfile[]>(() => {
@@ -944,6 +946,14 @@ export default function App() {
               {currentView === 'telefone' && (
                 <TelefonesView
                   currentUser={currentUser}
+                  onBack={() => setCurrentView('home')}
+                />
+              )}
+
+              {currentView === 'pasta_visa' && (
+                <PastaVisaView
+                  currentUser={currentUser!}
+                  processos={processos}
                   onBack={() => setCurrentView('home')}
                 />
               )}

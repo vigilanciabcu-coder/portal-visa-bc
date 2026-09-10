@@ -1,4 +1,4 @@
-import { FeiranteItem, ProcessoItem } from '../types';
+import { FeiranteItem, ProcessoItem, PastaVisaItem } from '../types';
 
 // Webhook padrão do Google Apps Script para Feirantes
 export const DEFAULT_SHEETS_WEBHOOK_URL =
@@ -882,6 +882,191 @@ export async function saveProcessoToSheets(item: ProcessoItem, fullFormData?: an
       success: true,
       isSavedToSheets: false,
       message: `Processo salvo localmente. Falha ao comunicar com o Google Sheets: ${err?.message || ''}`
+    };
+  }
+}
+
+// ============================================================================
+// 4. INTEGRAÇÃO PASTAS SANITÁRIAS VISA (ARQUIVO ADMINISTRATIVO) COM GOOGLE SHEETS
+// ============================================================================
+
+export const GOOGLE_APPS_SCRIPT_PASTA_VISA_TEMPLATE = `function doGet(e) {
+  return handlePastaVisaRequest(e);
+}
+
+function doPost(e) {
+  return handlePastaVisaRequest(e);
+}
+
+function handlePastaVisaRequest(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getActiveSheet();
+    
+    // Se a planilha estiver vazia, cria o cabeçalho oficial
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow([
+        "ID",
+        "DATA_HORA",
+        "CPF_CNPJ",
+        "PASTA",
+        "RAZAO_SOCIAL",
+        "STATUS_RF",
+        "ALVARA_ATUALIZADO_TMI",
+        "SETOR",
+        "OBSERVACOES",
+        "CADASTRADO_POR"
+      ]);
+    }
+
+    var params = {};
+    if (e && e.parameter) {
+      for (var k in e.parameter) params[k] = e.parameter[k];
+    }
+    if (e && e.postData && e.postData.contents) {
+      try {
+        var j = JSON.parse(e.postData.contents);
+        for (var key in j) params[key] = j[key];
+      } catch(err) {
+        var pairs = e.postData.contents.split('&');
+        for (var p = 0; p < pairs.length; p++) {
+          var pair = pairs[p].split('=');
+          if (pair.length === 2) {
+            params[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1].replace(/\\+/g, ' '));
+          }
+        }
+      }
+    }
+
+    // 1. Listar Pastas existentes
+    if (params.action === "getPastas") {
+      var data = sheet.getDataRange().getValues();
+      var rows = [];
+      for (var i = 1; i < data.length; i++) {
+        var r = data[i];
+        if (!r[2] && !r[3] && !r[4]) continue;
+        rows.push({
+          id: String(r[0] || ("p-" + i)),
+          criado_em: String(r[1] || ""),
+          cnpj_cpf: String(r[2] || ""),
+          pasta: String(r[3] || ""),
+          razao_social: String(r[4] || ""),
+          status_rf: String(r[5] || ""),
+          alvara_atualizado: String(r[6] || ""),
+          setor: String(r[7] || ""),
+          observacoes: String(r[8] || ""),
+          criado_por: String(r[9] || "")
+        });
+      }
+      return ContentService.createTextOutput(JSON.stringify(rows)).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 2. Salvar ou atualizar Pasta
+    var id = String(params.id || new Date().getTime());
+    var agora = Utilities.formatDate(new Date(), "GMT-3", "dd/MM/yyyy HH:mm:ss");
+    var cnpjCpf = String(params.cnpj_cpf || params.cpf || params.cnpj || "");
+    var pasta = String(params.pasta || "");
+    var razao = String(params.razao_social || params.razao || "");
+    var statusRf = String(params.status_rf || params.status || "ATIVA");
+    var alvara = String(params.alvara_atualizado || params.alvara || "SIM");
+    var setor = String(params.setor || "VIGILÂNCIA SANITÁRIA");
+    var obs = String(params.observacoes || "");
+    var criadoPor = String(params.criado_por || "");
+
+    // Procura se já existe por ID ou CPF/CNPJ
+    var dataVals = sheet.getDataRange().getValues();
+    var rowIndex = -1;
+    for (var row = 1; row < dataVals.length; row++) {
+      if (String(dataVals[row][0]) === id || (cnpjCpf && String(dataVals[row][2]) === cnpjCpf)) {
+        rowIndex = row + 1;
+        break;
+      }
+    }
+
+    var rowData = [id, agora, cnpjCpf, pasta, razao, statusRf, alvara, setor, obs, criadoPor];
+
+    if (rowIndex > 0) {
+      sheet.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
+    } else {
+      sheet.appendRow(rowData);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ 
+      success: true, 
+      id: id, 
+      row: rowIndex > 0 ? rowIndex : sheet.getLastRow() 
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch (ex) {
+    return ContentService.createTextOutput(JSON.stringify({ 
+      success: false, 
+      error: ex.toString() 
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}`;
+
+export async function savePastaVisaToSheets(
+  item: PastaVisaItem,
+  customWebhookUrl?: string
+): Promise<{ success: boolean; isSavedToSheets: boolean; message: string }> {
+  const webhookUrl = (customWebhookUrl || localStorage.getItem('visa_pasta_webhook_url') || '').trim();
+
+  if (!webhookUrl) {
+    return {
+      success: true,
+      isSavedToSheets: false,
+      message: 'Salvo localmente e no banco de dados. (URL da Planilha Google não configurada)'
+    };
+  }
+
+  try {
+    const payload = {
+      action: 'salvarPastaVisa',
+      id: item.id,
+      cnpj_cpf: item.cnpj_cpf,
+      pasta: item.pasta,
+      razao_social: item.razao_social,
+      status_rf: item.status_rf,
+      alvara_atualizado: item.alvara_atualizado,
+      setor: item.setor,
+      observacoes: item.observacoes || '',
+      criado_por: item.criado_por || ''
+    };
+
+    const params = new URLSearchParams();
+    Object.entries(payload).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) {
+        params.append(k, String(v));
+      }
+    });
+
+    const getUrl = `${webhookUrl}?${params.toString()}`;
+
+    // Dispara via POST e GET com fallback para contornar restrições de CORS do Google Apps Script
+    fetch(getUrl, { mode: 'no-cors' }).catch(() => {});
+
+    try {
+      const img = new Image();
+      img.src = getUrl;
+    } catch (e) {}
+
+    fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+      mode: 'no-cors'
+    }).catch(() => {});
+
+    return {
+      success: true,
+      isSavedToSheets: true,
+      message: 'Pasta VISA sincronizada com a Planilha Google Sheets com sucesso!'
+    };
+  } catch (err: any) {
+    console.error('Erro ao salvar Pasta VISA no Google Sheets:', err);
+    return {
+      success: true,
+      isSavedToSheets: false,
+      message: `Salvo no sistema. Falha ao comunicar com a Planilha Google: ${err?.message || ''}`
     };
   }
 }

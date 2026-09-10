@@ -26,7 +26,8 @@ import {
   MapPin,
   Clock,
   Phone,
-  Mail
+  Mail,
+  FolderArchive
 } from 'lucide-react';
 import { AutoLinkText } from './AutoLinkText';
 
@@ -37,7 +38,7 @@ interface HomeViewProps {
   mural: RecadoMural[];
   chat: ChatMessage[];
   currentUser: UserProfile | null;
-  onNavigate: (view: 'home' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone') => void;
+  onNavigate: (view: 'home' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa') => void;
   onOpenExternal: (url: string) => void;
   onSendMessage: (text: string) => void;
   onDeleteMessage?: (id: string) => void;
@@ -175,6 +176,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
       return userType === 'SERVIDOR' || (b.id === 'feir' && userType === 'CONTRIBUINTE');
     }
 
+    // 4. Pasta VISA: Apenas Administrativo e Master
+    if (b.id === 'pasta_visa' || b.view === 'pasta_visa') {
+      if (isMaster) return true;
+      if (currentUser?.paginas_permitidas?.includes('pasta_visa')) return true;
+      const cargo = (currentUser?.cargo || '').toUpperCase();
+      const nivel = (currentUser?.nivel_acesso || '').toUpperCase();
+      return userType === 'SERVIDOR' && (cargo.includes('ADMINISTRATIV') || nivel.includes('ADMINISTRATIV') || cargo.includes('DIRETOR'));
+    }
+
     if (b.somenteMaster || (b.nome.toLowerCase().includes('teste') && b.id !== 'tlab')) {
       return isMaster && userType === 'SERVIDOR';
     }
@@ -281,6 +291,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
   };
 
   const renderCardGraphic = (b: PortalButton) => {
+    if (b.view === 'pasta_visa' || b.id === 'pasta_visa' || b.img === 'folder-archive') {
+      return (
+        <div className="relative flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 via-amber-600 to-yellow-500 flex items-center justify-center text-white shadow-md">
+            <FolderArchive className="w-6 h-6" />
+          </div>
+          <span className="absolute -bottom-1 -right-1 bg-amber-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase shadow">
+            ADM
+          </span>
+        </div>
+      );
+    }
     if (b.view === 'cidadao' || b.id === 'cidadao_view') {
       return <Search className="h-12 w-12 text-emerald-500" />;
     }

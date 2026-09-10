@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import { UserProfile, EscalaItem, FeiranteItem, RecadoMural, FiscalizacaoItem, ChatMessage, ContabilidadeProfile, DocumentoContabilidade } from '../types';
+import { UserProfile, EscalaItem, FeiranteItem, RecadoMural, FiscalizacaoItem, ChatMessage, ContabilidadeProfile, DocumentoContabilidade, PastaVisaItem } from '../types';
 
 export { isSupabaseConfigured };
 
@@ -1832,6 +1832,96 @@ export async function updateOperadorSenhaSupabase(email: string, novaSenha: stri
     return true;
   } catch (err) {
     console.error('Exceção ao atualizar senha do operador no Supabase:', err);
+    return false;
+  }
+}
+
+// ==========================================
+// 12. PASTAS VISA (ARQUIVO ADMINISTRATIVO)
+// ==========================================
+
+export async function fetchPastasVisaFromSupabase(): Promise<PastaVisaItem[] | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('pastas_visa')
+      .select('*')
+      .order('criado_em', { ascending: false });
+
+    if (error) {
+      console.warn('Supabase [pastas_visa] retorno:', error.message);
+      return null;
+    }
+    if (data && data.length > 0) {
+      return data.map((item: any) => ({
+        id: item.id,
+        cnpj_cpf: item.cnpj_cpf || '',
+        pasta: item.pasta || '',
+        razao_social: item.razao_social || '',
+        status_rf: item.status_rf || 'ATIVA',
+        alvara_atualizado: item.alvara_atualizado || 'SIM',
+        setor: item.setor || 'VIGILÂNCIA SANITÁRIA',
+        observacoes: item.observacoes || '',
+        criado_por: item.criado_por || '',
+        criado_em: item.criado_em || '',
+        atualizado_em: item.atualizado_em || ''
+      }));
+    }
+    return [];
+  } catch (err) {
+    console.warn('Erro ao buscar pastas_visa no Supabase:', err);
+    return null;
+  }
+}
+
+export async function savePastaVisaToSupabase(pasta: PastaVisaItem): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured || !supabase) {
+    return { success: false, error: 'Supabase não configurado' };
+  }
+  try {
+    const payload = {
+      id: pasta.id,
+      cnpj_cpf: pasta.cnpj_cpf,
+      pasta: pasta.pasta,
+      razao_social: pasta.razao_social,
+      status_rf: pasta.status_rf,
+      alvara_atualizado: pasta.alvara_atualizado,
+      setor: pasta.setor,
+      observacoes: pasta.observacoes || '',
+      criado_por: pasta.criado_por || '',
+      atualizado_em: new Date().toISOString()
+    };
+
+    const { error } = await supabase
+      .from('pastas_visa')
+      .upsert(payload, { onConflict: 'id' });
+
+    if (error) {
+      console.warn('Erro ao salvar pasta_visa no Supabase:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.error('Exceção ao salvar pasta_visa no Supabase:', err);
+    return { success: false, error: err?.message || 'Erro inesperado' };
+  }
+}
+
+export async function deletePastaVisaFromSupabase(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+  try {
+    const { error } = await supabase
+      .from('pastas_visa')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.warn('Erro ao excluir pasta_visa no Supabase:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Exceção ao excluir pasta_visa no Supabase:', err);
     return false;
   }
 }

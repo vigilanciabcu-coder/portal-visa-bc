@@ -1,12 +1,12 @@
 import React from 'react';
 import { PortalButton, UserProfile, userHasAccessToPage } from '../types';
-import { ShieldCheck, Calendar, Microscope, Crown, User, Building2, Search, FileText, FileSpreadsheet, PhoneCall } from 'lucide-react';
+import { ShieldCheck, Calendar, Microscope, Crown, User, Building2, Search, FileText, FileSpreadsheet, PhoneCall, FolderArchive } from 'lucide-react';
 
 interface SidebarProps {
   buttons: PortalButton[];
   currentView: string;
   currentUser: UserProfile | null;
-  onNavigate: (view: 'home' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone') => void;
+  onNavigate: (view: 'home' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa') => void;
   onOpenExternal: (url: string) => void;
 }
 
@@ -77,6 +77,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       return userType === 'SERVIDOR' || (b.id === 'feir' && userType === 'CONTRIBUINTE');
     }
 
+    // 4. Pasta VISA: Apenas Administrativo e Master
+    if (b.id === 'pasta_visa' || b.view === 'pasta_visa') {
+      if (isMaster) return true;
+      if (currentUser?.paginas_permitidas?.includes('pasta_visa')) return true;
+      const cargo = (currentUser?.cargo || '').toUpperCase();
+      const nivel = (currentUser?.nivel_acesso || '').toUpperCase();
+      return userType === 'SERVIDOR' && (cargo.includes('ADMINISTRATIV') || nivel.includes('ADMINISTRATIV') || cargo.includes('DIRETOR'));
+    }
+
     if (b.somenteMaster || (b.nome.toLowerCase().includes('teste') && b.id !== 'tlab')) {
       return isMaster;
     }
@@ -84,6 +93,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   });
 
   const renderIcon = (b: PortalButton) => {
+    if (b.view === 'pasta_visa' || b.id === 'pasta_visa' || b.img === 'folder-archive') {
+      return <FolderArchive className="w-6 h-6 text-amber-400" />;
+    }
     if (b.view === 'cidadao' || b.id === 'cidadao_view') {
       return <Search className="w-6 h-6 text-emerald-400" />;
     }

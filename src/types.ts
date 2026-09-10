@@ -54,6 +54,20 @@ export interface UserProfile {
   paginas_permitidas?: string[];
 }
 
+export interface PastaVisaItem {
+  id: string;
+  cnpj_cpf: string;
+  pasta: string;
+  razao_social: string;
+  status_rf: string; // Ex: ATIVA, BAIXADA, SUSPENSA, INAPTA
+  alvara_atualizado: string; // Ex: SIM, NÃO, EM RENOVAÇÃO, TMI PAGO, ISENTO
+  setor: string; // Ex: ALIMENTOS, SAÚDE, SERVIÇOS, MEDICAMENTOS, OUTROS
+  observacoes?: string;
+  criado_por?: string;
+  criado_em?: string;
+  atualizado_em?: string;
+}
+
 export interface ModuloPermissao {
   id: string; // chave correspondente a id do botao ou view
   nome: string;
@@ -64,6 +78,7 @@ export interface ModuloPermissao {
 
 export const MODULOS_SISTEMA: ModuloPermissao[] = [
   // Módulos Internos do Sistema VISA
+  { id: 'pasta_visa', nome: 'PASTA VISA (Administrativo)', categoria: 'MODULO', descricao: 'Cadastro e arquivamento de pastas físicas, CPF/CNPJ, alvarás e situação cadastral RF', icon: 'FolderArchive' },
   { id: 'processos_lab', nome: 'Carteira de Processos', categoria: 'MODULO', descricao: 'Gestão completa de processos, alvarás e vistorias sanitárias', icon: 'Building2' },
   { id: 'fiscalizacao', nome: 'Fiscalização Sanitária', categoria: 'MODULO', descricao: 'Roteiro de inspeção, checklists e emissão de autos', icon: 'ShieldCheck' },
   { id: 'feiras', nome: 'Feiras Livres', categoria: 'MODULO', descricao: 'Cadastro, alvarás e localização de feirantes', icon: 'Tent' },
@@ -94,7 +109,7 @@ export const PRESET_PAGINAS = {
   FISCAL: ['processos_lab', 'fiscalizacao', 'agenda', 'cnae', 'telefone', '1doc', 'epub', 'ahgo', 'mail', 'geoo', 'cnpj', 'leis', 'mapa', 'pref'],
   LABORATORIO: ['processos_lab', 'laboratorio', 'agenda', 'telefone', '1doc', 'ahgo', 'mail', 'cnpj', 'pref'],
   FEIRAS: ['processos_lab', 'feiras', 'agenda', 'telefone', '1doc', 'ahgo', 'mail', 'cnpj', 'pref'],
-  ADMINISTRATIVO: ['processos_lab', 'agenda', 'telefone', '1doc', 'epub', 'ahgo', 'rhwb', 'mail', 'domm', 'cnpj', 'alva', 'debi', 'leis', 'pref'],
+  ADMINISTRATIVO: ['pasta_visa', 'processos_lab', 'agenda', 'telefone', '1doc', 'epub', 'ahgo', 'rhwb', 'mail', 'domm', 'cnpj', 'alva', 'debi', 'leis', 'pref'],
   TODAS: MODULOS_SISTEMA.map((m) => m.id)
 };
 
@@ -146,6 +161,7 @@ export function userHasAccessToPage(user: UserProfile | null | undefined, pageOr
     if (pageOrButtonId === 'telefone' && user.paginas_permitidas.includes('telefone')) return true;
     if (pageOrButtonId === 'cidadao_view' && user.paginas_permitidas.includes('cidadao')) return true;
     if (pageOrButtonId === 'cidadao' && user.paginas_permitidas.includes('cidadao')) return true;
+    if (pageOrButtonId === 'pasta_visa' && user.paginas_permitidas.includes('pasta_visa')) return true;
     return false;
   }
 
@@ -153,6 +169,11 @@ export function userHasAccessToPage(user: UserProfile | null | undefined, pageOr
   if (user.tipo_usuario === 'SERVIDOR' || !user.tipo_usuario) {
     if (pageOrButtonId === 'laboratorio' || pageOrButtonId === 'tlab') {
       return (user.nivel_acesso === 'VISA (LABORATÓRIO)' || (user.setor || '').toUpperCase().includes('LAB'));
+    }
+    if (pageOrButtonId === 'pasta_visa') {
+      const cargo = (user.cargo || '').toUpperCase();
+      const nivel = (user.nivel_acesso || '').toUpperCase();
+      return cargo.includes('ADMINISTRATIV') || nivel.includes('ADMINISTRATIV') || cargo.includes('DIRETOR') || isUserMaster(user);
     }
     return true;
   }
@@ -525,7 +546,7 @@ export interface PortalButton {
   url: string;
   img: string;
   acao: 'link' | 'view';
-  view?: 'home' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone';
+  view?: 'home' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa';
   badgetext?: string;
   somenteMaster?: boolean;
   perfisPermitidos?: ('SERVIDOR' | 'CONTABILIDADE' | 'CIDADAO' | 'CONTRIBUINTE')[];
