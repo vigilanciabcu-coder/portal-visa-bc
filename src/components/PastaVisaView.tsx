@@ -927,13 +927,13 @@ export function PastaVisaView({ onBack, currentUser, processos = [] }: PastaVisa
                 )}
               </div>
 
-              {/* Filtro Status RF (-70px: 94px) */}
+              {/* Filtro Status RF (largura da maior opção + 2 caracteres + espaço da seta) */}
               <select
                 id="filtro_status_rf"
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
                 title="Filtrar por Status RF"
-                className="w-full sm:w-[94px] sm:min-w-[94px] px-2 py-2 text-xs font-medium truncate rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50 cursor-pointer"
+                className="w-full sm:w-[13ch] sm:min-w-[13ch] px-2.5 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50 cursor-pointer"
               >
                 <option value="TODOS">RF: Todos</option>
                 <option value="ATIVA">Ativa</option>
@@ -942,13 +942,13 @@ export function PastaVisaView({ onBack, currentUser, processos = [] }: PastaVisa
                 <option value="INAPTA">Inapta</option>
               </select>
 
-              {/* Filtro Setor (-70px: 102px) */}
+              {/* Filtro Setor (largura da maior opção + 2 caracteres + espaço da seta) */}
               <select
                 id="filtro_setor"
                 value={filterSetor}
                 onChange={(e) => setFilterSetor(e.target.value)}
                 title="Filtrar por Setor"
-                className="w-full sm:w-[102px] sm:min-w-[102px] px-2 py-2 text-xs font-medium truncate rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50 cursor-pointer"
+                className="w-full sm:w-[16ch] sm:min-w-[16ch] px-2.5 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50 cursor-pointer"
               >
                 <option value="TODOS">Setor: Todos</option>
                 <option value="ALIMENTOS">Alimentos</option>
