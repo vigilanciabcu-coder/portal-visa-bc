@@ -906,16 +906,17 @@ export function PastaVisaView({ onBack, currentUser, processos = [] }: PastaVisa
         <div className="lg:col-span-7 space-y-4">
           {/* BARRA DE FILTROS E BUSCA */}
           <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-            <div className="flex flex-col sm:flex-row items-center gap-3">
-              {/* Campo de Busca Livre */}
-              <div className="relative flex-1 min-w-0 w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-3 items-center gap-3">
+              {/* 1/3: Campo de Busca Livre */}
+              <div className="relative w-full">
                 <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Pesquisar por Pasta, Razão Social, CPF/CNPJ..."
-                  className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                  placeholder="Pesquisar..."
+                  title="Pesquisar por Pasta, Razão Social, CPF/CNPJ..."
+                  className="w-full pl-9 pr-8 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
                 />
                 {searchTerm && (
                   <button
@@ -927,36 +928,40 @@ export function PastaVisaView({ onBack, currentUser, processos = [] }: PastaVisa
                 )}
               </div>
 
-              {/* Filtro Status RF (largura da maior opção + 2 caracteres + espaço da seta) */}
-              <select
-                id="filtro_status_rf"
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                title="Filtrar por Status RF"
-                className="w-full sm:w-[13ch] sm:min-w-[13ch] px-2.5 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50 cursor-pointer"
-              >
-                <option value="TODOS">RF: Todos</option>
-                <option value="ATIVA">Ativa</option>
-                <option value="BAIXADA">Baixada</option>
-                <option value="SUSPENSA">Suspensa</option>
-                <option value="INAPTA">Inapta</option>
-              </select>
+              {/* 2/3: Filtro Status RF */}
+              <div className="w-full">
+                <select
+                  id="filtro_status_rf"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  title="Filtrar por Status RF"
+                  className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50 cursor-pointer"
+                >
+                  <option value="TODOS">Status RF: Todos</option>
+                  <option value="ATIVA">Ativa</option>
+                  <option value="BAIXADA">Baixada</option>
+                  <option value="SUSPENSA">Suspensa</option>
+                  <option value="INAPTA">Inapta</option>
+                </select>
+              </div>
 
-              {/* Filtro Setor (largura da maior opção + 2 caracteres + espaço da seta) */}
-              <select
-                id="filtro_setor"
-                value={filterSetor}
-                onChange={(e) => setFilterSetor(e.target.value)}
-                title="Filtrar por Setor"
-                className="w-full sm:w-[16ch] sm:min-w-[16ch] px-2.5 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50 cursor-pointer"
-              >
-                <option value="TODOS">Setor: Todos</option>
-                <option value="ALIMENTOS">Alimentos</option>
-                <option value="SAÚDE">Saúde</option>
-                <option value="SANEAMENTO">Saneamento</option>
-                <option value="MEDICAMENTOS">Medicamentos</option>
-                <option value="SERVIÇOS">Serviços</option>
-              </select>
+              {/* 3/3: Filtro Setor */}
+              <div className="w-full">
+                <select
+                  id="filtro_setor"
+                  value={filterSetor}
+                  onChange={(e) => setFilterSetor(e.target.value)}
+                  title="Filtrar por Setor"
+                  className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500/50 cursor-pointer"
+                >
+                  <option value="TODOS">Setor: Todos</option>
+                  <option value="ALIMENTOS">Alimentos</option>
+                  <option value="SAÚDE">Saúde</option>
+                  <option value="SANEAMENTO">Saneamento</option>
+                  <option value="MEDICAMENTOS">Medicamentos</option>
+                  <option value="SERVIÇOS">Serviços</option>
+                </select>
+              </div>
             </div>
 
             <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1">
