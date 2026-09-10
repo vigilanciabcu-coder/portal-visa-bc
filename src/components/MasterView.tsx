@@ -1070,10 +1070,15 @@ export const MasterView: React.FC<MasterViewProps> = ({
                       <td className="py-3.5 px-4 text-center whitespace-nowrap space-x-2">
                         <button
                           onClick={() => handleResetUserPassword(u)}
-                          className="text-amber-700 dark:text-amber-300 hover:bg-amber-200 bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-700 font-extrabold px-2.5 py-1.5 rounded-lg text-[10px] uppercase transition cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                          className="text-amber-700 dark:text-amber-300 hover:bg-amber-200 bg-amber-100 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-700 font-extrabold px-2 py-1 rounded-lg text-[10px] uppercase transition cursor-pointer inline-flex flex-col items-center justify-center leading-tight shadow-xs"
                           title="Redefinir senha deste usuário para 123456"
                         >
-                          🔑 Resetar (123456)
+                          <span className="inline-flex items-center gap-0.5">
+                            <span>🔑</span> Resetar
+                          </span>
+                          <span className="font-mono text-[9px] font-bold text-amber-800 dark:text-amber-200 opacity-90">
+                            123456
+                          </span>
                         </button>
                         <button
                           onClick={() => handleEditUser(u)}
