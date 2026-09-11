@@ -22,7 +22,9 @@ import {
   Calendar,
   ShieldCheck,
   ExternalLink,
-  Database
+  Database,
+  Lock,
+  KeyRound
 } from 'lucide-react';
 import { PastaVisaItem, ProcessoItem, UserProfile } from '../types';
 import { fetchCnpj } from '../lib/cnpjService';
@@ -86,6 +88,12 @@ export function PastaVisaView({ onBack, currentUser, processos = [] }: PastaVisa
   const [copiedSupabaseSql, setCopiedSupabaseSql] = useState<boolean>(false);
   const [syncingAllSupabase, setSyncingAllSupabase] = useState<boolean>(false);
   const [syncSupabaseStatus, setSyncSupabaseStatus] = useState<string | null>(null);
+
+  // Modal de Exclusão com Senha (Exclusivo Master e Direção)
+  const [itemParaExcluir, setItemParaExcluir] = useState<PastaVisaItem | null>(null);
+  const [senhaExclusao, setSenhaExclusao] = useState<string>('');
+  const [erroSenhaExclusao, setErroSenhaExclusao] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   // 1. Carregar pastas iniciais (Supabase com fallback localStorage)
   useEffect(() => {
@@ -332,24 +340,81 @@ export function PastaVisaView({ onBack, currentUser, processos = [] }: PastaVisa
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Excluir item
-  const handleExcluir = async (id: string) => {
+  // Permissão: somente Master e Direção podem excluir pastas
+  const isMasterOuDirecao = useMemo(() => {
+    if (!currentUser) return false;
+    const cargo = (currentUser.cargo || '').toUpperCase();
+    const nivel = (currentUser.nivel_acesso || '').toUpperCase();
+    return (
+      cargo === 'MASTER' ||
+      cargo === 'MASTER ADM' ||
+      cargo.includes('MASTER') ||
+      cargo.includes('DIRETOR') ||
+      nivel.includes('MASTER') ||
+      nivel.includes('DIRETOR')
+    );
+  }, [currentUser]);
+
+  // Iniciar solicitação de exclusão
+  const handleExcluir = (id: string) => {
     const item = pastas.find((p) => p.id === id);
-    const confirma = window.confirm(`Deseja realmente remover o registro da pasta "${item?.pasta || item?.razao_social}"?`);
-    if (!confirma) return;
+    if (!item) return;
 
-    // Remove do estado local
-    const novaLista = pastas.filter((p) => p.id !== id);
-    setPastas(novaLista);
-    localStorage.setItem('visa_pastas_administrativo', JSON.stringify(novaLista));
-
-    // Remove do Supabase
-    if (isSupabaseConfigured) {
-      await deletePastaVisaFromSupabase(id);
+    if (!isMasterOuDirecao) {
+      alert('Acesso negado: Somente usuários MASTER ou DIREÇÃO têm permissão para excluir registros de pastas.');
+      return;
     }
 
-    if (editingId === id) {
-      limparFormulario();
+    setItemParaExcluir(item);
+    setSenhaExclusao('');
+    setErroSenhaExclusao(null);
+  };
+
+  // Confirmar exclusão com verificação de senha
+  const confirmarExclusaoComSenha = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!itemParaExcluir) return;
+
+    const senhaDigitada = senhaExclusao.trim();
+    if (!senhaDigitada) {
+      setErroSenhaExclusao('Por favor, informe a sua senha de acesso.');
+      return;
+    }
+
+    // A senha cadastrada no perfil do operador (com fallback para padrão 123456)
+    const senhaUsuario = (currentUser.senha || '123456').trim();
+
+    if (senhaDigitada !== senhaUsuario) {
+      setErroSenhaExclusao('Senha incorreta! A exclusão foi cancelada por segurança.');
+      return;
+    }
+
+    setIsDeleting(true);
+    setErroSenhaExclusao(null);
+
+    try {
+      const id = itemParaExcluir.id;
+      // 1. Remove do estado local
+      const novaLista = pastas.filter((p) => p.id !== id);
+      setPastas(novaLista);
+      localStorage.setItem('visa_pastas_administrativo', JSON.stringify(novaLista));
+
+      // 2. Remove do Supabase
+      if (isSupabaseConfigured) {
+        await deletePastaVisaFromSupabase(id);
+      }
+
+      if (editingId === id) {
+        limparFormulario();
+      }
+
+      setItemParaExcluir(null);
+      setSenhaExclusao('');
+    } catch (err) {
+      console.error('Erro ao excluir pasta:', err);
+      setErroSenhaExclusao('Ocorreu um erro ao excluir o registro. Tente novamente.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1204,7 +1269,7 @@ CREATE POLICY "Permitir Acesso Completo Pastas Visa" ON public.pastas_visa FOR A
                             onClick={() => handleExcluir(item.id)}
                             id={`btn-excluir-pasta-${item.id}`}
                             className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 dark:hover:text-rose-400 transition-colors"
-                            title="Remover registro"
+                            title={isMasterOuDirecao ? "Excluir pasta (requer senha de autorização)" : "Exclusão restrita a Master e Direção"}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1510,6 +1575,120 @@ CREATE POLICY "Permitir Acesso Completo Pastas Visa" ON public.pastas_visa FOR A
                 Concluir e Fechar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL / DIALOG: CONFIRMAÇÃO DE EXCLUSÃO COM SENHA        */}
+      {/* ========================================================= */}
+      {itemParaExcluir && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-rose-200 dark:border-rose-900/60 shadow-2xl w-full max-w-md overflow-hidden animate-scaleUp">
+            {/* Header */}
+            <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-rose-50/60 dark:bg-rose-950/30">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    Confirmação de Exclusão
+                  </h3>
+                  <p className="text-xs text-rose-600 dark:text-rose-400 font-semibold">
+                    Ação Restrita: Master e Direção
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setItemParaExcluir(null);
+                  setSenhaExclusao('');
+                  setErroSenhaExclusao(null);
+                }}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={confirmarExclusaoComSenha} className="p-5 sm:p-6 space-y-4">
+              <div className="bg-slate-50 dark:bg-slate-950/50 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-1">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Pasta a ser excluída:</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-white uppercase truncate">
+                  {itemParaExcluir.pasta ? `Pasta Nº ${itemParaExcluir.pasta}` : itemParaExcluir.razao_social || 'SEM IDENTIFICAÇÃO'}
+                </p>
+                {itemParaExcluir.cnpj_cpf && (
+                  <p className="text-xs text-slate-500 font-mono">{itemParaExcluir.cnpj_cpf}</p>
+                )}
+              </div>
+
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Por se tratar de uma operação irreversível, digite a sua <strong>senha de acesso</strong> para autorizar a exclusão deste registro:
+              </p>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5 text-slate-500" />
+                  Sua Senha de Operador
+                </label>
+                <input
+                  type="password"
+                  value={senhaExclusao}
+                  onChange={(e) => {
+                    setSenhaExclusao(e.target.value);
+                    if (erroSenhaExclusao) setErroSenhaExclusao(null);
+                  }}
+                  placeholder="Digite sua senha de acesso..."
+                  autoFocus
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition"
+                />
+              </div>
+
+              {erroSenhaExclusao && (
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>{erroSenhaExclusao}</span>
+                </div>
+              )}
+
+              {/* Botões */}
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setItemParaExcluir(null);
+                    setSenhaExclusao('');
+                    setErroSenhaExclusao(null);
+                  }}
+                  disabled={isDeleting}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isDeleting || !senhaExclusao.trim()}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-bold transition shadow"
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Excluindo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Confirmar Exclusão</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
