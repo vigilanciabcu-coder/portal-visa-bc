@@ -648,11 +648,13 @@ CREATE POLICY "Permitir Acesso Completo Pastas Visa" ON public.pastas_visa FOR A
             <button
               onClick={() => setShowSupabaseModal(true)}
               id="btn-config-supabase-pastas"
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-colors"
+              className="inline-flex items-center gap-2 p-1.5 pr-3 text-sm font-medium rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-colors cursor-pointer"
               title="Configuração da Tabela e Envio para o Supabase"
             >
-              <Database className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-              <span>Supabase</span>
+              <div className="w-8 h-8 rounded-lg bg-teal-500/20 text-teal-700 dark:text-teal-300 flex items-center justify-center shrink-0">
+                <Database className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              </div>
+              <span className="font-semibold">Supabase</span>
               {isSupabaseConfigured ? (
                 <span className="w-2 h-2 rounded-full bg-teal-500 inline-block" title="Supabase configurado"></span>
               ) : null}
@@ -661,10 +663,13 @@ CREATE POLICY "Permitir Acesso Completo Pastas Visa" ON public.pastas_visa FOR A
             <button
               onClick={() => setShowSheetsModal(true)}
               id="btn-config-sheets"
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
+              className="inline-flex items-center gap-2 p-1.5 pr-3 text-sm font-medium rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors cursor-pointer"
+              title="Configuração do Google Sheets"
             >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>Google Sheets</span>
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <span className="font-semibold">Google Sheets</span>
               {webhookUrl ? (
                 <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" title="Sincronização ativa"></span>
               ) : null}
@@ -673,11 +678,13 @@ CREATE POLICY "Permitir Acesso Completo Pastas Visa" ON public.pastas_visa FOR A
             <button
               onClick={exportarCsv}
               id="btn-exportar-csv"
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors"
+              className="inline-flex items-center gap-2 p-1.5 pr-3 text-sm font-medium rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
               title="Baixar planilha compatível com Excel e Google Sheets"
             >
-              <Download className="w-4 h-4" />
-              <span>Exportar CSV</span>
+              <div className="w-8 h-8 rounded-lg bg-slate-200/80 dark:bg-slate-700/80 text-slate-700 dark:text-slate-300 flex items-center justify-center shrink-0">
+                <Download className="w-4 h-4" />
+              </div>
+              <span className="font-semibold">Exportar CSV</span>
             </button>
           </div>
         </div>
