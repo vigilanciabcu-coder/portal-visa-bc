@@ -1,0 +1,8 @@
+{
+  "name": "Remix Portal Vigilância Sanitária BC - Fiscalizações",
+  "description": "Portal da Vigilância Sanitária de Balneário Camboriú com controle de perfis de acesso (Servidor/Fiscal, Contabilista, Contribuinte e Cidadão), fiscalizações, feiras, agenda, carteira de processos e módulo de laboratório.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
