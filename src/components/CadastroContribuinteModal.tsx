@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ContribuinteProfile } from '../types';
-import { Briefcase, Building2, User, Mail, Phone, CheckCircle2, X, Sparkles, Lock, Store, MapPin, FileText } from 'lucide-react';
+import { Briefcase, Building2, User, Mail, Phone, CheckCircle2, X, Sparkles, Lock, Store, MapPin, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { fetchCnpj } from '../lib/cnpjService';
 import { BAIRROS_BC } from '../data/mockData';
 import { saveContribuinteToSupabase, isSupabaseConfigured } from '../lib/supabaseService';
@@ -40,6 +40,9 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
   const [cnaePrincipalCodigo, setCnaePrincipalCodigo] = useState('');
   const [cnaePrincipalDescricao, setCnaePrincipalDescricao] = useState('');
   const [cnaePrincipal, setCnaePrincipal] = useState('');
+  const [cnaesList, setCnaesList] = useState<string[]>([]);
+  const [cnaesSecundarios, setCnaesSecundarios] = useState<string[]>([]);
+  const [mostrarTodosCnaes, setMostrarTodosCnaes] = useState(false);
 
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
@@ -112,6 +115,11 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
           ? `${data.cnae_principal_codigo} - ${data.cnae_principal_descricao || data.cnae || ''}`.trim()
           : (data.cnae || '');
         setCnaePrincipal(cnaeCompleto);
+
+        // Captura lista completa de CNAEs (principal + secundários)
+        const allCnaes = data.cnaes || (data.cnae ? [data.cnae] : []);
+        setCnaesList(allCnaes);
+        setCnaesSecundarios(data.cnaes_secundarios || []);
       }
     } catch (e) {
       console.error(e);
@@ -196,6 +204,8 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
       cnae_principal: cnaePrincipal.trim(),
       cnae_principal_codigo: cnaePrincipalCodigo.trim(),
       cnae_principal_descricao: cnaePrincipalDescricao.trim(),
+      cnaes: cnaesList,
+      cnaes_secundarios: cnaesSecundarios,
     };
 
     // Salva no LocalStorage dos contribuintes
@@ -363,6 +373,36 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
                   </button>
                 )}
               </div>
+
+              {/* Exibição dos CNAEs identificados via Receita Federal */}
+              {cnaesList.length > 0 && (
+                <div className="mt-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800/60 rounded-xl p-2.5 text-xs text-emerald-800 dark:text-emerald-200 animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>{cnaesList.length} Atividade(s) Econômica(s) Vinculada(s)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMostrarTodosCnaes(!mostrarTodosCnaes)}
+                      className="text-[10px] text-emerald-700 dark:text-emerald-300 hover:underline font-bold flex items-center gap-0.5"
+                    >
+                      {mostrarTodosCnaes ? 'Ocultar' : 'Ver lista'}
+                      {mostrarTodosCnaes ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    </button>
+                  </div>
+                  {mostrarTodosCnaes && (
+                    <div className="mt-2 pt-2 border-t border-emerald-200 dark:border-emerald-900/60 space-y-1 max-h-32 overflow-y-auto pr-1">
+                      {cnaesList.map((c, idx) => (
+                        <div key={idx} className="text-[10px] font-mono bg-white dark:bg-emerald-950/70 p-1.5 rounded border border-emerald-100 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-200">
+                          {idx === 0 ? <strong className="text-emerald-700 dark:text-emerald-400 mr-1">[Principal]</strong> : <span className="text-slate-500 dark:text-slate-400 mr-1">[Secundário]</span>}
+                          {c}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Razão Social / Nome Fantasia */}

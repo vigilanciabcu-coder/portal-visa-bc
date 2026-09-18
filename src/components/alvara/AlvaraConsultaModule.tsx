@@ -27,7 +27,7 @@ interface AlvaraConsultaModuleProps {
   setStatusFilter: (filter: string) => void;
   selectedPastaFilter: string | null;
   setSelectedPastaFilter: (pasta: string | null) => void;
-  onOpenViewer: (alvara: AlvaraSanitarioItem, mode: 'docs_embed' | 'timbrado') => void;
+  onOpenViewer: (alvara: AlvaraSanitarioItem, mode?: 'pdf_oficial' | 'docs_embed' | 'timbrado') => void;
   onCopyDataForDocs: (alvara: AlvaraSanitarioItem) => void;
   onEditAlvara: (alvara: AlvaraSanitarioItem) => void;
   onDeleteAlvara: (id: string, numero: string) => void;
@@ -320,26 +320,15 @@ export function AlvaraConsultaModule({
                     {/* Ações */}
                     <td className="p-3.5 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
-                        {/* Botão Principal: Gerar PDF (Google Docs) */}
+                        {/* Botão Unificado: Emitir / Visualizar Alvará em PDF */}
                         <button
                           type="button"
-                          onClick={() => onOpenViewer(alv, 'docs_embed')}
-                          className="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase transition flex items-center gap-1.5 shadow-sm cursor-pointer"
-                          title="Gerar e Visualizar o Alvará Oficial no Google Docs pronto para PDF"
+                          onClick={() => onOpenViewer(alv, 'pdf_oficial')}
+                          className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                          title="Emitir, Visualizar e Imprimir Alvará Oficial em PDF"
                         >
                           <FileText className="w-3.5 h-3.5" />
-                          <span>Gerar PDF (Docs)</span>
-                        </button>
-
-                        {/* Botão Secundário: Folha Timbrada / Certificado */}
-                        <button
-                          type="button"
-                          onClick={() => onOpenViewer(alv, 'timbrado')}
-                          className="px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] font-black uppercase transition flex items-center gap-1.5 shadow-sm cursor-pointer"
-                          title="Visualizar e Imprimir Certificado Timbrado Oficial com Brasão e QR Code"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
-                          <span>Certificado</span>
+                          <span>Emitir Alvará</span>
                         </button>
 
                         {/* Copiar 9 Campos Formatados */}

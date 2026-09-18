@@ -6,7 +6,7 @@ interface AlvaraPastasModuleProps {
   alvaras: AlvaraSanitarioItem[];
   pastasAgrupadas: Record<string, AlvaraSanitarioItem[]>;
   onSelectPasta: (pastaNome: string) => void;
-  onOpenViewer: (alvara: AlvaraSanitarioItem, mode: 'docs_embed' | 'timbrado' | 'minuta_texto') => void;
+  onOpenViewer?: (alvara: AlvaraSanitarioItem, mode?: 'pdf_oficial' | 'docs_embed' | 'timbrado' | 'minuta_texto') => void;
 }
 
 export function AlvaraPastasModule({

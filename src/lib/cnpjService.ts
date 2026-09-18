@@ -9,6 +9,7 @@ export interface CnpjData {
   bairro: string;
   cnae: string;
   cnaes?: string[];
+  cnaes_secundarios?: string[];
   responsavel: string;
   telefone: string;
   tipo_atividade: string;
@@ -21,6 +22,61 @@ export interface CnpjData {
   cnae_principal_descricao?: string;
   nome_proprietario?: string;
   email?: string;
+}
+
+/**
+ * CNAEs regulamentares e exclusivos para cadastro de Contabilista / Escritório Contábil
+ * - 6920-6/01: Atividades de contabilidade
+ * - 6920-6/02: Atividades de consultoria e auditoria contábil e tributária
+ */
+export const CNAES_CONTABEIS_PERMITIDOS = ['6920-6/01', '6920-6/02'] as const;
+
+export function isCnaeContabil(cnaeStr?: string): boolean {
+  if (!cnaeStr) return false;
+  const digits = String(cnaeStr).replace(/\D/g, '');
+  return digits.includes('6920601') || digits.includes('6920602');
+}
+
+export function validarCnaeContabilista(data: {
+  cnae_principal_codigo?: string;
+  cnae?: string;
+  cnaes?: string[];
+  cnaes_secundarios?: string[];
+}): {
+  valido: boolean;
+  cnaeValido?: string;
+  cnaesEncontrados: string[];
+  mensagem?: string;
+} {
+  const lista: string[] = [];
+  if (data.cnae_principal_codigo) lista.push(data.cnae_principal_codigo);
+  if (data.cnae) lista.push(data.cnae);
+  if (Array.isArray(data.cnaes)) {
+    data.cnaes.forEach(c => {
+      if (c && !lista.includes(c)) lista.push(c);
+    });
+  }
+  if (Array.isArray(data.cnaes_secundarios)) {
+    data.cnaes_secundarios.forEach(c => {
+      if (c && !lista.includes(c)) lista.push(c);
+    });
+  }
+
+  const cnaeEncontrado = lista.find(isCnaeContabil);
+
+  if (cnaeEncontrado) {
+    return {
+      valido: true,
+      cnaeValido: cnaeEncontrado,
+      cnaesEncontrados: lista
+    };
+  }
+
+  return {
+    valido: false,
+    cnaesEncontrados: lista,
+    mensagem: 'CNPJ não autorizado: O cadastro de contabilista é restrito a empresas que possuem o CNAE 6920-6/01 (Atividades de contabilidade) ou 6920-6/02 (Consultoria e auditoria contábil e tributária).'
+  };
 }
 
 function formatCep(rawCep: string | number | undefined): string {
@@ -121,6 +177,7 @@ export async function fetchCnpj(cleanCnpj: string): Promise<CnpjData> {
         bairro: d.bairro || 'Centro',
         cnae: cnaeDesc,
         cnaes: allCnaes.length > 0 ? allCnaes : [primaryCnae || cnaeDesc],
+        cnaes_secundarios: secCnaes,
         responsavel: socioNome || 'RESPONSÁVEL CADASTRADO',
         nome_proprietario: socioNome || '',
         telefone: tel,
@@ -176,6 +233,7 @@ export async function fetchCnpj(cleanCnpj: string): Promise<CnpjData> {
         bairro: d.bairro || 'Centro',
         cnae: cnaeDesc,
         cnaes: allCnaes.length > 0 ? allCnaes : [primaryCnae || cnaeDesc],
+        cnaes_secundarios: secCnaes,
         responsavel: socioNome || 'RESPONSÁVEL CADASTRADO',
         nome_proprietario: socioNome || '',
         telefone: tel,

@@ -168,7 +168,7 @@ export function AlvaraView({ onBack, currentUser, processos = [] }: AlvaraViewPr
 
   // Modal de Impressão e Visualização do Alvará
   const [selectedAlvaraForPrint, setSelectedAlvaraForPrint] = useState<AlvaraSanitarioItem | null>(null);
-  const [printViewMode, setPrintViewMode] = useState<'docs_embed' | 'timbrado'>('docs_embed');
+  const [printViewMode, setPrintViewMode] = useState<'pdf_oficial' | 'docs_embed' | 'timbrado'>('pdf_oficial');
 
   // Modelo Selecionado para Formulário de Cadastro
   const [selectedModelo, setSelectedModelo] = useState<ModeloAlvaraDef>(MODELOS_DISPONIVEIS[0]);
@@ -293,7 +293,7 @@ export function AlvaraView({ onBack, currentUser, processos = [] }: AlvaraViewPr
   };
 
   // Abertura do visualizador
-  const handleOpenViewer = (alv: AlvaraSanitarioItem, mode: 'docs_embed' | 'timbrado' = 'docs_embed') => {
+  const handleOpenViewer = (alv: AlvaraSanitarioItem, mode: 'pdf_oficial' | 'docs_embed' | 'timbrado' = 'pdf_oficial') => {
     setSelectedAlvaraForPrint(alv);
     setPrintViewMode(mode);
   };
@@ -313,7 +313,7 @@ export function AlvaraView({ onBack, currentUser, processos = [] }: AlvaraViewPr
     });
 
     if (foundAlvara) {
-      handleOpenViewer(foundAlvara, 'docs_embed');
+      handleOpenViewer(foundAlvara, 'pdf_oficial');
       setFeedbackMsg({
         tipo: 'sucesso',
         texto: `Alvará nº ${foundAlvara.numero_alvara} localizado! Pronto para emissão e download em PDF.`
@@ -372,7 +372,7 @@ export function AlvaraView({ onBack, currentUser, processos = [] }: AlvaraViewPr
         saveAlvaraToSupabase(autoAlvara).catch(console.warn);
       }
 
-      handleOpenViewer(autoAlvara, 'docs_embed');
+      handleOpenViewer(autoAlvara, 'pdf_oficial');
       setFeedbackMsg({
         tipo: 'sucesso',
         texto: `Dados encontrados no Processo nº ${matchingProcesso.num_processo}! Alvará gerado e pronto em PDF.`
@@ -428,7 +428,7 @@ export function AlvaraView({ onBack, currentUser, processos = [] }: AlvaraViewPr
             saveAlvaraToSupabase(autoAlvara).catch(console.warn);
           }
 
-          handleOpenViewer(autoAlvara, 'docs_embed');
+          handleOpenViewer(autoAlvara, 'pdf_oficial');
           setFeedbackMsg({
             tipo: 'sucesso',
             texto: `Dados do CNPJ ${formattedCnpj} obtidos na Receita! Alvará gerado e pronto em PDF.`
@@ -657,7 +657,7 @@ export function AlvaraView({ onBack, currentUser, processos = [] }: AlvaraViewPr
 
       setShowPasswordModal(false);
       setUserPasswordInput('');
-      handleOpenViewer(alvaraData, 'docs_embed');
+      handleOpenViewer(alvaraData, 'pdf_oficial');
       setActiveModule('consultar');
     } finally {
       setIsSigning(false);
@@ -723,6 +723,7 @@ export function AlvaraView({ onBack, currentUser, processos = [] }: AlvaraViewPr
       {/* MÓDULO 2: CADASTRAR & EMITIR */}
       {activeModule === 'cadastrar' && (
         <AlvaraCadastroModule
+          currentUser={currentUser}
           editingId={editingId}
           categoriaInput={categoriaInput}
           setCategoriaInput={setCategoriaInput}

@@ -133,6 +133,32 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
       telefone: '(47) 3360-0741',
       tipo_atividade: 'Lanchonete / Fast Food',
       risco: 'BAIXO'
+    },
+    '05891823000100': {
+      razao: 'DELTA ASSESSORIA CONTÁBIL E AUDITORIA LTDA',
+      nome_fantasia: 'DELTA CONTABILIDADE BC',
+      municipio: 'BALNEÁRIO CAMBORIÚ',
+      estado: 'SC',
+      cep: '88330-000',
+      rua_api: 'TERCEIRA AVENIDA',
+      num_api: '1200',
+      bairro: 'Centro',
+      cnae: '6920-6/01 - ATIVIDADES DE CONTABILIDADE',
+      cnaes: [
+        '6920-6/01 - ATIVIDADES DE CONTABILIDADE',
+        '6920-6/02 - ATIVIDADES DE CONSULTORIA E AUDITORIA CONTÁBIL E TRIBUTÁRIA'
+      ],
+      cnaes_secundarios: [
+        '6920-6/02 - ATIVIDADES DE CONSULTORIA E AUDITORIA CONTÁBIL E TRIBUTÁRIA'
+      ],
+      cnae_principal_codigo: '6920-6/01',
+      cnae_principal_descricao: 'Atividades de contabilidade',
+      responsavel: 'CARLOS EDUARDO SILVEIRA (CRC/SC 019842/O)',
+      telefone: '(47) 3367-8899',
+      tipo_atividade: 'Serviços Contábeis',
+      risco: 'BAIXO',
+      situacao: 'ATIVA',
+      situacao_cadastral: 'ATIVA'
     }
   };
 
@@ -222,6 +248,7 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
           bairro: d.bairro || 'Centro',
           cnae: cnaeDesc,
           cnaes: allCnaes.length > 0 ? allCnaes : [primaryCnae || cnaeDesc],
+          cnaes_secundarios: secCnaes,
           responsavel: socioNome || 'RESPONSÁVEL CADASTRADO',
           nome_proprietario: socioNome || '',
           telefone: d.ddd_telefone_1 ? `(${d.ddd_telefone_1.slice(0, 2)}) ${d.ddd_telefone_1.slice(2)}` : '(47) 3367-0000',
@@ -274,6 +301,7 @@ app.get('/api/cnpj/:cnpj', async (req, res) => {
           bairro: d.bairro || 'Centro',
           cnae: cnaeDesc,
           cnaes: allCnaes.length > 0 ? allCnaes : [primaryCnae || cnaeDesc],
+          cnaes_secundarios: secCnaes,
           responsavel: socioNome || 'RESPONSÁVEL TÉCNICO',
           nome_proprietario: socioNome || '',
           telefone: d.ddd_telefone_1 ? `(${d.ddd_telefone_1.slice(0, 2)}) ${d.ddd_telefone_1.slice(2)}` : '(47) 3367-0000',

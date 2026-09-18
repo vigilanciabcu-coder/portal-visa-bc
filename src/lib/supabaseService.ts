@@ -1328,7 +1328,12 @@ export async function fetchContabilidadesFromSupabase(): Promise<ContabilidadePr
           telefone: item.telefone || '',
           senha: item.senha || '123456',
           cnpjs_vinculados: cnpjs,
-          data_cadastro: item.data_cadastro ? String(item.data_cadastro).split('T')[0] : new Date().toISOString().split('T')[0]
+          data_cadastro: item.data_cadastro ? String(item.data_cadastro).split('T')[0] : new Date().toISOString().split('T')[0],
+          cnae_principal: item.cnae_principal || undefined,
+          cnae_principal_codigo: item.cnae_principal_codigo || undefined,
+          cnae_principal_descricao: item.cnae_principal_descricao || undefined,
+          cnaes: Array.isArray(item.cnaes) ? item.cnaes : (item.cnae_principal ? [item.cnae_principal] : []),
+          cnaes_secundarios: Array.isArray(item.cnaes_secundarios) ? item.cnaes_secundarios : []
         };
       });
     }
@@ -1371,10 +1376,15 @@ export async function saveContabilidadeToSupabase(item: ContabilidadeProfile): P
       telefone: item.telefone || '',
       senha: item.senha || '123456',
       cnpjs_vinculados: item.cnpjs_vinculados || [],
-      data_cadastro: item.data_cadastro || new Date().toISOString()
+      data_cadastro: item.data_cadastro || new Date().toISOString(),
+      cnae_principal: item.cnae_principal || null,
+      cnae_principal_codigo: item.cnae_principal_codigo || null,
+      cnae_principal_descricao: item.cnae_principal_descricao || null,
+      cnaes: item.cnaes || [],
+      cnaes_secundarios: item.cnaes_secundarios || []
     };
 
-    // 1ª Tentativa: Upsert por CNPJ ou ID
+    // 1ª Tentativa: Upsert por CNPJ ou ID com payload completo
     const { error: upsertErr } = await supabase
       .from('contabilidades')
       .upsert(payload, { onConflict: 'cnpj' });
@@ -1401,6 +1411,25 @@ export async function saveContabilidadeToSupabase(item: ContabilidadeProfile): P
     const { id, ...withoutId } = payload;
     const { error: insErr } = await supabase.from('contabilidades').insert(withoutId);
     if (!insErr) return true;
+
+    // Se houve erro de coluna inexistente (ex: tabela no Supabase do usuário ainda não rodou a migration de cnaes)
+    if (upsertErr?.message?.includes('column') || insErr?.message?.includes('column')) {
+      const legacyPayload: any = {
+        id: recordId,
+        razao_social: item.razao_social || 'Contabilidade',
+        nome_fantasia: item.nome_fantasia || item.razao_social || 'Contabilidade',
+        cnpj: cleanCnpj,
+        crc: item.crc || '',
+        responsavel: item.responsavel || 'Responsável Técnico',
+        email: (item.email || '').trim().toLowerCase(),
+        telefone: item.telefone || '',
+        senha: item.senha || '123456',
+        cnpjs_vinculados: item.cnpjs_vinculados || [],
+        data_cadastro: item.data_cadastro || new Date().toISOString()
+      };
+      const { error: legErr } = await supabase.from('contabilidades').upsert(legacyPayload, { onConflict: 'cnpj' });
+      if (!legErr) return true;
+    }
 
     console.warn('Falha em todas as tentativas de salvar contabilidade:', insErr.message);
     return false;
@@ -1538,6 +1567,8 @@ export async function fetchContribuintesFromSupabase(): Promise<any[] | null> {
         cnae_principal: item.cnae_principal || '',
         cnae_principal_codigo: item.cnae_principal_codigo || '',
         cnae_principal_descricao: item.cnae_principal_descricao || '',
+        cnaes: Array.isArray(item.cnaes) ? item.cnaes : (item.cnae_principal ? [item.cnae_principal] : []),
+        cnaes_secundarios: Array.isArray(item.cnaes_secundarios) ? item.cnaes_secundarios : [],
         data_cadastro: item.data_cadastro ? String(item.data_cadastro).split('T')[0] : new Date().toISOString().split('T')[0]
       }));
     }
@@ -1592,6 +1623,8 @@ export async function saveContribuinteToSupabase(item: any): Promise<boolean> {
       cnae_principal: item.cnae_principal || null,
       cnae_principal_codigo: item.cnae_principal_codigo || null,
       cnae_principal_descricao: item.cnae_principal_descricao || null,
+      cnaes: item.cnaes || [],
+      cnaes_secundarios: item.cnaes_secundarios || [],
       data_cadastro: item.data_cadastro || new Date().toISOString()
     };
 

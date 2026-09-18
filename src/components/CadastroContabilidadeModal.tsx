@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ContabilidadeProfile } from '../types';
-import { Briefcase, Building2, User, Mail, Phone, FileText, CheckCircle2, X, Sparkles, Cloud, Lock } from 'lucide-react';
-import { fetchCnpj } from '../lib/cnpjService';
+import { Briefcase, Building2, User, Mail, Phone, FileText, CheckCircle2, X, Sparkles, Cloud, Lock, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { fetchCnpj, validarCnaeContabilista, CNAES_CONTABEIS_PERMITIDOS } from '../lib/cnpjService';
 import { saveContabilidadeToSupabase, isSupabaseConfigured } from '../lib/supabaseService';
 
 interface CadastroContabilidadeModalProps {
@@ -29,9 +29,19 @@ export const CadastroContabilidadeModal: React.FC<CadastroContabilidadeModalProp
   const [sucesso, setSucesso] = useState(false);
   const [erroMsg, setErroMsg] = useState('');
 
+  // Estados para validação e armazenamento de CNAEs
+  const [cnaePrincipal, setCnaePrincipal] = useState('');
+  const [cnaePrincipalCodigo, setCnaePrincipalCodigo] = useState('');
+  const [cnaePrincipalDescricao, setCnaePrincipalDescricao] = useState('');
+  const [cnaesList, setCnaesList] = useState<string[]>([]);
+  const [cnaesSecundarios, setCnaesSecundarios] = useState<string[]>([]);
+  const [cnaeValidoInfo, setCnaeValidoInfo] = useState<string | null>(null);
+  const [cnaePermitido, setCnaePermitido] = useState<boolean | null>(null);
+  const [mostrarTodosCnaes, setMostrarTodosCnaes] = useState(false);
+
   if (!isOpen) return null;
 
-  // Auto preenchimento via CNPJ
+  // Auto preenchimento via CNPJ com validação dos CNAEs 6920-6/01 e 6920-6/02
   const handleConsultarCNPJ = async () => {
     const clean = cnpj.replace(/\D/g, '');
     if (clean.length !== 14) {
@@ -41,16 +51,40 @@ export const CadastroContabilidadeModal: React.FC<CadastroContabilidadeModalProp
 
     setBuscandoCnpj(true);
     setErroMsg('');
+    setCnaePermitido(null);
+    setCnaeValidoInfo(null);
     try {
       const data = await fetchCnpj(clean);
       if (data) {
-        if (data.razao) setRazaoSocial(data.razao);
-        if (data.nome_fantasia) setNomeFantasia(data.nome_fantasia || data.razao);
-        if (data.telefone && !telefone) setTelefone(data.telefone);
-        if (data.responsavel && !responsavel) setResponsavel(data.responsavel);
+        const allCnaes = data.cnaes || (data.cnae ? [data.cnae] : []);
+        setCnaesList(allCnaes);
+        setCnaesSecundarios(data.cnaes_secundarios || []);
+        setCnaePrincipal(data.cnae || '');
+        setCnaePrincipalCodigo(data.cnae_principal_codigo || '');
+        setCnaePrincipalDescricao(data.cnae_principal_descricao || '');
+
+        // Valida se possui 6920-6/01 ou 6920-6/02
+        const validacao = validarCnaeContabilista(data);
+
+        if (validacao.valido) {
+          setCnaePermitido(true);
+          setCnaeValidoInfo(validacao.cnaeValido || '6920-6/01');
+          if (data.razao) setRazaoSocial(data.razao);
+          if (data.nome_fantasia) setNomeFantasia(data.nome_fantasia || data.razao);
+          if (data.telefone && !telefone) setTelefone(data.telefone);
+          if (data.responsavel && !responsavel) setResponsavel(data.responsavel);
+        } else {
+          setCnaePermitido(false);
+          setCnaeValidoInfo(null);
+          setErroMsg(
+            validacao.mensagem ||
+              'CNPJ não autorizado: O cadastro de escritório contábil é restrito a empresas com CNAE 6920-6/01 (Atividades de contabilidade) ou 6920-6/02 (Consultoria e auditoria contábil e tributária).'
+          );
+        }
       }
     } catch (e) {
       console.error(e);
+      setErroMsg('Falha ao consultar CNPJ nos serviços da Receita Federal.');
     } finally {
       setBuscandoCnpj(false);
     }
@@ -59,6 +93,13 @@ export const CadastroContabilidadeModal: React.FC<CadastroContabilidadeModalProp
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErroMsg('');
+
+    if (cnaePermitido === false) {
+      setErroMsg(
+        'Cadastro bloqueado: O CNPJ informado não possui as atividades de contabilidade obrigatórias (CNAE 6920-6/01 ou 6920-6/02).'
+      );
+      return;
+    }
 
     if (!cnpj.trim() || !razaoSocial.trim() || !crc.trim() || !email.trim()) {
       setErroMsg('Por favor, preencha os campos obrigatórios: CNPJ, Razão Social, CRC e E-mail.');
@@ -93,6 +134,11 @@ export const CadastroContabilidadeModal: React.FC<CadastroContabilidadeModalProp
       senha: senha.trim() || '123456',
       cnpjs_vinculados: cnpjsArr,
       data_cadastro: new Date().toISOString().split('T')[0],
+      cnae_principal: cnaePrincipal.trim(),
+      cnae_principal_codigo: cnaePrincipalCodigo.trim(),
+      cnae_principal_descricao: cnaePrincipalDescricao.trim(),
+      cnaes: cnaesList,
+      cnaes_secundarios: cnaesSecundarios,
     };
 
     // Salva no LocalStorage das contabilidades
@@ -194,6 +240,60 @@ export const CadastroContabilidadeModal: React.FC<CadastroContabilidadeModalProp
                   {buscandoCnpj ? 'Consultando...' : 'Auto-Preencher'}
                 </button>
               </div>
+
+              {/* Status de Validação de CNAE Contábil */}
+              {cnaePermitido === true && (
+                <div className="mt-2 bg-emerald-950/40 border border-emerald-500/50 rounded-lg p-2.5 text-xs text-emerald-200 animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>CNAE Contábil Validado:</span>
+                      <span className="font-mono bg-emerald-900/70 border border-emerald-700/60 px-1.5 py-0.5 rounded text-emerald-300">
+                        {cnaeValidoInfo}
+                      </span>
+                    </div>
+                    {cnaesList.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setMostrarTodosCnaes(!mostrarTodosCnaes)}
+                        className="text-[10px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-0.5"
+                      >
+                        {cnaesList.length} CNAE(s) salvo(s)
+                        {mostrarTodosCnaes ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                      </button>
+                    )}
+                  </div>
+                  {mostrarTodosCnaes && (
+                    <div className="mt-2 pt-2 border-t border-emerald-900/60 space-y-1 max-h-28 overflow-y-auto pr-1">
+                      {cnaesList.map((c, idx) => (
+                        <div key={idx} className="text-[10px] text-emerald-300/90 font-mono bg-emerald-950/60 p-1 rounded">
+                          • {c}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {cnaePermitido === false && (
+                <div className="mt-2 bg-rose-950/60 border border-rose-600/70 rounded-lg p-2.5 text-xs text-rose-200 animate-fadeIn">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-black text-rose-300 uppercase tracking-tight block">CNPJ Não Permitido para Contabilista</span>
+                      <p className="text-[11px] text-rose-200/90 mt-0.5">
+                        O cadastro de escritório contábil é exclusivo para CNPJs com atividade de contabilidade (<strong className="text-white">6920-6/01</strong> ou <strong className="text-white">6920-6/02</strong>).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {cnaePermitido === null && !buscandoCnpj && (
+                <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                  <span>Requisito: O CNPJ deve possuir CNAE <strong>6920-6/01</strong> (Contabilidade) ou <strong>6920-6/02</strong> (Auditoria/Consultoria Contábil).</span>
+                </p>
+              )}
             </div>
 
             {/* Razão Social e Nome Fantasia */}

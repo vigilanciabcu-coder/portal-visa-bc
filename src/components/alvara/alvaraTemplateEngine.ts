@@ -113,7 +113,11 @@ export function generateAlvaraFilledHtml(
   const bairro = (alvara.bairro || '').trim();
   const cep = (alvara.cep || '88330-000').trim();
   const anoExercicio = alvara.ano_exercicio || '2026';
-  const cnae = alvara.cnae_principal || 'COMÉRCIO / PRESTAÇÃO DE SERVIÇOS';
+  const cnaeRaw = alvara.cnae_principal || 'COMÉRCIO / PRESTAÇÃO DE SERVIÇOS';
+  const cnaeLines = cnaeRaw.split('\n').map((l) => l.trim()).filter(Boolean);
+  const cnae = cnaeLines.length > 1
+    ? `<div style="font-size: 8.5pt; line-height: 1.35; padding: 2px 0;">${cnaeLines.map((l) => `<div style="margin-bottom: 2px;">• ${l}</div>`).join('')}</div>`
+    : `<span style="font-size: 8.5pt; line-height: 1.35;">${cnaeRaw}</span>`;
   const condicionantes =
     alvara.condicionantes || 'Manter o Alvará Sanitário fixado em local visível ao público.';
 
@@ -144,16 +148,19 @@ export function generateAlvaraFilledHtml(
     'DATA_EMISSAO': dataEmissaoFormatada,
     'VALIDADE': dataValidadeFormatada,
     'DATA_VALIDADE': dataValidadeFormatada,
+    'INICIO_ATIVIDADE': dataEmissaoFormatada,
     'ANO': anoExercicio,
     'ANO_EXERCICIO': anoExercicio,
     'EXERCICIO': anoExercicio,
     'SETOR': setor,
     'CNAE': cnae,
     'ATIVIDADE': cnae,
+    'CNAE_COMPLETO': cnae,
     'CONDICIONANTES': condicionantes,
     'OBSERVACOES': condicionantes,
     'ASSINATURA': alvara.assinatura_digital || 'Assinatura Digital Certificada pela Autoridade Sanitária',
-    'FISCAL': alvara.fiscal_emissor || 'Autoridade Sanitária DVIS'
+    'FISCAL': alvara.fiscal_emissor || 'Autoridade Sanitária DVIS',
+    'GRAU_RISCO': (alvara.grau_risco || 'BAIXO GRAU DE RISCO SANITÁRIO').toUpperCase()
   };
 
   // Aplica substituição de placeholders {{ TAG }}
@@ -162,8 +169,8 @@ export function generateAlvaraFilledHtml(
     html = html.replace(regex, val);
   }
 
-  // 2. Se o modelo original do Docs possuir os textos de exemplo estáticos nas células, atualiza-os de forma inteligente
-  if (alvara.validade && html.includes('31/12/2026')) {
+  // 2. Limpeza profunda de qualquer texto de exemplo estático herdado do modelo
+  if (html.includes('31/12/2026')) {
     html = html.replace(/31\/12\/2026/g, dataValidadeFormatada);
   }
 
@@ -171,18 +178,21 @@ export function generateAlvaraFilledHtml(
     html = html.replace(/\/2026/g, '/' + alvara.ano_exercicio);
   }
 
-  if (alvara.cnae_principal && html.includes('5611-2/99 - Ponto de milho e churro (')) {
-    html = html.replace(
-      '5611-2/99 - Ponto de milho e churro (',
-      alvara.cnae_principal + ' ('
-    );
+  // Substitui o CNAE de churro e qualquer texto estático da célula de CNAE pelo CNAE real
+  if (html.includes('5611-2/99 - Ponto de milho e churro')) {
+    html = html.replace(/5611-2\/99\s*-\s*Ponto de milho e churro[^(]*\([^)]*\)/gi, cnae);
+    html = html.replace(/5611-2\/99\s*-\s*Ponto de milho e churro/gi, cnae);
   }
 
-  if (alvara.condicionantes && html.includes('NÃO LICENCIADO PARA COMÉRCIO DE ALIMENTOS')) {
-    html = html.replace(
-      'NÃO LICENCIADO PARA COMÉRCIO DE ALIMENTOS',
-      alvara.condicionantes
-    );
+  // Substitui a observação estática
+  if (html.includes('NÃO LICENCIADO PARA COMÉRCIO DE ALIMENTOS') || html.includes('N&Atilde;O LICENCIADO PARA COM&Eacute;RCIO DE ALIMENTOS')) {
+    html = html.replace(/NÃO LICENCIADO PARA COMÉRCIO DE ALIMENTOS/g, condicionantes);
+    html = html.replace(/N&Atilde;O LICENCIADO PARA COM&Eacute;RCIO DE ALIMENTOS/g, condicionantes);
+  }
+
+  // Substitui a data de início de atividade de exemplo
+  if (html.includes('01/01/2022')) {
+    html = html.replace(/01\/01\/2022/g, dataEmissaoFormatada);
   }
 
   return html;

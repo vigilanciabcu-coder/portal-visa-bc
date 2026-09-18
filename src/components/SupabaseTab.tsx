@@ -295,6 +295,11 @@ CREATE TABLE IF NOT EXISTS public.contabilidades (
     telefone TEXT,
     senha TEXT DEFAULT '123456',
     cnpjs_vinculados TEXT[] DEFAULT '{}',
+    cnae_principal TEXT,
+    cnae_principal_codigo TEXT,
+    cnae_principal_descricao TEXT,
+    cnaes TEXT[] DEFAULT '{}',
+    cnaes_secundarios TEXT[] DEFAULT '{}',
     data_cadastro TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -334,10 +339,18 @@ CREATE TABLE IF NOT EXISTS public.contribuintes (
     cnae_principal TEXT,
     cnae_principal_codigo TEXT,
     cnae_principal_descricao TEXT,
+    cnaes TEXT[] DEFAULT '{}',
+    cnaes_secundarios TEXT[] DEFAULT '{}',
     data_cadastro TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 -- MIGRATION PARA BANCOS EXISTENTES (ADICIONAR NOVAS COLUNAS CASO A TABELA JÁ EXISTA):
+ALTER TABLE public.contabilidades ADD COLUMN IF NOT EXISTS cnae_principal TEXT;
+ALTER TABLE public.contabilidades ADD COLUMN IF NOT EXISTS cnae_principal_codigo TEXT;
+ALTER TABLE public.contabilidades ADD COLUMN IF NOT EXISTS cnae_principal_descricao TEXT;
+ALTER TABLE public.contabilidades ADD COLUMN IF NOT EXISTS cnaes TEXT[] DEFAULT '{}';
+ALTER TABLE public.contabilidades ADD COLUMN IF NOT EXISTS cnaes_secundarios TEXT[] DEFAULT '{}';
+
 ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS nome_proprietario TEXT;
 ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS email_proprietario TEXT;
 ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS telefone_proprietario TEXT;
@@ -347,6 +360,8 @@ ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS data_situacao_cadastra
 ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS cnae_principal TEXT;
 ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS cnae_principal_codigo TEXT;
 ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS cnae_principal_descricao TEXT;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS cnaes TEXT[] DEFAULT '{}';
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS cnaes_secundarios TEXT[] DEFAULT '{}';
 
 -- 13. TABELA DE CIDADÃOS
 CREATE TABLE IF NOT EXISTS public.cidadaos (
@@ -375,6 +390,40 @@ CREATE TABLE IF NOT EXISTS public.pastas_visa (
     criado_em TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     atualizado_em TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
+
+-- 15. TABELA OFICIAL DE CNAES (REGRAS SANITÁRIAS, SETOR, UFM, RT/SAÚDE E DOCUMENTOS)
+CREATE TABLE IF NOT EXISTS public.tabela_cnaes (
+    cnae TEXT PRIMARY KEY,
+    descricao TEXT,
+    setor TEXT,
+    ufm NUMERIC,
+    observacao TEXT,
+    rt_saude TEXT,
+    outro_documento TEXT,
+    grau_risco TEXT DEFAULT 'BAIXO',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- MIGRATION: SE A TABELA JÁ EXISTIR COM AS COLUNAS 'futuro' E 'futuro1', RENOMEIA PARA OS NOMES OFICIAIS:
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabela_cnaes' AND column_name = 'futuro') THEN
+    ALTER TABLE public.tabela_cnaes RENAME COLUMN futuro TO rt_saude;
+  END IF;
+  
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabela_cnaes' AND column_name = 'futuro1') THEN
+    ALTER TABLE public.tabela_cnaes RENAME COLUMN futuro1 TO outro_documento;
+  END IF;
+END $$;
+
+ALTER TABLE public.tabela_cnaes ADD COLUMN IF NOT EXISTS cnae TEXT;
+ALTER TABLE public.tabela_cnaes ADD COLUMN IF NOT EXISTS descricao TEXT;
+ALTER TABLE public.tabela_cnaes ADD COLUMN IF NOT EXISTS setor TEXT;
+ALTER TABLE public.tabela_cnaes ADD COLUMN IF NOT EXISTS ufm NUMERIC;
+ALTER TABLE public.tabela_cnaes ADD COLUMN IF NOT EXISTS observacao TEXT;
+ALTER TABLE public.tabela_cnaes ADD COLUMN IF NOT EXISTS rt_saude TEXT;
+ALTER TABLE public.tabela_cnaes ADD COLUMN IF NOT EXISTS outro_documento TEXT;
+ALTER TABLE public.tabela_cnaes ADD COLUMN IF NOT EXISTS grau_risco TEXT DEFAULT 'BAIXO';
 
 -- HABILITAR REALTIME NAS TABELAS CRÍTICAS
 ALTER PUBLICATION supabase_realtime ADD TABLE public.portal_chat;

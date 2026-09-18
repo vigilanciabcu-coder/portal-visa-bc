@@ -104,6 +104,7 @@ export interface AlvaraSanitarioItem {
   assinado_por?: string; // Nome de quem assinou digitalmente
   assinado_em?: string; // Data/hora da assinatura digital
   modelo_doc_url?: string; // Link para o Google Docs correspondente
+  grau_risco?: string; // Grau de risco sanitário (ex: BAIXO RISCO / NÍVEL I, II ou III)
   criado_em?: string;
   atualizado_em?: string;
 }
@@ -517,6 +518,12 @@ export interface ContabilidadeProfile {
   senha?: string;
   cnpjs_vinculados: string[]; // Lista de CNPJs ou CPFs que este escritório administra
   data_cadastro?: string;
+  // CNAEs capturados via consulta oficial da Receita
+  cnae_principal?: string;
+  cnae_principal_codigo?: string;
+  cnae_principal_descricao?: string;
+  cnaes?: string[]; // Lista completa de CNAEs (Principal + Secundários)
+  cnaes_secundarios?: string[];
 }
 
 // ================= CONTRIBUINTE (EMPRESÁRIO / FEIRANTE / AUTÔNOMO) =================
@@ -545,6 +552,8 @@ export interface ContribuinteProfile {
   cnae_principal?: string;
   cnae_principal_codigo?: string;
   cnae_principal_descricao?: string;
+  cnaes?: string[]; // Lista completa de CNAEs (Principal + Secundários)
+  cnaes_secundarios?: string[];
 }
 
 // ================= CIDADÃO / USUÁRIO PÚBLICO =================

@@ -16,6 +16,61 @@ export interface ModeloAlvaraDef {
 export type AlvaraModuleType = 'consultar' | 'cadastrar' | 'docs' | 'pastas';
 
 /**
+ * Padroniza e filtra string de CPF (11 dígitos) ou CNPJ (14 dígitos)
+ */
+export function formatCpfCnpj(value: string): string {
+  if (!value) return '';
+  const digits = value.replace(/\D/g, '').slice(0, 14);
+  if (digits.length <= 11) {
+    return digits
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  }
+  return digits
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+}
+
+/**
+ * Sugestões padronizadas de CNAEs mais comuns na Vigilância Sanitária
+ */
+export const CNAES_SUGESTOES_VISA: string[] = [
+  '5612-1/00 - SERVIÇOS AMBULANTES DE ALIMENTAÇÃO (PONTO DE MILHO E CHURROS)',
+  '4729-6/99 - COMÉRCIO VAREJISTA DE PRODUTOS ALIMENTÍCIOS EM GERAL (FEIRANTE)',
+  '5611-2/01 - RESTAURANTES E SIMILARES',
+  '5611-2/03 - LANCHONETES, CASAS DE CHÁ, DE SUCOS E SIMILARES',
+  '5611-2/04 - BARES E OUTROS ESTABELECIMENTOS ESPECIALIZADOS EM SERVIR BEBIDAS',
+  '5611-2/05 - BARES COM ENTRETENIMENTO E MÚSICA AO VIVO',
+  '4721-1/02 - PADARIA E CONFEITARIA COM PREDOMINÂNCIA DE REVENDA',
+  '1091-1/02 - FABRICAÇÃO DE PRODUTOS DE PADARIA E CONFEITARIA',
+  '4711-3/02 - MINIMERCADOS, MERCEARIAS E ARMAZÉNS',
+  '4711-3/01 - SUPERMERCADOS E HIPERMERCADOS',
+  '4722-9/01 - COMÉRCIO VAREJISTA DE CARNES - AÇOUGUES',
+  '4722-9/02 - PEIXARIA E FRUTOS DO MAR',
+  '4771-7/01 - COMÉRCIO VAREJISTA DE PRODUTOS FARMACÊUTICOS (DROGARIA)',
+  '4771-7/02 - FARMÁCIA DE MANIPULAÇÃO DE FÓRMULAS',
+  '8630-5/01 - ATIVIDADE MÉDICA AMBULATORIAL COM PROCEDIMENTOS CIRÚRGICOS',
+  '8630-5/02 - ATIVIDADE MÉDICA AMBULATORIAL COM EXAMES COMPLEMENTARES',
+  '8630-5/03 - ATIVIDADE MÉDICA AMBULATORIAL RESTRITA A CONSULTAS (CLÍNICA)',
+  '8630-5/04 - ATIVIDADE ODONTOLÓGICA (CONSULTÓRIO / CLÍNICA)',
+  '8640-2/02 - LABORATÓRIOS CLÍNICOS E ANÁLISES',
+  '8650-0/04 - ATIVIDADES DE FISIOTERAPIA',
+  '9602-5/01 - CABELEIREIROS, MANICURES E PEDICURES',
+  '9602-5/02 - ATIVIDADES DE ESTÉTICA E CUIDADOS COM A BELEZA',
+  '9609-2/06 - SERVIÇOS DE TATUAGEM E COLOCAÇÃO DE PIERCING',
+  '9313-1/00 - ATIVIDADES DE CONDICIONAMENTO FÍSICO (ACADEMIA)',
+  '5510-8/01 - HOTÉIS E POUSADAS',
+  '8511-2/00 - EDUCAÇÃO INFANTIL - CRECHE',
+  '8512-1/00 - EDUCAÇÃO INFANTIL - PRÉ-ESCOLA',
+  '7500-1/00 - ATIVIDADES VETERINÁRIAS (CLÍNICA / CONSULTÓRIO VETERINÁRIO)',
+  '8711-5/02 - INSTITUIÇÕES DE LONGA PERMANÊNCIA PARA IDOSOS (ILPI)',
+  '8122-2/00 - IMUNIZAÇÃO E CONTROLE DE PRAGAS URBANAS (DEDETIZADORA)'
+];
+
+/**
  * Verifica se o usuário atual possui permissão de MASTER (Administrador Geral / Diretoria)
  */
 export const isUserMaster = (user: UserProfile | null): boolean => {
