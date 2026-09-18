@@ -1655,7 +1655,8 @@ export async function fetchCnaesInfoFromSupabase(cnaesList: string[]): Promise<C
     try {
       const { data, error } = await supabase
         .from('tabela_cnaes')
-        .select('*');
+        .select('*')
+        .limit(5000);
       if (!error && Array.isArray(data) && data.length > 0) {
         dbRows = data;
       }
@@ -1677,7 +1678,11 @@ export async function fetchCnaesInfoFromSupabase(cnaesList: string[]): Promise<C
 
     if (matchedRow) {
       // Lê coluna rt (com suporte aos nomes possíveis: 'rt', 'RT', e legados 'rt_saude', 'RT/Saúde')
+      const dynamicRtKey = Object.keys(matchedRow).find((k) => k.trim().toLowerCase() === 'rt');
+      const dynamicRtVal = dynamicRtKey ? matchedRow[dynamicRtKey] : undefined;
+
       const rtValue = String(
+        dynamicRtVal ??
         matchedRow.rt ??
         matchedRow.RT ??
         matchedRow['rt'] ??
