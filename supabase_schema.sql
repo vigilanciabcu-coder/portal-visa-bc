@@ -283,12 +283,28 @@ CREATE TABLE IF NOT EXISTS public.contribuintes (
     razao_social TEXT NOT NULL,
     nome_fantasia TEXT,
     responsavel TEXT NOT NULL,
+    nome_proprietario TEXT,
+    email_proprietario TEXT,
+    telefone_proprietario TEXT,
     email TEXT NOT NULL,
     telefone TEXT,
     ramo_atividade TEXT,
     bairro TEXT,
     endereco TEXT,
     senha TEXT DEFAULT '123456',
+    data_abertura TEXT,
+    situacao_cadastral TEXT,
+    data_situacao_cadastral TEXT,
+    cnae_principal TEXT,
+    cnae_principal_codigo TEXT,
+    cnae_principal_descricao TEXT,
+    cnaes JSONB DEFAULT '[]'::jsonb,
+    cnaes_secundarios JSONB DEFAULT '[]'::jsonb,
+    horario_funcionamento TEXT,
+    endereco_correspondencia BOOLEAN DEFAULT FALSE,
+    is_coworking BOOLEAN DEFAULT FALSE,
+    nome_coworking TEXT,
+    responsaveis_tecnicos JSONB DEFAULT '[]'::jsonb,
     data_cadastro TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -432,5 +448,42 @@ CREATE TABLE IF NOT EXISTS public.pastas_visa (
 ALTER TABLE public.pastas_visa ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Permitir Acesso Anonimo Pastas Visa" ON public.pastas_visa;
 CREATE POLICY "Permitir Acesso Anonimo Pastas Visa" ON public.pastas_visa FOR ALL USING (true) WITH CHECK (true);
+
+-- 12. Tabela de Regras de CNAEs Sanitárias (UFM, Setor, RT/Saúde e Documentos)
+CREATE TABLE IF NOT EXISTS public.tabela_cnaes (
+    cnae TEXT PRIMARY KEY,
+    descricao TEXT,
+    setor TEXT,
+    ufm NUMERIC,
+    observacao TEXT,
+    rt_saude TEXT,
+    outro_documento TEXT,
+    grau_risco TEXT DEFAULT 'BAIXO',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- MIGRATION: Se a tabela já existir com as colunas 'futuro' e 'futuro1', renomeia para 'rt_saude' e 'outro_documento'
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabela_cnaes' AND column_name = 'futuro') THEN
+    ALTER TABLE public.tabela_cnaes RENAME COLUMN futuro TO rt_saude;
+  END IF;
+  
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabela_cnaes' AND column_name = 'futuro1') THEN
+    ALTER TABLE public.tabela_cnaes RENAME COLUMN futuro1 TO outro_documento;
+  END IF;
+END $$;
+
+-- MIGRATION: Adiciona as novas colunas operacionais e de RT em contribuintes existentes
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS horario_funcionamento TEXT;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS endereco_correspondencia BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS is_coworking BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS nome_coworking TEXT;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS responsaveis_tecnicos JSONB DEFAULT '[]'::jsonb;
+
+ALTER TABLE public.tabela_cnaes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir Acesso Anonimo Tabela Cnaes" ON public.tabela_cnaes;
+CREATE POLICY "Permitir Acesso Anonimo Tabela Cnaes" ON public.tabela_cnaes FOR ALL USING (true) WITH CHECK (true);
+
 
 

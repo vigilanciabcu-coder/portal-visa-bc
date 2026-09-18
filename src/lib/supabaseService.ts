@@ -1569,7 +1569,12 @@ export async function fetchContribuintesFromSupabase(): Promise<any[] | null> {
         cnae_principal_descricao: item.cnae_principal_descricao || '',
         cnaes: Array.isArray(item.cnaes) ? item.cnaes : (item.cnae_principal ? [item.cnae_principal] : []),
         cnaes_secundarios: Array.isArray(item.cnaes_secundarios) ? item.cnaes_secundarios : [],
-        data_cadastro: item.data_cadastro ? String(item.data_cadastro).split('T')[0] : new Date().toISOString().split('T')[0]
+        data_cadastro: item.data_cadastro ? String(item.data_cadastro).split('T')[0] : new Date().toISOString().split('T')[0],
+        horario_funcionamento: item.horario_funcionamento || '',
+        endereco_correspondencia: item.endereco_correspondencia ?? false,
+        is_coworking: item.is_coworking ?? false,
+        nome_coworking: item.nome_coworking || '',
+        responsaveis_tecnicos: Array.isArray(item.responsaveis_tecnicos) ? item.responsaveis_tecnicos : []
       }));
     }
     return [];
@@ -1577,6 +1582,156 @@ export async function fetchContribuintesFromSupabase(): Promise<any[] | null> {
     console.warn('Erro ao buscar contribuintes do Supabase:', err);
     return null;
   }
+}
+
+// Interface de Retorno da Consulta na Tabela Oficial de CNAEs
+export interface CnaeRtInfo {
+  cnae: string;
+  codigo: string;
+  descricao: string;
+  exige_rt: boolean;
+  setor?: string;
+  ufm?: number;
+  observacao?: string;
+  rt_saude?: string;
+  outro_documento?: string;
+  grau_risco?: string;
+}
+
+// Fallback normativo de CNAEs que exigem Responsável Técnico (RT/Saúde)
+const CNAES_EXIGEM_RT_PADRAO: Record<string, { descricao: string; setor: string }> = {
+  '4771-7/01': { descricao: 'Comércio varejista de produtos farmacêuticos, sem manipulação de fórmulas (Drogarias)', setor: 'FARMÁCIA' },
+  '4771-7/02': { descricao: 'Comércio varejista de produtos farmacêuticos, com manipulação de fórmulas (Farmácia de Manipulação)', setor: 'FARMÁCIA' },
+  '4771-7/03': { descricao: 'Comércio varejista de produtos farmacêuticos homeopáticos', setor: 'FARMÁCIA' },
+  '4644-3/01': { descricao: 'Comércio atacadista de medicamentos e drogas de uso humano', setor: 'DISTRIBUIDORA' },
+  '2121-1/01': { descricao: 'Fabricação de medicamentos alopáticos para uso humano', setor: 'INDÚSTRIA' },
+  '8610-1/01': { descricao: 'Atividades de atendimento hospitalar, exceto pronto-socorro e UTI', setor: 'ESTABELECIMENTO DE SAÚDE' },
+  '8610-1/02': { descricao: 'Atividades de atendimento em pronto-socorro e UTI', setor: 'ESTABELECIMENTO DE SAÚDE' },
+  '8621-6/00': { descricao: 'UTI móvel e ambulâncias', setor: 'ESTABELECIMENTO DE SAÚDE' },
+  '8630-5/01': { descricao: 'Atividade médica ambulatorial com recursos para realização de procedimentos cirúrgicos', setor: 'ESTABELECIMENTO DE SAÚDE' },
+  '8630-5/02': { descricao: 'Atividade médica ambulatorial com recursos para realização de exames complementares', setor: 'ESTABELECIMENTO DE SAÚDE' },
+  '8630-5/03': { descricao: 'Atividade médica ambulatorial restrita a consultas', setor: 'ESTABELECIMENTO DE SAÚDE' },
+  '8630-5/04': { descricao: 'Atividade odontológica com recursos para realização de procedimentos cirúrgicos', setor: 'ODONTOLOGIA' },
+  '8630-5/06': { descricao: 'Serviços de vacinação e imunização humana', setor: 'ESTABELECIMENTO DE SAÚDE' },
+  '8640-2/01': { descricao: 'Laboratórios de anatomia patológica e citológica', setor: 'LABORATÓRIO' },
+  '8640-2/02': { descricao: 'Laboratórios clínicos e análises clínicas', setor: 'LABORATÓRIO' },
+  '8640-2/05': { descricao: 'Serviços de diagnóstico por imagem com radiação ionizante (Radiologia/Tomografia)', setor: 'DIAGNÓSTICO POR IMAGEM' },
+  '8640-2/08': { descricao: 'Serviços de diálise e hemodiálise', setor: 'ESTABELECIMENTO DE SAÚDE' },
+  '8640-2/12': { descricao: 'Serviços de hemoterapia e banco de sangue', setor: 'ESTABELECIMENTO DE SAÚDE' },
+  '8690-9/01': { descricao: 'Atividades de práticas integrativas e complementares em saúde humana', setor: 'SAÚDE' },
+  '8690-9/04': { descricao: 'Atividades de podologia', setor: 'ESTÉTICA/SAÚDE' },
+  '4774-1/00': { descricao: 'Comércio varejista de artigos de óptica', setor: 'ÓPTICA' },
+  '3250-7/03': { descricao: 'Fabricação de artigos ópticos (Laboratório óptico)', setor: 'ÓPTICA' },
+  '7500-1/00': { descricao: 'Atividades veterinárias, clínicas e hospitais veterinários', setor: 'VETERINÁRIA' },
+  '8122-2/00': { descricao: 'Imunização e controle de pragas urbanas (Dedetização)', setor: 'SANEANTES' },
+  '2062-2/00': { descricao: 'Fabricação de produtos de limpeza e polimento', setor: 'SANEANTES' },
+  '2063-1/00': { descricao: 'Fabricação de cosméticos, produtos de perfumaria e de higiene pessoal', setor: 'COSMÉTICOS' },
+};
+
+/**
+ * Consulta a tabela oficial de CNAEs no Supabase (tabela_cnaes)
+ * e verifica se a coluna RT/Saúde (rt_saude) contém 'SIM' para exigir Responsável Técnico.
+ */
+export async function fetchCnaesInfoFromSupabase(cnaesList: string[]): Promise<CnaeRtInfo[]> {
+  const result: CnaeRtInfo[] = [];
+  if (!cnaesList || cnaesList.length === 0) return result;
+
+  // Normaliza a lista de códigos pesquisados
+  const normalizedInputs = cnaesList.map((raw) => {
+    const clean = (raw || '').trim();
+    const digits = clean.replace(/\D/g, '');
+    const match = clean.match(/^(\d{4}-?\d\/?\d{2})/);
+    const code = match ? match[1] : (digits.length >= 7 ? `${digits.slice(0, 4)}-${digits.slice(4, 5)}/${digits.slice(5, 7)}` : clean);
+    const desc = clean.includes('-') && clean.split('-').length > 1
+      ? clean.substring(clean.indexOf('-') + 1).replace(/^[\s\d/]+-?\s*/, '').trim()
+      : clean;
+    return { raw: clean, digits, code, desc };
+  });
+
+  // 1. Busca tabela_cnaes diretamente no Supabase
+  let dbRows: any[] = [];
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('tabela_cnaes')
+        .select('*');
+      if (!error && Array.isArray(data) && data.length > 0) {
+        dbRows = data;
+      }
+    } catch (e) {
+      console.warn('Consulta à tabela_cnaes do Supabase não completada:', e);
+    }
+  }
+
+  // 2. Cruza cada CNAE pesquisado com o retorno do Supabase ou com o catálogo oficial
+  for (const input of normalizedInputs) {
+    let matchedRow = dbRows.find((r) => {
+      const rCnae = String(r.cnae || r.codigo || '').trim();
+      const rDigits = rCnae.replace(/\D/g, '');
+      return (
+        (rDigits && input.digits && (rDigits === input.digits || rDigits.startsWith(input.digits) || input.digits.startsWith(rDigits))) ||
+        (rCnae && input.code && rCnae.includes(input.code))
+      );
+    });
+
+    if (matchedRow) {
+      // Lê coluna rt_saude (com suporte aos nomes possíveis de colunas importadas da planilha)
+      const rtValue = String(
+        matchedRow.rt_saude ??
+        matchedRow['RT/Saúde'] ??
+        matchedRow['RT/Saude'] ??
+        matchedRow['rt_saude'] ??
+        matchedRow.futuro ??
+        ''
+      ).trim().toUpperCase();
+
+      const exigeRt = rtValue.includes('SIM') || rtValue === 'S' || rtValue === 'TRUE' || rtValue === '1';
+
+      result.push({
+        cnae: input.raw,
+        codigo: matchedRow.cnae || input.code,
+        descricao: matchedRow.descricao || input.desc,
+        exige_rt: exigeRt,
+        setor: matchedRow.setor || '',
+        ufm: matchedRow.ufm ? Number(matchedRow.ufm) : undefined,
+        observacao: matchedRow.observacao || '',
+        rt_saude: rtValue,
+        outro_documento: matchedRow.outro_documento || matchedRow.futuro1 || '',
+        grau_risco: matchedRow.grau_risco || (exigeRt ? 'ALTO' : 'BAIXO')
+      });
+    } else {
+      // Fallback regulatório com base nas normas da ANVISA / Vigilância Sanitária
+      let exigeRt = false;
+      let setorFallback = '';
+      let descFallback = input.desc;
+
+      for (const [padraoCode, padraoInfo] of Object.entries(CNAES_EXIGEM_RT_PADRAO)) {
+        const padraoDigits = padraoCode.replace(/\D/g, '');
+        if (
+          (input.digits && padraoDigits && (input.digits.startsWith(padraoDigits) || padraoDigits.startsWith(input.digits))) ||
+          input.raw.includes(padraoCode)
+        ) {
+          exigeRt = true;
+          setorFallback = padraoInfo.setor;
+          if (!descFallback || descFallback === input.raw) {
+            descFallback = padraoInfo.descricao;
+          }
+          break;
+        }
+      }
+
+      result.push({
+        cnae: input.raw,
+        codigo: input.code,
+        descricao: descFallback || input.raw,
+        exige_rt: exigeRt,
+        setor: setorFallback,
+        grau_risco: exigeRt ? 'ALTO' : 'BAIXO'
+      });
+    }
+  }
+
+  return result;
 }
 
 export async function saveContribuinteToSupabase(item: any): Promise<boolean> {
@@ -1625,6 +1780,12 @@ export async function saveContribuinteToSupabase(item: any): Promise<boolean> {
       cnae_principal_descricao: item.cnae_principal_descricao || null,
       cnaes: item.cnaes || [],
       cnaes_secundarios: item.cnaes_secundarios || [],
+      // Perguntas Operacionais e RT
+      horario_funcionamento: item.horario_funcionamento || null,
+      endereco_correspondencia: item.endereco_correspondencia ?? false,
+      is_coworking: item.is_coworking ?? false,
+      nome_coworking: item.nome_coworking || null,
+      responsaveis_tecnicos: item.responsaveis_tecnicos || [],
       data_cadastro: item.data_cadastro || new Date().toISOString()
     };
 

@@ -52,7 +52,8 @@ export const SupabaseTab: React.FC<SupabaseTabProps> = ({ onRefreshData }) => {
     { name: 'documentos_contabilidade', description: 'Protocolos e documentos enviados por contabilistas', status: 'checking' },
     { name: 'contribuintes', description: 'Empresários, comerciantes, feirantes e autônomos', status: 'checking' },
     { name: 'cidadaos', description: 'Cidadãos cadastrados para consultas e solicitações', status: 'checking' },
-    { name: 'pastas_visa', description: 'Pastas físicas, arquivos e situação cadastral do setor administrativo', status: 'checking' }
+    { name: 'pastas_visa', description: 'Pastas físicas, arquivos e situação cadastral do setor administrativo', status: 'checking' },
+    { name: 'tabela_cnaes', description: 'Classificação Nacional de Atividades Econômicas, UFM, RT/Saúde e Documentos', status: 'checking' }
   ]);
 
   const checkTables = async () => {
@@ -341,6 +342,11 @@ CREATE TABLE IF NOT EXISTS public.contribuintes (
     cnae_principal_descricao TEXT,
     cnaes TEXT[] DEFAULT '{}',
     cnaes_secundarios TEXT[] DEFAULT '{}',
+    horario_funcionamento TEXT,
+    endereco_correspondencia BOOLEAN DEFAULT FALSE,
+    is_coworking BOOLEAN DEFAULT FALSE,
+    nome_coworking TEXT,
+    responsaveis_tecnicos JSONB DEFAULT '[]'::jsonb,
     data_cadastro TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -362,6 +368,11 @@ ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS cnae_principal_codigo 
 ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS cnae_principal_descricao TEXT;
 ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS cnaes TEXT[] DEFAULT '{}';
 ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS cnaes_secundarios TEXT[] DEFAULT '{}';
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS horario_funcionamento TEXT;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS endereco_correspondencia BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS is_coworking BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS nome_coworking TEXT;
+ALTER TABLE public.contribuintes ADD COLUMN IF NOT EXISTS responsaveis_tecnicos JSONB DEFAULT '[]'::jsonb;
 
 -- 13. TABELA DE CIDADÃOS
 CREATE TABLE IF NOT EXISTS public.cidadaos (
@@ -448,6 +459,7 @@ ALTER TABLE public.documentos_contabilidade DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.contribuintes DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cidadaos DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pastas_visa DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tabela_cnaes DISABLE ROW LEVEL SECURITY;
 `;
 
   const copyToClipboard = () => {

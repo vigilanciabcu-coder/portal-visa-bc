@@ -526,6 +526,17 @@ export interface ContabilidadeProfile {
   cnaes_secundarios?: string[];
 }
 
+// ================= RESPONSÁVEL TÉCNICO SANITÁRIO (RT / SAÚDE) =================
+export interface ResponsavelTecnicoItem {
+  cnae: string;
+  cnae_descricao?: string;
+  nome_profissional: string;
+  numero_rt: string;
+  conselho_classe_uf: string;
+  numero_inscricao: string;
+  cpf_profissional: string;
+}
+
 // ================= CONTRIBUINTE (EMPRESÁRIO / FEIRANTE / AUTÔNOMO) =================
 export interface ContribuinteProfile {
   id: string;
@@ -554,6 +565,12 @@ export interface ContribuinteProfile {
   cnae_principal_descricao?: string;
   cnaes?: string[]; // Lista completa de CNAEs (Principal + Secundários)
   cnaes_secundarios?: string[];
+  // Questionário Operacional & Responsabilidade Técnica Sanitária
+  horario_funcionamento?: string;
+  endereco_correspondencia?: boolean;
+  is_coworking?: boolean;
+  nome_coworking?: string;
+  responsaveis_tecnicos?: ResponsavelTecnicoItem[];
 }
 
 // ================= CIDADÃO / USUÁRIO PÚBLICO =================
