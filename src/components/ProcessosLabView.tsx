@@ -1162,25 +1162,6 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
 
   return (
     <div className="min-h-screen bg-[#181818] text-slate-100 p-2 md:p-4 font-sans selection:bg-blue-600 selection:text-white">
-      {/* 🛡️ CARTEIRA DE PROCESSOS BANNER */}
-      <div className="mb-2 bg-gradient-to-r from-blue-900/80 via-indigo-900/80 to-slate-900 border border-blue-500/40 rounded-md p-2 flex items-center justify-between shadow-md">
-        <div className="flex items-center gap-2">
-          <span className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded tracking-wider uppercase flex items-center gap-1 shadow">
-            <span>🛡️</span> CARTEIRA DE PROCESSOS
-          </span>
-          <span className="text-xs text-blue-200 font-medium hidden sm:inline">
-            {isContabilidade
-              ? 'Painel Exclusivo do Escritório Contábil — Gestão compartilhada com a Vigilância Sanitária de Balneário Camboriú.'
-              : isContribuinte
-              ? 'Painel do Contribuinte — Acompanhamento em tempo real do seu CNPJ, laudos e alvarás sanitários.'
-              : 'Gestão Integrada de Processos, Carteira de Contabilidades e Tramitação Sanitária.'}
-          </span>
-        </div>
-        <span className="text-[10px] text-blue-300 font-mono font-bold bg-blue-950/60 px-2 py-0.5 rounded border border-blue-800">
-          VISA_BC_2026
-        </span>
-      </div>
-
       {/* 🌟 NAVEGADOR DE ABAS */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3 bg-[#202020] border border-[#333333] p-1.5 rounded-lg shadow-sm">
         <div className="flex items-center gap-1.5 flex-wrap">
