@@ -66,7 +66,8 @@ import {
   ChevronDown,
   MapPin,
   Send,
-  FilePlus2
+  FilePlus2,
+  ArrowLeft
 } from 'lucide-react';
 
 const add180Days = (dateStr: string) => {
@@ -1027,10 +1028,37 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
           fiscal_responsavel: 'A Definir'
         }];
       }
+
+      // 3. Fallback adicional: buscar nos clientes da carteira contábil ativa
+      if (contabilidadeAtiva?.cnpjs_vinculados?.length) {
+        const matchCarteiraCnpj = contabilidadeAtiva.cnpjs_vinculados.find(v => {
+          const cv = cleanDoc(v);
+          return (q.length >= 4 && cv.includes(q));
+        });
+
+        if (matchCarteiraCnpj) {
+          const contribInfo = savedContribs.find((c: any) => cleanDoc(c.cnpj_cpf) === cleanDoc(matchCarteiraCnpj));
+          return [{
+            id: 'carteira-temp-' + cleanDoc(matchCarteiraCnpj),
+            num_processo: 'Aguardando 1Doc',
+            data_protocolo: contabilidadeAtiva.data_cadastro || new Date().toISOString().split('T')[0],
+            cnpj_cpf: matchCarteiraCnpj,
+            razao_social: contribInfo?.razao_social || 'Cliente Vinculado à Carteira Contábil',
+            nome_fantasia: contribInfo?.nome_fantasia || '',
+            assunto: 'ALVARÁ SANITÁRIO',
+            bairro: contribInfo?.bairro || 'Balneário Camboriú',
+            endereco: contribInfo?.endereco || 'Balneário Camboriú, SC',
+            status: 'EM ANÁLISE' as ProcessoStatus,
+            situacao_cadastral: 'VINCULADO AO ESCRITÓRIO • AGUARDANDO PROTOCOLO OU VISTORIA',
+            grau_risco: 'BAIXO RISCO' as const,
+            fiscal_responsavel: 'A Definir'
+          }];
+        }
+      }
     }
 
     return matches;
-  }, [buscaCnpjContribuinte, processos]);
+  }, [buscaCnpjContribuinte, processos, contabilidadeAtiva]);
 
   // Obter lista de processos/empresas que pertencem à carteira da contabilidade ativa
   const empresasCarteira = useMemo(() => {
@@ -2655,8 +2683,16 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
 
             <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-1.5 max-w-2xl">
-                <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-[11px] font-black uppercase tracking-wider">
-                  <span>🏢</span> Painel do Contribuinte • Balneário Camboriú
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-[11px] font-black uppercase tracking-wider">
+                    <span>🏢</span> Painel do Contribuinte • Balneário Camboriú
+                  </div>
+                  {contabilidadeAtiva && buscaCnpjContribuinte && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[11px] font-bold">
+                      <Briefcase className="w-3 h-3 text-blue-400" />
+                      <span>Visualizando como Contabilidade Gestora ({contabilidadeAtiva.razao_social || 'Escritório'})</span>
+                    </div>
+                  )}
                 </div>
                 <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
                   Acompanhamento Sanitário do Meu CNPJ
@@ -2762,6 +2798,17 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
             </div>
 
             <div className="flex gap-2">
+              {contabilidadeAtiva && (
+                <button
+                  type="button"
+                  onClick={() => setAbaAtivaLab('painel_contabilidade')}
+                  className="px-3.5 py-2.5 bg-blue-900/40 hover:bg-blue-800 text-blue-200 hover:text-white border border-blue-600/50 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow cursor-pointer shrink-0"
+                  title="Retornar para a Carteira de Clientes do Escritório"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Voltar à Carteira</span>
+                </button>
+              )}
               <input
                 type="text"
                 value={buscaCnpjContribuinte}
