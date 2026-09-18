@@ -2647,8 +2647,12 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
         /* ================= 👤 PAINEL DO CONTRIBUINTE (MEU CNPJ & GESTÃO COMPARTILHADA) ================= */
         <div className="space-y-4 animate-fadeIn">
           {/* 🏢 BANNER BOAS-VINDAS DO CONTRIBUINTE */}
-          <div className="bg-gradient-to-r from-indigo-950 via-[#181e36] to-slate-900 border border-indigo-500/40 rounded-xl p-4 sm:p-6 shadow-xl relative overflow-hidden">
-            <div className="absolute right-0 top-0 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -mr-16 -mt-16"></div>
+          <div className="bg-gradient-to-r from-indigo-950 via-[#181e36] to-slate-900 border border-indigo-500/40 rounded-xl p-4 sm:p-6 shadow-xl relative z-20">
+            {/* Decoração com overflow contido apenas no fundo */}
+            <div className="absolute inset-0 rounded-xl overflow-hidden pointer-events-none">
+              <div className="absolute right-0 top-0 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+            </div>
+
             <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-1.5 max-w-2xl">
                 <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-[11px] font-black uppercase tracking-wider">
@@ -2662,9 +2666,10 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                 </p>
               </div>
 
-              <div className="shrink-0 flex flex-col gap-2 relative" ref={dropdownSolicitacaoRef}>
+              <div className="shrink-0 flex flex-col gap-2 relative z-30" ref={dropdownSolicitacaoRef}>
                 <button
                   type="button"
+                  id="btn-solicitacao-dropdown"
                   onClick={() => setDropdownSolicitacaoOpen((prev) => !prev)}
                   className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition active:scale-95 cursor-pointer"
                 >
@@ -2673,12 +2678,18 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                   <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${dropdownSolicitacaoOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                {/* 📋 MENU DROPDOWN DE SOLICITAÇÃO */}
+                {/* 📋 MENU DROPDOWN DE SOLICITAÇÃO (SUSPENSO / FLUTUANTE) */}
                 {dropdownSolicitacaoOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-[#1e1e1e] border border-indigo-500/40 rounded-xl shadow-2xl z-50 py-1.5 overflow-hidden backdrop-blur-md divide-y divide-[#333333]">
-                    <div className="px-3.5 py-2 bg-indigo-950/50 text-[10px] font-black uppercase tracking-wider text-indigo-300 flex items-center justify-between">
-                      <span>Nova Solicitação Sanitária</span>
-                      <span className="text-[9px] text-slate-400">7 opções</span>
+                  <div
+                    id="dropdown-solicitacao-menu"
+                    className="absolute right-0 top-full mt-2 w-72 sm:w-84 bg-[#181b26] border border-indigo-500/50 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] z-[999] py-1.5 overflow-hidden backdrop-blur-xl divide-y divide-[#2a2f45] ring-1 ring-black/70 animate-fadeIn"
+                  >
+                    <div className="px-3.5 py-2.5 bg-indigo-950/70 text-[10px] font-black uppercase tracking-wider text-indigo-300 flex items-center justify-between border-b border-indigo-500/30">
+                      <span className="flex items-center gap-1.5">
+                        <FilePlus2 className="w-3.5 h-3.5 text-indigo-400" />
+                        Nova Solicitação Sanitária
+                      </span>
+                      <span className="text-[9px] text-slate-400 bg-slate-800/80 px-1.5 py-0.5 rounded font-mono">7 modalidades</span>
                     </div>
                     <div className="py-1 max-h-[380px] overflow-y-auto">
                       {ITENS_SOLICITACAO.map((item) => {
@@ -2704,9 +2715,9 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                               setSolicitacaoExtra2('');
                               setSolicitacaoAnonima(false);
                             }}
-                            className="w-full text-left px-3.5 py-2.5 hover:bg-indigo-600/20 flex items-center gap-3 transition group cursor-pointer"
+                            className="w-full text-left px-3.5 py-2.5 hover:bg-indigo-600/25 flex items-center gap-3 transition group cursor-pointer border-b border-slate-800/40 last:border-b-0"
                           >
-                            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition shrink-0">
+                            <div className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition shrink-0">
                               <Icone className="w-4 h-4" />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -2714,11 +2725,11 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                                 <span className="text-xs font-bold text-white group-hover:text-indigo-200 truncate">
                                   {item.titulo}
                                 </span>
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-indigo-300 border border-slate-700 uppercase">
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800/90 text-indigo-300 border border-slate-700 uppercase shrink-0">
                                   {item.badge}
                                 </span>
                               </div>
-                              <p className="text-[10px] text-slate-400 truncate">
+                              <p className="text-[10px] text-slate-400 truncate mt-0.5">
                                 {item.descricao}
                               </p>
                             </div>
