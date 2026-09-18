@@ -526,7 +526,7 @@ export interface ContabilidadeProfile {
   cnaes_secundarios?: string[];
 }
 
-// ================= RESPONSÁVEL TÉCNICO SANITÁRIO (RT / SAÚDE) =================
+// ================= RESPONSÁVEL TÉCNICO SANITÁRIO (RT) =================
 export interface ResponsavelTecnicoItem {
   cnae: string;
   cnae_descricao?: string;

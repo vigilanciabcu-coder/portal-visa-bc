@@ -53,7 +53,7 @@ export const SupabaseTab: React.FC<SupabaseTabProps> = ({ onRefreshData }) => {
     { name: 'contribuintes', description: 'Empresários, comerciantes, feirantes e autônomos', status: 'checking' },
     { name: 'cidadaos', description: 'Cidadãos cadastrados para consultas e solicitações', status: 'checking' },
     { name: 'pastas_visa', description: 'Pastas físicas, arquivos e situação cadastral do setor administrativo', status: 'checking' },
-    { name: 'tabela_cnaes', description: 'Classificação Nacional de Atividades Econômicas, UFM, RT/Saúde e Documentos', status: 'checking' }
+    { name: 'tabela_cnaes', description: 'Classificação Nacional de Atividades Econômicas, UFM, RT e Documentos', status: 'checking' }
   ]);
 
   const checkTables = async () => {
@@ -402,24 +402,28 @@ CREATE TABLE IF NOT EXISTS public.pastas_visa (
     atualizado_em TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 15. TABELA OFICIAL DE CNAES (REGRAS SANITÁRIAS, SETOR, UFM, RT/SAÚDE E DOCUMENTOS)
+-- 15. TABELA OFICIAL DE CNAES (REGRAS SANITÁRIAS, SETOR, UFM, RT E DOCUMENTOS)
 CREATE TABLE IF NOT EXISTS public.tabela_cnaes (
     cnae TEXT PRIMARY KEY,
     descricao TEXT,
     setor TEXT,
     ufm NUMERIC,
     observacao TEXT,
-    rt_saude TEXT,
+    rt TEXT,
     outro_documento TEXT,
     grau_risco TEXT DEFAULT 'BAIXO',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- MIGRATION: SE A TABELA JÁ EXISTIR COM AS COLUNAS 'futuro' E 'futuro1', RENOMEIA PARA OS NOMES OFICIAIS:
+-- MIGRATION: SE A TABELA JÁ EXISTIR COM AS COLUNAS 'rt_saude' OU 'futuro', RENOMEIA PARA 'rt':
 DO $$
 BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabela_cnaes' AND column_name = 'rt_saude') THEN
+    ALTER TABLE public.tabela_cnaes RENAME COLUMN rt_saude TO rt;
+  END IF;
+
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabela_cnaes' AND column_name = 'futuro') THEN
-    ALTER TABLE public.tabela_cnaes RENAME COLUMN futuro TO rt_saude;
+    ALTER TABLE public.tabela_cnaes RENAME COLUMN futuro TO rt;
   END IF;
   
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabela_cnaes' AND column_name = 'futuro1') THEN
@@ -432,7 +436,7 @@ ALTER TABLE public.tabela_cnaes ADD COLUMN IF NOT EXISTS descricao TEXT;
 ALTER TABLE public.tabela_cnaes ADD COLUMN IF NOT EXISTS setor TEXT;
 ALTER TABLE public.tabela_cnaes ADD COLUMN IF NOT EXISTS ufm NUMERIC;
 ALTER TABLE public.tabela_cnaes ADD COLUMN IF NOT EXISTS observacao TEXT;
-ALTER TABLE public.tabela_cnaes ADD COLUMN IF NOT EXISTS rt_saude TEXT;
+ALTER TABLE public.tabela_cnaes ADD COLUMN IF NOT EXISTS rt TEXT;
 ALTER TABLE public.tabela_cnaes ADD COLUMN IF NOT EXISTS outro_documento TEXT;
 ALTER TABLE public.tabela_cnaes ADD COLUMN IF NOT EXISTS grau_risco TEXT DEFAULT 'BAIXO';
 

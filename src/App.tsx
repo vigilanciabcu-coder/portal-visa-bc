@@ -1023,7 +1023,7 @@ export default function App() {
           if (u.tipo_usuario === 'CIDADAO') {
             setCurrentView('cidadao');
           } else if (u.tipo_usuario === 'CONTRIBUINTE') {
-            setCurrentView('feiras');
+            setCurrentView('home');
           } else if (u.tipo_usuario === 'CONTABILIDADE') {
             setCurrentView('home');
           } else {
@@ -1051,9 +1051,25 @@ export default function App() {
       <CadastroContribuinteModal
         isOpen={cadastroContribuinteOpen}
         onClose={() => setCadastroContribuinteOpen(false)}
-        onSuccess={() => {
+        onSuccess={(novoContribuinte) => {
           setCadastroContribuinteOpen(false);
-          setCurrentView('feiras');
+          // Autentica o contribuinte recém-cadastrado
+          const contribUser: UserProfile = {
+            id: novoContribuinte.id,
+            email: novoContribuinte.email || 'contribuinte@bc.sc.gov.br',
+            nome_completo: novoContribuinte.nome_fantasia || novoContribuinte.razao_social || 'Contribuinte / Empresário',
+            cpf: novoContribuinte.cnpj_cpf,
+            bairro: novoContribuinte.bairro,
+            telefone: novoContribuinte.telefone,
+            data_nascimento: '',
+            cargo: `CONTRIBUINTE (${novoContribuinte.categoria || 'EMPRESÁRIO'})`,
+            tipo_usuario: 'CONTRIBUINTE',
+            categoria_contribuinte: novoContribuinte.categoria,
+            nivel_acesso: 'VISA (FISCAL)'
+          };
+          setCurrentUser(contribUser);
+          // Redireciona para o menu principal "Serviços e Módulos Operacionais"
+          setCurrentView('home');
         }}
       />
 

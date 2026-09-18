@@ -1593,12 +1593,13 @@ export interface CnaeRtInfo {
   setor?: string;
   ufm?: number;
   observacao?: string;
+  rt?: string;
   rt_saude?: string;
   outro_documento?: string;
   grau_risco?: string;
 }
 
-// Fallback normativo de CNAEs que exigem Responsável Técnico (RT/Saúde)
+// Fallback normativo de CNAEs que exigem Responsável Técnico (RT)
 const CNAES_EXIGEM_RT_PADRAO: Record<string, { descricao: string; setor: string }> = {
   '4771-7/01': { descricao: 'Comércio varejista de produtos farmacêuticos, sem manipulação de fórmulas (Drogarias)', setor: 'FARMÁCIA' },
   '4771-7/02': { descricao: 'Comércio varejista de produtos farmacêuticos, com manipulação de fórmulas (Farmácia de Manipulação)', setor: 'FARMÁCIA' },
@@ -1630,7 +1631,7 @@ const CNAES_EXIGEM_RT_PADRAO: Record<string, { descricao: string; setor: string 
 
 /**
  * Consulta a tabela oficial de CNAEs no Supabase (tabela_cnaes)
- * e verifica se a coluna RT/Saúde (rt_saude) contém 'SIM' para exigir Responsável Técnico.
+ * e verifica se a coluna RT (rt) contém 'SIM' para exigir Responsável Técnico.
  */
 export async function fetchCnaesInfoFromSupabase(cnaesList: string[]): Promise<CnaeRtInfo[]> {
   const result: CnaeRtInfo[] = [];
@@ -1675,8 +1676,12 @@ export async function fetchCnaesInfoFromSupabase(cnaesList: string[]): Promise<C
     });
 
     if (matchedRow) {
-      // Lê coluna rt_saude (com suporte aos nomes possíveis de colunas importadas da planilha)
+      // Lê coluna rt (com suporte aos nomes possíveis: 'rt', 'RT', e legados 'rt_saude', 'RT/Saúde')
       const rtValue = String(
+        matchedRow.rt ??
+        matchedRow.RT ??
+        matchedRow['rt'] ??
+        matchedRow['RT'] ??
         matchedRow.rt_saude ??
         matchedRow['RT/Saúde'] ??
         matchedRow['RT/Saude'] ??
@@ -1695,6 +1700,7 @@ export async function fetchCnaesInfoFromSupabase(cnaesList: string[]): Promise<C
         setor: matchedRow.setor || '',
         ufm: matchedRow.ufm ? Number(matchedRow.ufm) : undefined,
         observacao: matchedRow.observacao || '',
+        rt: rtValue,
         rt_saude: rtValue,
         outro_documento: matchedRow.outro_documento || matchedRow.futuro1 || '',
         grau_risco: matchedRow.grau_risco || (exigeRt ? 'ALTO' : 'BAIXO')

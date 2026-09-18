@@ -449,24 +449,28 @@ ALTER TABLE public.pastas_visa ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Permitir Acesso Anonimo Pastas Visa" ON public.pastas_visa;
 CREATE POLICY "Permitir Acesso Anonimo Pastas Visa" ON public.pastas_visa FOR ALL USING (true) WITH CHECK (true);
 
--- 12. Tabela de Regras de CNAEs Sanitárias (UFM, Setor, RT/Saúde e Documentos)
+-- 12. Tabela de Regras de CNAEs Sanitárias (UFM, Setor, RT e Documentos)
 CREATE TABLE IF NOT EXISTS public.tabela_cnaes (
     cnae TEXT PRIMARY KEY,
     descricao TEXT,
     setor TEXT,
     ufm NUMERIC,
     observacao TEXT,
-    rt_saude TEXT,
+    rt TEXT,
     outro_documento TEXT,
     grau_risco TEXT DEFAULT 'BAIXO',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- MIGRATION: Se a tabela já existir com as colunas 'futuro' e 'futuro1', renomeia para 'rt_saude' e 'outro_documento'
+-- MIGRATION: Se a tabela já existir com as colunas 'rt_saude' ou 'futuro', renomeia para 'rt'
 DO $$
 BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabela_cnaes' AND column_name = 'rt_saude') THEN
+    ALTER TABLE public.tabela_cnaes RENAME COLUMN rt_saude TO rt;
+  END IF;
+
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabela_cnaes' AND column_name = 'futuro') THEN
-    ALTER TABLE public.tabela_cnaes RENAME COLUMN futuro TO rt_saude;
+    ALTER TABLE public.tabela_cnaes RENAME COLUMN futuro TO rt;
   END IF;
   
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tabela_cnaes' AND column_name = 'futuro1') THEN

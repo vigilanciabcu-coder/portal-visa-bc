@@ -50,7 +50,7 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
 }) => {
   // Controle de Etapas do Cadastro:
   // Etapa 1: Dados Cadastrais & Empresa
-  // Etapa 2: Questionário Operacional & Responsabilidade Técnica (RT/Saúde)
+  // Etapa 2: Questionário Operacional & Responsabilidade Técnica (RT)
   const [etapa, setEtapa] = useState<1 | 2>(1);
 
   const [tipoPessoa, setTipoPessoa] = useState<'PJ' | 'PF'>('PJ'); // PJ (Empresário) ou PF (Feirante/Autônomo)
@@ -210,7 +210,7 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
     return `(${raw.slice(0, 2)}) ${raw.slice(2, 7)}-${raw.slice(7, 11)}`;
   };
 
-  // Carrega e verifica a lista de CNAEs em relação à necessidade de RT/Saúde
+  // Carrega e verifica a lista de CNAEs em relação à necessidade de RT
   const carregarVerificacaoRt = async (cnaesParaVerificar: string[]) => {
     setCarregandoRt(true);
     try {
@@ -474,7 +474,7 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
             }`}>
               2
             </span>
-            <span className="truncate">2. Operação & RT/Saúde</span>
+            <span className="truncate">2. Operação & RT</span>
           </div>
         </div>
 
@@ -1016,13 +1016,13 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
                   )}
                 </div>
 
-                {/* Pergunta 4: Verificação de RT/Saúde na Tabela CNAE */}
+                {/* Pergunta 4: Verificação de RT na Tabela CNAE */}
                 <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Stethoscope className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                       <label className="text-xs font-black uppercase text-slate-900 dark:text-white">
-                        4. Responsabilidade Técnica Sanitária (RT / Saúde)
+                        4. Responsabilidade Técnica Sanitária (RT)
                       </label>
                     </div>
                     {carregandoRt && (
@@ -1035,7 +1035,7 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
                   {/* Alerta explicativo */}
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
                     O sistema cruzou a lista de CNAEs informada com as regras sanitárias (tabela de CNAEs da Vigilância Sanitária). 
-                    Atividades com exigência de <strong>RT/Saúde</strong> requerem profissional técnico habilitado e respectivo conselho.
+                    Atividades com exigência de <strong>RT</strong> requerem profissional técnico habilitado e respectivo conselho.
                   </p>
 
                   {/* Caso esteja carregando */}
@@ -1179,7 +1179,7 @@ export const CadastroContribuinteModal: React.FC<CadastroContribuinteModalProps>
                           <div className="flex items-center gap-2 font-bold text-xs">
                             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                             <span>
-                              Nenhum dos seus CNAEs exige Responsável Técnico (RT/Saúde) obrigatório.
+                              Nenhum dos seus CNAEs exige Responsável Técnico (RT) obrigatório.
                             </span>
                           </div>
                           <p className="text-[11px] text-slate-600 dark:text-slate-400">
