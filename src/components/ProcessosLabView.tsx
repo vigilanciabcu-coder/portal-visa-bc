@@ -2671,9 +2671,9 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                   type="button"
                   id="btn-solicitacao-dropdown"
                   onClick={() => setDropdownSolicitacaoOpen((prev) => !prev)}
-                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition active:scale-95 cursor-pointer"
+                  className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2.5 shadow-xl transition active:scale-95 cursor-pointer ring-1 ring-indigo-400/40"
                 >
-                  <FilePlus2 className="w-4 h-4" />
+                  <FilePlus2 className="w-5 h-5" />
                   <span>SOLICITAÇÃO</span>
                   <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${dropdownSolicitacaoOpen ? 'rotate-180' : ''}`} />
                 </button>
@@ -2682,16 +2682,16 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                 {dropdownSolicitacaoOpen && (
                   <div
                     id="dropdown-solicitacao-menu"
-                    className="absolute right-0 top-full mt-2 w-72 sm:w-84 bg-[#181b26] border border-indigo-500/50 rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] z-[999] py-1.5 overflow-hidden backdrop-blur-xl divide-y divide-[#2a2f45] ring-1 ring-black/70 animate-fadeIn"
+                    className="absolute right-0 top-full mt-2 w-80 sm:w-[23.5rem] bg-[#181b26] border border-indigo-500/50 rounded-2xl shadow-[0_25px_70px_rgba(0,0,0,0.9)] z-[999] py-2 overflow-hidden backdrop-blur-xl divide-y divide-[#2a2f45] ring-1 ring-black/80 animate-fadeIn"
                   >
-                    <div className="px-3.5 py-2.5 bg-indigo-950/70 text-[10px] font-black uppercase tracking-wider text-indigo-300 flex items-center justify-between border-b border-indigo-500/30">
-                      <span className="flex items-center gap-1.5">
-                        <FilePlus2 className="w-3.5 h-3.5 text-indigo-400" />
+                    <div className="px-4 py-3 bg-indigo-950/70 text-[11px] font-black uppercase tracking-wider text-indigo-300 flex items-center justify-between border-b border-indigo-500/30">
+                      <span className="flex items-center gap-2">
+                        <FilePlus2 className="w-4 h-4 text-indigo-400" />
                         Nova Solicitação Sanitária
                       </span>
-                      <span className="text-[9px] text-slate-400 bg-slate-800/80 px-1.5 py-0.5 rounded font-mono">7 modalidades</span>
+                      <span className="text-[10px] text-slate-300 bg-slate-800/90 px-2 py-0.5 rounded-md font-mono border border-slate-700">7 modalidades</span>
                     </div>
-                    <div className="py-1 max-h-[380px] overflow-y-auto">
+                    <div className="py-1.5 max-h-[420px] overflow-y-auto">
                       {ITENS_SOLICITACAO.map((item) => {
                         const Icone = item.icone;
                         return (
@@ -2715,21 +2715,21 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                               setSolicitacaoExtra2('');
                               setSolicitacaoAnonima(false);
                             }}
-                            className="w-full text-left px-3.5 py-2.5 hover:bg-indigo-600/25 flex items-center gap-3 transition group cursor-pointer border-b border-slate-800/40 last:border-b-0"
+                            className="w-full text-left px-4 py-3 hover:bg-indigo-600/25 flex items-center gap-3.5 transition group cursor-pointer border-b border-slate-800/40 last:border-b-0"
                           >
-                            <div className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition shrink-0">
-                              <Icone className="w-4 h-4" />
+                            <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition shrink-0">
+                              <Icone className="w-4.5 h-4.5" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="text-xs font-bold text-white group-hover:text-indigo-200 truncate">
+                              <div className="flex items-center justify-between gap-1.5">
+                                <span className="text-xs sm:text-[13px] font-bold text-white group-hover:text-indigo-200 truncate">
                                   {item.titulo}
                                 </span>
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800/90 text-indigo-300 border border-slate-700 uppercase shrink-0">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800/90 text-indigo-300 border border-slate-700 uppercase shrink-0">
                                   {item.badge}
                                 </span>
                               </div>
-                              <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                              <p className="text-[11px] text-slate-400 truncate mt-0.5">
                                 {item.descricao}
                               </p>
                             </div>
