@@ -62,7 +62,11 @@ import {
   FileCheck2,
   Eye,
   UserCheck,
-  Layers
+  Layers,
+  ChevronDown,
+  MapPin,
+  Send,
+  FilePlus2
 } from 'lucide-react';
 
 const add180Days = (dateStr: string) => {
@@ -155,6 +159,90 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
   const [modalUploadDoc, setModalUploadDoc] = useState<{ open: boolean; cnpj: string; razao: string } | null>(null);
   const [docTipoUpload, setDocTipoUpload] = useState('PGRSS');
   const [docObsUpload, setDocObsUpload] = useState('');
+
+  // Dropdown e Modal de Solicitação do Contribuinte
+  const [dropdownSolicitacaoOpen, setDropdownSolicitacaoOpen] = useState(false);
+  const dropdownSolicitacaoRef = React.useRef<HTMLDivElement>(null);
+  const [modalSolicitacao, setModalSolicitacao] = useState<{
+    open: boolean;
+    tipo: string;
+    titulo: string;
+    cnpj: string;
+    razao: string;
+  } | null>(null);
+
+  const [solicitacaoObs, setSolicitacaoObs] = useState('');
+  const [solicitacaoArquivoNome, setSolicitacaoArquivoNome] = useState('');
+  const [solicitacaoProtocoloGerado, setSolicitacaoProtocoloGerado] = useState<string | null>(null);
+  const [solicitacaoExtra1, setSolicitacaoExtra1] = useState('');
+  const [solicitacaoExtra2, setSolicitacaoExtra2] = useState('');
+  const [solicitacaoAnonima, setSolicitacaoAnonima] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownSolicitacaoRef.current && !dropdownSolicitacaoRef.current.contains(event.target as Node)) {
+        setDropdownSolicitacaoOpen(false);
+      }
+    };
+    if (dropdownSolicitacaoOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [dropdownSolicitacaoOpen]);
+
+  const ITENS_SOLICITACAO = useMemo(() => [
+    {
+      id: 'alvara_inicial',
+      titulo: 'Alvará sanitário inicial',
+      descricao: 'Primeira solicitação de alvará sanitário para novo estabelecimento.',
+      icone: FileCheck2,
+      badge: 'NOVO'
+    },
+    {
+      id: 'renovacao_licenca',
+      titulo: 'renovação de licença',
+      descricao: 'Renovação anual regular do alvará sanitário da empresa.',
+      icone: RefreshCw,
+      badge: 'ANUAL'
+    },
+    {
+      id: 'alteracao_endereco',
+      titulo: 'alteração de endereço',
+      descricao: 'Mudança de endereço físico de funcionamento da empresa.',
+      icone: MapPin,
+      badge: 'ENDEREÇO'
+    },
+    {
+      id: 'alteracao_rt',
+      titulo: 'alteração de RT',
+      descricao: 'Inclusão, troca ou destituição de Responsável Técnico.',
+      icone: UserCheck,
+      badge: 'RT'
+    },
+    {
+      id: 'inclusao_atividade',
+      titulo: 'inclusão de atividade',
+      descricao: 'Adição de novos CNAEs ou ampliação de atividades exercidas.',
+      icone: Plus,
+      badge: 'CNAE'
+    },
+    {
+      id: 'vistoria_previa_pba',
+      titulo: 'vistoria previa(PBA)',
+      descricao: 'Avaliação de Projeto Básico de Arquitetura e vistoria física preliminar.',
+      icone: Building2,
+      badge: 'PBA'
+    },
+    {
+      id: 'denuncia_sanitaria',
+      titulo: 'Denuncia Sanitária',
+      descricao: 'Notificação de irregularidades sanitárias com opção de sigilo.',
+      icone: AlertTriangle,
+      badge: 'DENÚNCIA'
+    }
+  ], []);
 
   // Search Bar Top Inputs
   const [searchIdInput, setSearchIdInput] = useState('');
@@ -2574,24 +2662,72 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                 </p>
               </div>
 
-              <div className="shrink-0 flex flex-col gap-2">
+              <div className="shrink-0 flex flex-col gap-2 relative" ref={dropdownSolicitacaoRef}>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (processosContribuinte.length > 0) {
-                      setModalUploadDoc({
-                        open: true,
-                        cnpj: processosContribuinte[0].cnpj_cpf,
-                        razao: processosContribuinte[0].razao_social
-                      });
-                    } else {
-                      alert('Localize sua empresa digitando o CNPJ abaixo para anexar documentos.');
-                    }
-                  }}
+                  onClick={() => setDropdownSolicitacaoOpen((prev) => !prev)}
                   className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition active:scale-95 cursor-pointer"
                 >
-                  <UploadCloud className="w-4 h-4" /> Anexar Documento / Laudo
+                  <FilePlus2 className="w-4 h-4" />
+                  <span>SOLICITAÇÃO</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${dropdownSolicitacaoOpen ? 'rotate-180' : ''}`} />
                 </button>
+
+                {/* 📋 MENU DROPDOWN DE SOLICITAÇÃO */}
+                {dropdownSolicitacaoOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-[#1e1e1e] border border-indigo-500/40 rounded-xl shadow-2xl z-50 py-1.5 overflow-hidden backdrop-blur-md divide-y divide-[#333333]">
+                    <div className="px-3.5 py-2 bg-indigo-950/50 text-[10px] font-black uppercase tracking-wider text-indigo-300 flex items-center justify-between">
+                      <span>Nova Solicitação Sanitária</span>
+                      <span className="text-[9px] text-slate-400">7 opções</span>
+                    </div>
+                    <div className="py-1 max-h-[380px] overflow-y-auto">
+                      {ITENS_SOLICITACAO.map((item) => {
+                        const Icone = item.icone;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setDropdownSolicitacaoOpen(false);
+                              const empresaAlvo = processosContribuinte[0];
+                              setModalSolicitacao({
+                                open: true,
+                                tipo: item.id,
+                                titulo: item.titulo,
+                                cnpj: empresaAlvo?.cnpj_cpf || buscaCnpjContribuinte || currentUser?.cpf || '',
+                                razao: empresaAlvo?.razao_social || currentUser?.nome_completo || ''
+                              });
+                              setSolicitacaoObs('');
+                              setSolicitacaoArquivoNome('');
+                              setSolicitacaoProtocoloGerado(null);
+                              setSolicitacaoExtra1('');
+                              setSolicitacaoExtra2('');
+                              setSolicitacaoAnonima(false);
+                            }}
+                            className="w-full text-left px-3.5 py-2.5 hover:bg-indigo-600/20 flex items-center gap-3 transition group cursor-pointer"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition shrink-0">
+                              <Icone className="w-4 h-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-xs font-bold text-white group-hover:text-indigo-200 truncate">
+                                  {item.titulo}
+                                </span>
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-indigo-300 border border-slate-700 uppercase">
+                                  {item.badge}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 truncate">
+                                {item.descricao}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -3270,7 +3406,442 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
               </div>
             </div>
           )}
-          {/* 🏢 MODAL AUTO-CADASTRO DE ESCRITÓRIO CONTÁBIL */}
+
+          {/* 📋 MODAL DE SOLICITAÇÃO SANITÁRIA (Alvará Inicial, Renovação, Alteração de Endereço, Alteração de RT, Inclusão de Atividade, PBA, Denúncia) */}
+          {modalSolicitacao && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+              <div className="bg-[#242424] border border-indigo-500/50 rounded-2xl w-full max-w-xl p-5 sm:p-6 shadow-2xl space-y-4 my-8 text-white">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-[#333333] pb-3.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                      <FilePlus2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400">
+                        Protocolo de Solicitação • VISA BC
+                      </span>
+                      <h4 className="text-base font-black text-white">
+                        {modalSolicitacao.titulo}
+                      </h4>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalSolicitacao(null);
+                      setSolicitacaoProtocoloGerado(null);
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {solicitacaoProtocoloGerado ? (
+                  /* TELA DE SUCESSO / PROTOCOLO GERADO */
+                  <div className="py-4 space-y-4 text-center">
+                    <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center mx-auto text-emerald-400 animate-bounce">
+                      <CheckCircle2 className="w-8 h-8" />
+                    </div>
+
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-black text-white">
+                        Solicitação Protocolada com Sucesso!
+                      </h3>
+                      <p className="text-xs text-slate-300">
+                        Seu pedido foi registrado e encaminhado para a equipe de fiscalização e análise sanitária.
+                      </p>
+                    </div>
+
+                    <div className="bg-[#181818] border border-emerald-500/40 rounded-xl p-4 text-left space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-slate-400 uppercase">Número do Protocolo:</span>
+                        <span className="text-xs font-mono font-black text-emerald-400 bg-emerald-950/60 px-2.5 py-0.5 rounded border border-emerald-500/30">
+                          {solicitacaoProtocoloGerado}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-400">Tipo de Solicitação:</span>
+                        <span className="font-bold text-white">{modalSolicitacao.titulo}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-400">Empresa / Requerente:</span>
+                        <span className="font-bold text-slate-200 truncate max-w-[260px]">{modalSolicitacao.razao || 'Não informado'}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-400">CNPJ / CPF:</span>
+                        <span className="font-mono text-slate-200">{modalSolicitacao.cnpj || 'Não informado'}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-400">Status Atual:</span>
+                        <span className="font-bold text-amber-400">EM ANÁLISE SANITÁRIA</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(solicitacaoProtocoloGerado);
+                          alert(`Protocolo ${solicitacaoProtocoloGerado} copiado para a área de transferência!`);
+                        }}
+                        className="w-full sm:w-auto px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                      >
+                        <Copy className="w-4 h-4" /> Copiar Protocolo
+                      </button>
+                      <a
+                        href="https://bc.1doc.com.br/b.php?pg=o/login&n=3"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow transition cursor-pointer"
+                      >
+                        <ExternalLink className="w-4 h-4" /> Acompanhar no 1Doc Oficial
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModalSolicitacao(null);
+                          setSolicitacaoProtocoloGerado(null);
+                        }}
+                        className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition cursor-pointer"
+                      >
+                        Concluir
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* FORMULÁRIO DE ENTRADA DE SOLICITAÇÃO */
+                  <div className="space-y-3.5 max-h-[70vh] overflow-y-auto pr-1">
+                    {/* Dados da Empresa / Requerente */}
+                    <div className="bg-[#181818] p-3 rounded-xl border border-[#333333] grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
+                          Empresa / Solicitante:
+                        </label>
+                        <input
+                          type="text"
+                          value={modalSolicitacao.razao}
+                          onChange={(e) => setModalSolicitacao({ ...modalSolicitacao, razao: e.target.value })}
+                          placeholder="Razão Social ou Nome..."
+                          className="w-full bg-[#222222] border border-[#444444] rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
+                          CNPJ / CPF do Requerente:
+                        </label>
+                        <input
+                          type="text"
+                          value={modalSolicitacao.cnpj}
+                          onChange={(e) => setModalSolicitacao({ ...modalSolicitacao, cnpj: e.target.value })}
+                          placeholder="CNPJ ou CPF..."
+                          className="w-full bg-[#222222] border border-[#444444] rounded px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Campos específicos por Tipo de Solicitação */}
+                    {modalSolicitacao.tipo === 'alvara_inicial' && (
+                      <div className="p-3 bg-indigo-950/30 border border-indigo-500/30 rounded-xl space-y-2.5">
+                        <div className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                          <FileCheck2 className="w-4 h-4" /> Detalhes do Alvará Sanitário Inicial
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <label className="block text-slate-400 mb-1">Ramo de Atividade Predominante:</label>
+                            <input
+                              type="text"
+                              value={solicitacaoExtra1}
+                              onChange={(e) => setSolicitacaoExtra1(e.target.value)}
+                              placeholder="Ex: Restaurante, Clínica, Farmácia..."
+                              className="w-full bg-[#181818] border border-[#444444] rounded px-2.5 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-400 mb-1">Área total do estabelecimento (m²):</label>
+                            <input
+                              type="text"
+                              value={solicitacaoExtra2}
+                              onChange={(e) => setSolicitacaoExtra2(e.target.value)}
+                              placeholder="Ex: 120 m²"
+                              className="w-full bg-[#181818] border border-[#444444] rounded px-2.5 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {modalSolicitacao.tipo === 'renovacao_licenca' && (
+                      <div className="p-3 bg-indigo-950/30 border border-indigo-500/30 rounded-xl space-y-2.5">
+                        <div className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                          <RefreshCw className="w-4 h-4" /> Informações de Renovação Anual
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <label className="block text-slate-400 mb-1">Nº do Alvará do Exercício Anterior:</label>
+                            <input
+                              type="text"
+                              value={solicitacaoExtra1}
+                              onChange={(e) => setSolicitacaoExtra1(e.target.value)}
+                              placeholder="Ex: ALV-2025-4512"
+                              className="w-full bg-[#181818] border border-[#444444] rounded px-2.5 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-400 mb-1">Exercício de Referência:</label>
+                            <input
+                              type="text"
+                              value={solicitacaoExtra2 || '2026'}
+                              onChange={(e) => setSolicitacaoExtra2(e.target.value)}
+                              placeholder="2026"
+                              className="w-full bg-[#181818] border border-[#444444] rounded px-2.5 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                        </div>
+                        <div className="text-[11px] text-emerald-400/90 bg-emerald-950/40 p-2 rounded border border-emerald-500/30">
+                          ✓ Declaro sob as penas da lei que a estrutura física e as atividades operacionais permanecem inalteradas.
+                        </div>
+                      </div>
+                    )}
+
+                    {modalSolicitacao.tipo === 'alteracao_endereco' && (
+                      <div className="p-3 bg-indigo-950/30 border border-indigo-500/30 rounded-xl space-y-2.5">
+                        <div className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                          <MapPin className="w-4 h-4" /> Novo Endereço de Funcionamento
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <div className="sm:col-span-2">
+                            <label className="block text-slate-400 mb-1">Novo Logradouro (Rua, Avenida, Número, Sala):</label>
+                            <input
+                              type="text"
+                              value={solicitacaoExtra1}
+                              onChange={(e) => setSolicitacaoExtra1(e.target.value)}
+                              placeholder="Ex: Av. Brasil, nº 1500, Sala 04"
+                              className="w-full bg-[#181818] border border-[#444444] rounded px-2.5 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-400 mb-1">Novo Bairro em Balneário Camboriú:</label>
+                            <input
+                              type="text"
+                              value={solicitacaoExtra2}
+                              onChange={(e) => setSolicitacaoExtra2(e.target.value)}
+                              placeholder="Ex: Centro, Barra, Nações..."
+                              className="w-full bg-[#181818] border border-[#444444] rounded px-2.5 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-400 mb-1">Inscrição Imobiliária / IPTU:</label>
+                            <input
+                              type="text"
+                              placeholder="Nº do IPTU (se possuir)"
+                              className="w-full bg-[#181818] border border-[#444444] rounded px-2.5 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {modalSolicitacao.tipo === 'alteracao_rt' && (
+                      <div className="p-3 bg-indigo-950/30 border border-indigo-500/30 rounded-xl space-y-2.5">
+                        <div className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                          <UserCheck className="w-4 h-4" /> Dados do Novo Responsável Técnico (RT)
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <label className="block text-slate-400 mb-1">Nome Completo do RT:</label>
+                            <input
+                              type="text"
+                              value={solicitacaoExtra1}
+                              onChange={(e) => setSolicitacaoExtra1(e.target.value)}
+                              placeholder="Nome do profissional..."
+                              className="w-full bg-[#181818] border border-[#444444] rounded px-2.5 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-400 mb-1">Conselho de Classe e Nº Inscrição:</label>
+                            <input
+                              type="text"
+                              value={solicitacaoExtra2}
+                              onChange={(e) => setSolicitacaoExtra2(e.target.value)}
+                              placeholder="Ex: CRF/SC 12345, CRM/SC 8765..."
+                              className="w-full bg-[#181818] border border-[#444444] rounded px-2.5 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {modalSolicitacao.tipo === 'inclusao_atividade' && (
+                      <div className="p-3 bg-indigo-950/30 border border-indigo-500/30 rounded-xl space-y-2.5">
+                        <div className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                          <Plus className="w-4 h-4" /> Inclusão de Novas Atividades / CNAEs
+                        </div>
+                        <div className="text-xs space-y-2">
+                          <div>
+                            <label className="block text-slate-400 mb-1">Novos CNAEs ou Atividades que serão adicionadas:</label>
+                            <input
+                              type="text"
+                              value={solicitacaoExtra1}
+                              onChange={(e) => setSolicitacaoExtra1(e.target.value)}
+                              placeholder="Ex: 5611-2/03 (Lanchonete), 4721-1/04 (Padaria)..."
+                              className="w-full bg-[#181818] border border-[#444444] rounded px-2.5 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {modalSolicitacao.tipo === 'vistoria_previa_pba' && (
+                      <div className="p-3 bg-indigo-950/30 border border-indigo-500/30 rounded-xl space-y-2.5">
+                        <div className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                          <Building2 className="w-4 h-4" /> Projeto Básico de Arquitetura (PBA) & Vistoria Prévia
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <label className="block text-slate-400 mb-1">Nome do Responsável Técnico pelo Projeto:</label>
+                            <input
+                              type="text"
+                              value={solicitacaoExtra1}
+                              onChange={(e) => setSolicitacaoExtra1(e.target.value)}
+                              placeholder="Engenheiro ou Arquiteto..."
+                              className="w-full bg-[#181818] border border-[#444444] rounded px-2.5 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-400 mb-1">Registro Profissional (CAU / CREA):</label>
+                            <input
+                              type="text"
+                              value={solicitacaoExtra2}
+                              onChange={(e) => setSolicitacaoExtra2(e.target.value)}
+                              placeholder="Ex: CAU A12345-6 / CREA-SC"
+                              className="w-full bg-[#181818] border border-[#444444] rounded px-2.5 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {modalSolicitacao.tipo === 'denuncia_sanitaria' && (
+                      <div className="p-3 bg-rose-950/30 border border-rose-500/30 rounded-xl space-y-2.5">
+                        <div className="text-xs font-bold text-rose-300 flex items-center gap-1.5">
+                          <AlertTriangle className="w-4 h-4" /> Registro de Denúncia Sanitária
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <div className="sm:col-span-2">
+                            <label className="block text-slate-400 mb-1">Local / Endereço da Irregularidade:</label>
+                            <input
+                              type="text"
+                              value={solicitacaoExtra1}
+                              onChange={(e) => setSolicitacaoExtra1(e.target.value)}
+                              placeholder="Rua, número, estabelecimento infrator ou ponto de referência..."
+                              className="w-full bg-[#181818] border border-[#444444] rounded px-2.5 py-1.5 text-xs text-white"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <input
+                            type="checkbox"
+                            id="chk-anonima"
+                            checked={solicitacaoAnonima}
+                            onChange={(e) => setSolicitacaoAnonima(e.target.checked)}
+                            className="rounded accent-rose-500 w-4 h-4"
+                          />
+                          <label htmlFor="chk-anonima" className="text-xs text-slate-300 cursor-pointer select-none">
+                            <strong>Desejo sigilo absoluto dos meus dados (Denúncia Anônima)</strong>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Descrição / Justificativa / Observações */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">
+                        {modalSolicitacao.tipo === 'denuncia_sanitaria'
+                          ? 'Relato Detalhado dos Fatos e Irregularidades Sanitárias:'
+                          : 'Justificativa / Informações Complementares da Solicitação:'}
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={solicitacaoObs}
+                        onChange={(e) => setSolicitacaoObs(e.target.value)}
+                        placeholder="Descreva detalhadamente as informações necessárias para a análise da Vigilância Sanitária..."
+                        className="w-full bg-[#181818] border border-[#444444] rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+
+                    {/* Upload de Documento / Anexo */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">
+                        Anexar Documento, Comprovante ou Foto (PDF, JPG, PNG):
+                      </label>
+                      <div className="border-2 border-dashed border-[#444444] hover:border-indigo-500 rounded-xl p-3 text-center bg-[#181818] transition">
+                        <input
+                          type="file"
+                          id="file-upload-solicitacao"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              setSolicitacaoArquivoNome(e.target.files[0].name);
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor="file-upload-solicitacao"
+                          className="cursor-pointer flex flex-col items-center justify-center gap-1 text-xs text-slate-400 hover:text-white"
+                        >
+                          <UploadCloud className="w-6 h-6 text-indigo-400" />
+                          {solicitacaoArquivoNome ? (
+                            <span className="font-bold text-emerald-400">
+                              Arquivo selecionado: {solicitacaoArquivoNome}
+                            </span>
+                          ) : (
+                            <span>Clique para selecionar ou arraste o arquivo aqui</span>
+                          )}
+                          <span className="text-[10px] text-slate-500">Tamanho máximo: 25MB</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Footer / Botões de Ação */}
+                    <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#333333]">
+                      <button
+                        type="button"
+                        onClick={() => setModalSolicitacao(null)}
+                        className="px-4 py-2 rounded-lg text-xs font-bold text-slate-400 hover:bg-[#333333] transition cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const novoProtocolo = `VISA-BC-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+                          setSolicitacaoProtocoloGerado(novoProtocolo);
+                          // Se houver contabilidade ou supabase ativo, salva o documento
+                          if (isSupabaseConfigured && modalSolicitacao.cnpj) {
+                            saveDocumentoContabilidadeToSupabase({
+                              id: 'sol-' + Date.now(),
+                              contabilidade_id: contabilidadeAtiva?.id,
+                              cnpj_empresa: modalSolicitacao.cnpj,
+                              tipo_documento: modalSolicitacao.tipo.toUpperCase(),
+                              nome_arquivo: solicitacaoArquivoNome || `${modalSolicitacao.tipo}_${novoProtocolo}.pdf`,
+                              data_envio: new Date().toISOString().split('T')[0],
+                              status: 'ANALISE',
+                              observacao: `${modalSolicitacao.titulo} | ${solicitacaoObs || ''} | ${solicitacaoExtra1 || ''} | ${solicitacaoExtra2 || ''}`
+                            }).catch(err => console.warn('Supabase solicitacao sync:', err));
+                          }
+                        }}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-5 py-2 rounded-lg shadow-lg flex items-center gap-2 transition active:scale-95 cursor-pointer"
+                      >
+                        <Send className="w-4 h-4" /> Protocolar Solicitação
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           <CadastroContabilidadeModal
             isOpen={modalCadastroContabilidadeOpen}
             onClose={() => setModalCadastroContabilidadeOpen(false)}
