@@ -56,16 +56,16 @@
 /* --- GRID DE BOTÕES E CARDS --- */
 .grid-portal { 
     display: grid; 
-    gap: 0.6rem; 
+    gap: 0.5rem; 
     grid-template-columns: repeat(2, 1fr); 
-    max-width: 1050px; 
+    max-width: 100%; 
     margin: 0 auto; 
 }
 @media (min-width: 640px) {
-    .grid-portal { grid-template-columns: repeat(3, 1fr); }
+    .grid-portal { grid-template-columns: repeat(3, 1fr); gap: 0.55rem; }
 }
 @media (min-width: 1024px) { 
-    .grid-portal { grid-template-columns: repeat(6, 1fr); } 
+    .grid-portal { grid-template-columns: repeat(7, 1fr); gap: 0.55rem; } 
 }
 
 .card-app { 
@@ -76,11 +76,11 @@
     flex-direction: column; 
     align-items: center; 
     justify-content: center; 
-    aspect-ratio: 1.15 / 1; 
+    aspect-ratio: 1.12 / 1; 
     background: white; 
     border: 1px solid #e2e8f0; 
     border-bottom: 4px solid #2563eb; 
-    padding: 0.5rem; 
+    padding: 0.45rem 0.35rem; 
     box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
     position: relative;
     overflow: hidden;
@@ -89,7 +89,7 @@
 
 /* Efeito Hover nas Logos (Imagens e SVGs) */
 .card-app img, .card-app svg { 
-    height: 3.2rem; 
+    height: 3rem; 
     width: auto; 
     object-fit: contain; 
     transition: all 0.3s ease; 
@@ -108,10 +108,10 @@
     font-weight: 900; 
     text-transform: uppercase; 
     color: #1e3a8a; 
-    font-size: 0.72rem; 
+    font-size: 0.68rem; 
     text-align: center; 
-    margin-top: 8px; 
-    line-height: 1.1; 
+    margin-top: 6px; 
+    line-height: 1.15; 
 }
 .dark .card-title { color: #f1f5f9; }
 
