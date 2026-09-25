@@ -658,7 +658,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     {b.badgetext}
                   </span>
                 )}
-                <div className="flex justify-center items-center h-14 w-full">
+                <div className="flex justify-center items-center h-12 w-full">
                   {renderCardGraphic(b)}
                 </div>
                 <h3 className="card-title">{b.nome}</h3>
