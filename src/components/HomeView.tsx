@@ -542,49 +542,44 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
           )}
 
-          {/* Banner de Demandas de Trabalho: Botões para Fiscal e Diretor */}
+          {/* Banner de Demandas de Trabalho: Botões para Fiscal e Diretor alinhados ao lado do título para liberar área de trabalho */}
           {userType === 'SERVIDOR' && (
-            <div className="mb-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-4 sm:p-5 rounded-2xl border-2 border-blue-500/50 shadow-xl text-left space-y-3.5">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-indigo-900/60 pb-2.5">
-                <div>
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded-full text-[10px] font-black uppercase tracking-wider mb-1">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    Controle Operacional de Demandas Sanitárias
-                  </div>
-                  <h3 className="font-black uppercase text-base sm:text-lg text-white">
-                    Distribuição & Gestão de Ordens de Serviço
-                  </h3>
-                  <p className="text-xs text-slate-300">
-                    Acompanhe ordens de serviço por fiscal e setor, realize distribuição randômica e reatribua demandas.
-                  </p>
+            <div className="mb-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-3 sm:p-4 rounded-2xl border-2 border-blue-500/50 shadow-xl text-left flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3.5">
+              <div className="max-w-xl">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded-full text-[10px] font-black uppercase tracking-wider mb-1">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Controle Operacional de Demandas Sanitárias
                 </div>
+                <h3 className="font-black uppercase text-sm sm:text-base text-white">
+                  Distribuição & Gestão de Ordens de Serviço
+                </h3>
+                <p className="text-[11px] sm:text-xs text-slate-300 leading-tight">
+                  Acompanhe ordens de serviço por fiscal e setor, realize sorteio randômico e reatribua demandas.
+                </p>
               </div>
 
-              {/* Dois Botões Oficiais: Fiscal e Diretor */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Dois Botões Oficiais: Fiscal e Diretor ao lado do título */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full lg:w-auto shrink-0">
                 {/* Botão Fiscal */}
                 <button
                   type="button"
                   onClick={() => onNavigate('demandas_fiscal')}
-                  className="p-3.5 rounded-xl bg-gradient-to-br from-blue-900/60 to-indigo-900/60 border border-blue-500/60 hover:border-blue-400 hover:bg-blue-900/80 transition-all text-left flex items-center justify-between group cursor-pointer shadow-md"
+                  className="px-3.5 py-2.5 rounded-xl bg-gradient-to-br from-blue-900/70 to-indigo-900/70 border border-blue-500/60 hover:border-blue-400 hover:bg-blue-900/90 transition-all text-left flex items-center justify-between gap-3 group cursor-pointer shadow-md hover:scale-[1.02]"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-600/30 text-blue-300 border border-blue-400/40 flex items-center justify-center shrink-0">
-                      <FileSignature className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-blue-600/30 text-blue-300 border border-blue-400/40 flex items-center justify-center shrink-0">
+                      <FileSignature className="w-4 h-4 group-hover:scale-110 transition-transform" />
                     </div>
                     <div>
-                      <div className="text-[10px] font-black uppercase tracking-wider text-blue-300">
-                        Área Individual do Fiscal
+                      <div className="text-[9px] font-black uppercase tracking-wider text-blue-300 leading-none mb-0.5">
+                        Área do Fiscal
                       </div>
-                      <div className="font-black text-sm text-white uppercase">
-                        📋 Minhas Demandas de Trabalho
-                      </div>
-                      <div className="text-[11px] text-slate-300">
-                        Prazos (SLA), vistorias e parecer com assinatura
+                      <div className="font-black text-xs text-white uppercase leading-tight whitespace-nowrap">
+                        📋 Minhas Demandas
                       </div>
                     </div>
                   </div>
-                  <span className="text-blue-300 font-black text-sm group-hover:translate-x-1 transition-transform">
+                  <span className="text-blue-300 font-black text-xs group-hover:translate-x-1 transition-transform ml-1">
                     →
                   </span>
                 </button>
@@ -593,25 +588,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onNavigate('demandas_diretor')}
-                  className="p-3.5 rounded-xl bg-gradient-to-br from-purple-900/60 to-slate-900/60 border border-purple-500/60 hover:border-purple-400 hover:bg-purple-900/80 transition-all text-left flex items-center justify-between group cursor-pointer shadow-md"
+                  className="px-3.5 py-2.5 rounded-xl bg-gradient-to-br from-purple-900/70 to-slate-900/70 border border-purple-500/60 hover:border-purple-400 hover:bg-purple-900/90 transition-all text-left flex items-center justify-between gap-3 group cursor-pointer shadow-md hover:scale-[1.02]"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-purple-600/30 text-purple-300 border border-purple-400/40 flex items-center justify-center shrink-0">
-                      <Users className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-purple-600/30 text-purple-300 border border-purple-400/40 flex items-center justify-center shrink-0">
+                      <Users className="w-4 h-4 group-hover:scale-110 transition-transform" />
                     </div>
                     <div>
-                      <div className="text-[10px] font-black uppercase tracking-wider text-purple-300">
-                        Gestão da Diretoria DVIS
+                      <div className="text-[9px] font-black uppercase tracking-wider text-purple-300 leading-none mb-0.5">
+                        Gestão da Diretoria
                       </div>
-                      <div className="font-black text-sm text-white uppercase">
-                        👔 Painel da Diretoria (Demandas)
-                      </div>
-                      <div className="text-[11px] text-slate-300">
-                        Carga por fiscal, sorteio por setor e troca
+                      <div className="font-black text-xs text-white uppercase leading-tight whitespace-nowrap">
+                        👔 Painel da Diretoria
                       </div>
                     </div>
                   </div>
-                  <span className="text-purple-300 font-black text-sm group-hover:translate-x-1 transition-transform">
+                  <span className="text-purple-300 font-black text-xs group-hover:translate-x-1 transition-transform ml-1">
                     →
                   </span>
                 </button>
