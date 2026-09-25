@@ -10,15 +10,24 @@ import {
   FeiranteItem,
   MODULOS_SISTEMA,
   PRESET_PAGINAS,
-  isUserMaster
+  isUserMaster,
+  AuditoriaLogItem,
+  ModuloAuditoria
 } from '../types';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { ConfirmModal } from './ConfirmModal';
 import { AutoLinkText } from './AutoLinkText';
 import { SupabaseTab } from './SupabaseTab';
 import {
+  getAuditoriaLogs,
+  exportarAuditoriaCSV,
+  limparAuditoriaLogs,
+  registrarAuditoria
+} from '../lib/auditoriaService';
+import {
   UserCheck,
   ShieldAlert,
+  ShieldCheck,
   Plus,
   Edit2,
   Trash2,
@@ -42,7 +51,10 @@ import {
   Square,
   Layers,
   Lock,
-  ExternalLink
+  ExternalLink,
+  FileText,
+  Filter,
+  Clock
 } from 'lucide-react';
 
 interface MasterViewProps {
@@ -76,7 +88,20 @@ export const MasterView: React.FC<MasterViewProps> = ({
   feiras,
   onResetSystemData
 }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'escala' | 'mural' | 'birthdays' | 'system' | 'supabase'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'escala' | 'mural' | 'birthdays' | 'system' | 'supabase' | 'auditoria'>('users');
+
+  // Estado da Trilha de Auditoria
+  const [auditoriaLogs, setAuditoriaLogs] = useState<AuditoriaLogItem[]>([]);
+  const [auditoriaBusca, setAuditoriaBusca] = useState('');
+  const [auditoriaFiltroModulo, setAuditoriaFiltroModulo] = useState<string>('TODOS');
+  const [auditoriaFiltroSeveridade, setAuditoriaFiltroSeveridade] = useState<string>('TODOS');
+
+  // Carrega os logs apenas quando a aba de auditoria é ativada (isolamento de performance total)
+  useEffect(() => {
+    if (activeTab === 'auditoria') {
+      setAuditoriaLogs(getAuditoriaLogs());
+    }
+  }, [activeTab]);
 
   // Confirmation Modal State
   const [confirmState, setConfirmState] = useState<{
@@ -183,6 +208,17 @@ export const MasterView: React.FC<MasterViewProps> = ({
   const handleResetUserPassword = async (u: UserProfile) => {
     const updated = { ...u, senha: '123456' };
     await onSaveUser(updated);
+
+    registrarAuditoria({
+      usuario: currentUser,
+      modulo: 'OPERADORES',
+      acao: 'RESET_SENHA',
+      alvo_identificador: `${u.nome_completo} (${u.matricula || 'DVIS'})`,
+      detalhes: `Senha do operador resetada para o padrão inicial (123456) pelo Administrador Master.`,
+      setor: u.setor,
+      nivel_severidade: 'AVISO'
+    });
+
     setSaveStatus({
       type: 'success',
       text: `Senha do operador ${u.nome_completo.split(' ')[0]} redefinida com sucesso para 123456 (Sincronizado no Supabase)!`
@@ -237,6 +273,19 @@ export const MasterView: React.FC<MasterViewProps> = ({
 
     try {
       await onSaveUser(userToSave);
+
+      registrarAuditoria({
+        usuario: currentUser,
+        modulo: 'OPERADORES',
+        acao: editingUserId ? 'ALTERACAO_OPERADOR' : 'CRIACAO_OPERADOR',
+        alvo_identificador: `${userToSave.nome_completo} (${userToSave.cargo})`,
+        detalhes: editingUserId
+          ? `Cadastro do operador atualizado. Nível de Acesso: ${userToSave.nivel_acesso}, Cargo: ${userToSave.cargo}, Setor: ${userToSave.setor || 'VISA'}.`
+          : `Novo operador criado no sistema com senha padrão. Nível: ${userToSave.nivel_acesso}, Cargo: ${userToSave.cargo}, Matrícula: ${userToSave.matricula}.`,
+        setor: userToSave.setor,
+        nivel_severidade: 'INFO'
+      });
+
       setSaveStatus({
         type: 'success',
         text: editingUserId
@@ -528,6 +577,17 @@ export const MasterView: React.FC<MasterViewProps> = ({
             }`}
           >
             <Database className="w-4 h-4 text-emerald-400" /> Banco Supabase (SQL)
+          </button>
+
+          <button
+            onClick={() => setActiveTab('auditoria')}
+            className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition flex items-center gap-2.5 cursor-pointer ${
+              activeTab === 'auditoria'
+                ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30 ring-2 ring-amber-400'
+                : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 text-amber-400" /> Trilha de Auditoria (Logs)
           </button>
         </div>
       </section>
@@ -1068,6 +1128,10 @@ export const MasterView: React.FC<MasterViewProps> = ({
                           className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-lg border inline-flex items-center gap-1 shadow-xs ${
                             nivel === 'MASTER (TUDO)'
                               ? 'bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-950 dark:text-purple-200 dark:border-purple-700'
+                              : nivel === 'DIRETOR GERAL (TODOS OS SETORES)'
+                              ? 'bg-indigo-100 text-indigo-950 border-indigo-400 dark:bg-indigo-950 dark:text-indigo-200 dark:border-indigo-600'
+                              : nivel?.includes('DIRETOR')
+                              ? 'bg-violet-100 text-violet-950 border-violet-300 dark:bg-violet-950 dark:text-violet-200 dark:border-violet-700'
                               : nivel === 'VISA (FEIRAS)'
                               ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-700'
                               : nivel === 'VISA (LABORATÓRIO)'
@@ -1081,6 +1145,18 @@ export const MasterView: React.FC<MasterViewProps> = ({
                         >
                           {nivel === 'MASTER (TUDO)'
                             ? '👑'
+                            : nivel === 'DIRETOR GERAL (TODOS OS SETORES)'
+                            ? '👔'
+                            : nivel === 'DIRETOR (ALIMENTOS)'
+                            ? '🍔'
+                            : nivel === 'DIRETOR (SAÚDE)'
+                            ? '🏥'
+                            : nivel === 'DIRETOR (HABITE-SE)'
+                            ? '🏗️'
+                            : nivel === 'DIRETOR (SANEAMENTO & AMBIENTAL)'
+                            ? '🌊'
+                            : nivel?.includes('DIRETOR')
+                            ? '👔'
                             : nivel === 'VISA (FEIRAS)'
                             ? '🎪'
                             : nivel === 'VISA (LABORATÓRIO)'
@@ -1144,7 +1220,18 @@ export const MasterView: React.FC<MasterViewProps> = ({
                                 message: `Tem certeza de que deseja remover o cadastro do servidor do sistema?`,
                                 itemDescription: `${u.nome_completo} (${u.cargo}) • ${u.email}`,
                                 confirmText: 'Sim, Excluir Operador',
-                                onConfirm: () => onDeleteUser(u.id)
+                                onConfirm: () => {
+                                  registrarAuditoria({
+                                    usuario: currentUser,
+                                    modulo: 'OPERADORES',
+                                    acao: 'EXCLUSAO_OPERADOR',
+                                    alvo_identificador: `${u.nome_completo} (${u.cargo})`,
+                                    detalhes: `Operador excluído do sistema pelo Administrador Master.`,
+                                    setor: u.setor,
+                                    nivel_severidade: 'CRITICO'
+                                  });
+                                  onDeleteUser(u.id);
+                                }
                               });
                             }}
                             className="text-red-500 hover:text-red-700 p-1.5 bg-red-50 dark:bg-red-950/60 rounded-lg border border-red-200 dark:border-red-800 cursor-pointer inline-flex items-center"
@@ -1735,6 +1822,239 @@ export const MasterView: React.FC<MasterViewProps> = ({
       {/* ========================================================= */}
       {activeTab === 'supabase' && (
         <SupabaseTab />
+      )}
+
+      {/* ========================================================= */}
+      {/* TAB 7: TRILHA DE AUDITORIA & SEGURANÇA (LOGS)             */}
+      {/* ========================================================= */}
+      {activeTab === 'auditoria' && (
+        <section className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 md:p-10 lg:p-12 text-slate-900 dark:text-white space-y-6 min-h-[650px] transition-all">
+          <div className="border-b border-slate-200 dark:border-slate-800 pb-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-xs font-black uppercase tracking-wider mb-2">
+                <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                Segurança, Conformidade & Transparência Pública
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                Trilha de Auditoria do Sistema
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Registro histórico automático e imutável de todas as ações de reatribuição de demandas, permissões, acessos e assinaturas.
+              </p>
+            </div>
+
+            {/* Ações do Cabeçalho da Auditoria */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  const csv = exportarAuditoriaCSV(auditoriaLogs);
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.setAttribute('download', `auditoria_visa_bc_${new Date().toISOString().split('T')[0]}.csv`);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-md cursor-pointer"
+                title="Exportar registros de auditoria em planilha CSV oficial"
+              >
+                <Download className="w-4 h-4" />
+                <span>Exportar CSV Oficial</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAuditoriaLogs(getAuditoriaLogs())}
+                className="px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs uppercase tracking-wider transition flex items-center gap-1.5 border border-slate-300 dark:border-slate-700 cursor-pointer"
+                title="Atualizar lista de logs em tempo real"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>Atualizar</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Barra de Filtros da Auditoria */}
+          <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/80 flex flex-col md:flex-row items-center justify-between gap-3 shadow-xs">
+            <div className="relative flex-1 w-full">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={auditoriaBusca}
+                onChange={(e) => setAuditoriaBusca(e.target.value)}
+                placeholder="Buscar por Operador, Matrícula, Ação, Documento ou Detalhes..."
+                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-500"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
+              <select
+                value={auditoriaFiltroModulo}
+                onChange={(e) => setAuditoriaFiltroModulo(e.target.value)}
+                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-amber-500 cursor-pointer"
+              >
+                <option value="TODOS">Todos os Módulos</option>
+                <option value="DEMANDAS">📋 Demandas & Vistorias</option>
+                <option value="OPERADORES">👥 Operadores & Acessos</option>
+                <option value="ALVARA">📜 Alvarás Sanitários</option>
+                <option value="PASTA_VISA">📁 Pasta VISA</option>
+                <option value="FISCALIZACAO">🛡️ Fiscalização</option>
+                <option value="SISTEMA">⚙️ Sistema & Segurança</option>
+              </select>
+
+              <select
+                value={auditoriaFiltroSeveridade}
+                onChange={(e) => setAuditoriaFiltroSeveridade(e.target.value)}
+                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-amber-500 cursor-pointer"
+              >
+                <option value="TODOS">Todas as Severidades</option>
+                <option value="INFO">🟢 Informativo (INFO)</option>
+                <option value="AVISO">🟡 Atenção / Aviso (AVISO)</option>
+                <option value="CRITICO">🔴 Crítico / Exclusão (CRÍTICO)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Cards de Métricas Rápidas da Auditoria */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-2xl">
+              <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 block">Total de Eventos</span>
+              <strong className="text-xl font-black text-amber-600 dark:text-amber-400">{auditoriaLogs.length}</strong>
+            </div>
+            <div className="p-3 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 rounded-2xl">
+              <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 block">Gestão de Demandas</span>
+              <strong className="text-xl font-black text-blue-600 dark:text-blue-400">
+                {auditoriaLogs.filter((l) => l.modulo === 'DEMANDAS').length}
+              </strong>
+            </div>
+            <div className="p-3 bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/50 rounded-2xl">
+              <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 block">Operadores & Cargos</span>
+              <strong className="text-xl font-black text-purple-600 dark:text-purple-400">
+                {auditoriaLogs.filter((l) => l.modulo === 'OPERADORES').length}
+              </strong>
+            </div>
+            <div className="p-3 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl">
+              <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 block">Status da Gravação</span>
+              <strong className="text-xs font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-1">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Assíncrona Ativa
+              </strong>
+            </div>
+          </div>
+
+          {/* Tabela dos Logs de Auditoria */}
+          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 shadow-md">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left min-w-[950px]">
+                <thead className="bg-slate-100 dark:bg-slate-800/90 font-black uppercase text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800 text-[10px] tracking-wider">
+                  <tr>
+                    <th className="py-3 px-4">Data e Hora</th>
+                    <th className="py-3 px-4">Operador / Responsável</th>
+                    <th className="py-3 px-3 text-center">Módulo</th>
+                    <th className="py-3 px-3 text-center">Ação</th>
+                    <th className="py-3 px-4">Alvo / Identificador</th>
+                    <th className="py-3 px-5">Detalhes da Ocorrência</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {(() => {
+                    const filtrados = auditoriaLogs.filter((l) => {
+                      if (auditoriaFiltroModulo !== 'TODOS' && l.modulo !== auditoriaFiltroModulo) return false;
+                      if (auditoriaFiltroSeveridade !== 'TODOS' && l.nivel_severidade !== auditoriaFiltroSeveridade) return false;
+                      if (auditoriaBusca.trim()) {
+                        const q = auditoriaBusca.toLowerCase();
+                        const nome = (l.usuario_nome || '').toLowerCase();
+                        const cargo = (l.usuario_cargo || '').toLowerCase();
+                        const mat = (l.usuario_matricula || '').toLowerCase();
+                        const acao = (l.acao || '').toLowerCase();
+                        const alvo = (l.alvo_identificador || '').toLowerCase();
+                        const det = (l.detalhes || '').toLowerCase();
+                        return nome.includes(q) || cargo.includes(q) || mat.includes(q) || acao.includes(q) || alvo.includes(q) || det.includes(q);
+                      }
+                      return true;
+                    });
+
+                    if (filtrados.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={6} className="py-12 text-center text-slate-400 italic">
+                            Nenhum registro de auditoria encontrado para os filtros selecionados.
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return filtrados.map((item) => {
+                      const dataFmt = new Date(item.data_hora);
+                      const diaMes = dataFmt.toLocaleDateString('pt-BR');
+                      const horaMin = dataFmt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+                      const corSeveridade =
+                        item.nivel_severidade === 'CRITICO'
+                          ? 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/80 dark:text-rose-300 dark:border-rose-700'
+                          : item.nivel_severidade === 'AVISO'
+                          ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-700'
+                          : 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/80 dark:text-blue-300 dark:border-blue-700';
+
+                      return (
+                        <tr key={item.id} className="hover:bg-amber-50/30 dark:hover:bg-slate-800/50 transition-colors">
+                          {/* Data e Hora */}
+                          <td className="py-3 px-4 whitespace-nowrap font-mono text-[11px]">
+                            <div className="font-bold text-slate-800 dark:text-slate-200">{diaMes}</div>
+                            <div className="text-[10px] text-slate-400">{horaMin}</div>
+                          </td>
+
+                          {/* Operador */}
+                          <td className="py-3 px-4">
+                            <div className="font-black text-slate-900 dark:text-white uppercase truncate max-w-[200px]" title={item.usuario_nome}>
+                              {item.usuario_nome}
+                            </div>
+                            <div className="text-[10px] text-slate-500 font-mono">
+                              {item.usuario_cargo || 'SERVIDOR'} • {item.usuario_matricula || 'DVIS'}
+                            </div>
+                          </td>
+
+                          {/* Módulo */}
+                          <td className="py-3 px-3 text-center whitespace-nowrap">
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                              {item.modulo}
+                            </span>
+                          </td>
+
+                          {/* Ação */}
+                          <td className="py-3 px-3 text-center whitespace-nowrap">
+                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${corSeveridade}`}>
+                              {item.acao.replace(/_/g, ' ')}
+                            </span>
+                          </td>
+
+                          {/* Alvo / Identificador */}
+                          <td className="py-3 px-4">
+                            <div className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[220px]" title={item.alvo_identificador}>
+                              {item.alvo_identificador || '---'}
+                            </div>
+                            {item.setor && (
+                              <div className="text-[9px] text-purple-600 dark:text-purple-400 font-bold uppercase">
+                                Setor: {item.setor}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Detalhes */}
+                          <td className="py-3 px-5 text-slate-600 dark:text-slate-300 text-[11px] leading-relaxed">
+                            {item.detalhes}
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       )}
 
       {/* Modal Universal de Confirmação de Exclusão */}

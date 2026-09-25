@@ -1,4 +1,5 @@
 import { ProcessoItem, UserProfile, SetorDemanda, SETORES_DEMANDA_LISTA, isUserFiscal } from '../types';
+import { registrarAuditoria } from './auditoriaService';
 
 /**
  * Mapeia o setor textual de um processo para os Setores Oficiais de Demanda
@@ -119,6 +120,15 @@ export function sortearFiscalRandomicamente(
     ]
   };
 
+  registrarAuditoria({
+    modulo: 'DEMANDAS',
+    acao: 'SORTEIO_RANDOMICO',
+    alvo_identificador: `${processo.num_processo || processo.prot_1doc || 'Demanda'} - ${processo.razao_social || 'Estabelecimento'}`,
+    detalhes: `Demanda sorteada randomicamente para ${fiscalEscolhido.nome_completo} (${fiscalEscolhido.matricula || 'DVIS'}) no setor ${setorNormalizado}.`,
+    setor: setorNormalizado,
+    nivel_severidade: 'INFO'
+  });
+
   return { processoAtualizado, fiscalEscolhido };
 }
 
@@ -140,6 +150,17 @@ export function trocarFiscalDemanda(
   const novasObservacoes = processo.observacoes 
     ? `${logTroca}\n\n${processo.observacoes}` 
     : logTroca;
+
+  // Registro assíncrono e não-bloqueante na trilha de auditoria
+  registrarAuditoria({
+    usuario: diretorResponsavel,
+    modulo: 'DEMANDAS',
+    acao: 'TROCA_FISCAL',
+    alvo_identificador: `${processo.num_processo || processo.prot_1doc || 'Demanda'} - ${processo.razao_social || 'Estabelecimento'}`,
+    detalhes: `Reatribuição oficial de "${fiscalAnterior}" para "${novoFiscal.nome_completo}". Motivo: ${motivo || 'Redistribuição pela diretoria'}.`,
+    setor: processo.setor,
+    nivel_severidade: 'INFO'
+  });
 
   return {
     ...processo,

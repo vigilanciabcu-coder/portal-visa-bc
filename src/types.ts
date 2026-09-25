@@ -41,6 +41,23 @@ export type UserNivelAcesso =
 
 export type TipoUsuario = 'SERVIDOR' | 'CONTABILIDADE' | 'CIDADAO' | 'CONTRIBUINTE';
 
+export type ModuloAuditoria = 'DEMANDAS' | 'ALVARA' | 'PASTA_VISA' | 'OPERADORES' | 'FISCALIZACAO' | 'SISTEMA';
+
+export interface AuditoriaLogItem {
+  id: string;
+  data_hora: string; // ISO
+  usuario_id?: string;
+  usuario_nome: string;
+  usuario_cargo?: string;
+  usuario_matricula?: string;
+  modulo: ModuloAuditoria;
+  acao: string; // Ex: 'TROCA_FISCAL', 'SORTEIO_DEMANDA', 'EMISSAO_PARECER', 'ASSINATURA_DIGITAL', 'ALTERACAO_ACESSO', 'EXCLUSAO', 'CRIACAO'
+  alvo_identificador?: string; // Ex: "Processo nº 4892/2026", "Operador Dr. Carlos"
+  detalhes: string;
+  nivel_severidade?: 'INFO' | 'AVISO' | 'CRITICO';
+  setor?: string;
+}
+
 export interface UserProfile {
   id: string;
   email: string;
