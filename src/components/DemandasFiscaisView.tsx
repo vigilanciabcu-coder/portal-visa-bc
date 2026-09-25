@@ -6,7 +6,8 @@ import {
   SETORES_DEMANDA_LISTA,
   isUserDiretor,
   isUserFiscal,
-  isUserMaster
+  isUserMaster,
+  getSetorRestritoDoDiretor
 } from '../types';
 import {
   normalizarSetorDemanda,
@@ -89,9 +90,16 @@ export const DemandasFiscaisView: React.FC<DemandasFiscaisViewProps> = ({
     }
   }, [initialModo]);
 
-  // Filtros de busca e visualização
+  // Identifica se o diretor atual possui jurisdição em um setor específico (ou se é Diretor Geral)
+  const setorDiretorRestrito = useMemo(() => {
+    return getSetorRestritoDoDiretor(currentUser);
+  }, [currentUser]);
+
+  // Filtros de busca e visualização (inicializa no setor do diretor caso seja setorial)
   const [buscaTexto, setBuscaTexto] = useState('');
-  const [filtroSetor, setFiltroSetor] = useState<string>('TODOS');
+  const [filtroSetor, setFiltroSetor] = useState<string>(() => {
+    return setorDiretorRestrito || 'TODOS';
+  });
   const [filtroStatus, setFiltroStatus] = useState<string>('TODOS');
   const [filtroFiscalDiretoria, setFiltroFiscalDiretoria] = useState<string>('TODOS');
 
@@ -642,13 +650,19 @@ export const DemandasFiscaisView: React.FC<DemandasFiscaisViewProps> = ({
               <div className="space-y-1">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/30 text-[10px] font-black uppercase tracking-wider">
                   <Briefcase className="w-3 h-3" />
-                  Painel Executivo da Diretoria • Gestão de Demandas da VISA
+                  {setorDiretorRestrito
+                    ? `🎯 Diretoria Setorial • ${setorDiretorRestrito}`
+                    : '👑 Painel Executivo da Diretoria • Gestão Geral VISA'}
                 </div>
                 <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
-                  Controle Geral de Demandas por Fiscal e Setor
+                  {setorDiretorRestrito
+                    ? `Controle de Demandas • Setor ${setorDiretorRestrito}`
+                    : 'Controle Geral de Demandas por Fiscal e Setor'}
                 </h2>
                 <p className="text-xs text-purple-200/80">
-                  Monitore a carga de trabalho de cada fiscal, redistribua ordens de serviço e garanta o cumprimento de prazos.
+                  {setorDiretorRestrito
+                    ? `Painel gerencial focado nas ordens de serviço e equipe de fiscais do setor de ${setorDiretorRestrito}.`
+                    : 'Monitore a carga de trabalho de cada fiscal, redistribua ordens de serviço e garanta o cumprimento de prazos em todos os setores.'}
                 </p>
               </div>
 
@@ -766,12 +780,15 @@ export const DemandasFiscaisView: React.FC<DemandasFiscaisViewProps> = ({
                 onChange={(e) => setFiltroSetor(e.target.value)}
                 className="bg-[#181818] border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-2 font-bold focus:outline-none focus:border-purple-500 cursor-pointer"
               >
-                <option value="TODOS">Todos os Setores</option>
-                {SETORES_DEMANDA_LISTA.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.nome}
-                  </option>
-                ))}
+                <option value="TODOS">Todos os Setores (Geral)</option>
+                {SETORES_DEMANDA_LISTA.map((s) => {
+                  const isMeuSetor = s.id === setorDiretorRestrito;
+                  return (
+                    <option key={s.id} value={s.id}>
+                      {isMeuSetor ? `🎯 ${s.nome} (Meu Setor)` : s.nome}
+                    </option>
+                  );
+                })}
               </select>
 
               {/* Filtro por Status */}

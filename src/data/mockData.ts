@@ -32,9 +32,9 @@ export const INITIAL_USERS: UserProfile[] = [
     email: 'diretor@bc.sc.gov.br',
     nome_completo: 'Dr. Roberto Mendes',
     data_nascimento: '1978-03-08',
-    cargo: 'DIRETOR PMCD',
+    cargo: 'DIRETOR-GERAL',
     setor: 'VIGILÂNCIA SANITÁRIA E AMBIENTAL',
-    nivel_acesso: 'MASTER (TUDO)',
+    nivel_acesso: 'DIRETOR GERAL (TODOS OS SETORES)',
     matricula: 'DIR-0001',
     senha: '123456'
   },
@@ -47,6 +47,28 @@ export const INITIAL_USERS: UserProfile[] = [
     setor: 'VIGILÂNCIA SANITÁRIA E AMBIENTAL',
     nivel_acesso: 'MASTER (TUDO)',
     matricula: 'MST-0000',
+    senha: '123456'
+  },
+  {
+    id: 'u8',
+    email: 'diretor.alimentos@bc.sc.gov.br',
+    nome_completo: 'Dr. Eduardo Prado',
+    data_nascimento: '1982-05-15',
+    cargo: 'DIRETOR DE ALIMENTOS',
+    setor: 'VIGILÂNCIA SANITÁRIA',
+    nivel_acesso: 'DIRETOR (ALIMENTOS)',
+    matricula: 'DIR-0002',
+    senha: '123456'
+  },
+  {
+    id: 'u9',
+    email: 'diretora.saude@bc.sc.gov.br',
+    nome_completo: 'Dra. Camila Vasconcelos',
+    data_nascimento: '1984-10-30',
+    cargo: 'DIRETOR DE SAÚDE',
+    setor: 'VIGILÂNCIA SANITÁRIA',
+    nivel_acesso: 'DIRETOR (SAÚDE)',
+    matricula: 'DIR-0003',
     senha: '123456'
   },
   {

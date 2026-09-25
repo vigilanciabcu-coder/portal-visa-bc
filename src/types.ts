@@ -6,6 +6,10 @@ export type UserRole =
   | 'DIRETOR DFSIS'
   | 'DIRETOR PMCD'
   | 'DIRETOR-GERAL'
+  | 'DIRETOR DE ALIMENTOS'
+  | 'DIRETOR DE SAÚDE'
+  | 'DIRETOR DE HABITE-SE E ENGENHARIA'
+  | 'DIRETOR DE SANEAMENTO E AMBIENTAL'
   | 'FARMACÊUTICO/BIOQUÍMICO'
   | 'FISCAL DE SAÚDE PÚBLICA'
   | 'FISCAL DE VIGILÂNCIA SANITÁRIA'
@@ -23,11 +27,16 @@ export type UserSetor =
 
 export type UserNivelAcesso =
   | 'MASTER (TUDO)'
-  | 'VISA (FEIRAS)'
+  | 'DIRETOR GERAL (TODOS OS SETORES)'
+  | 'DIRETOR (ALIMENTOS)'
+  | 'DIRETOR (SAÚDE)'
+  | 'DIRETOR (HABITE-SE)'
+  | 'DIRETOR (SANEAMENTO & AMBIENTAL)'
   | 'VISA (FISCAL)'
-  | 'VISA (LABORATÓRIO)'
-  | 'VISA (SAÚDE)'
   | 'VISA (ALIMENTOS)'
+  | 'VISA (SAÚDE)'
+  | 'VISA (LABORATÓRIO)'
+  | 'VISA (FEIRAS)'
   | string;
 
 export type TipoUsuario = 'SERVIDOR' | 'CONTABILIDADE' | 'CIDADAO' | 'CONTRIBUINTE';
@@ -163,6 +172,8 @@ export const MODULOS_SISTEMA: ModuloPermissao[] = [
 ];
 
 export const PRESET_PAGINAS = {
+  DIRETOR_GERAL: ['demandas_diretor', 'demandas_fiscal', 'processos_lab', 'alvara_visa', 'pasta_visa', 'fiscalizacao', 'feiras', 'agenda', 'laboratorio', 'cnae', 'telefone', '1doc', 'epub', 'ahgo', 'rhwb', 'mail', 'geoo', 'domm', 'cnpj', 'alva', 'debi', 'leis', 'mapa', 'pref'],
+  DIRETOR_SETORIAL: ['demandas_diretor', 'demandas_fiscal', 'processos_lab', 'alvara_visa', 'fiscalizacao', 'agenda', 'cnae', 'telefone', '1doc', 'epub', 'ahgo', 'mail', 'cnpj', 'leis', 'mapa', 'pref'],
   FISCAL: ['demandas_fiscal', 'demandas_diretor', 'processos_lab', 'alvara_visa', 'fiscalizacao', 'agenda', 'cnae', 'telefone', '1doc', 'epub', 'ahgo', 'mail', 'geoo', 'cnpj', 'leis', 'mapa', 'pref'],
   LABORATORIO: ['processos_lab', 'laboratorio', 'agenda', 'telefone', '1doc', 'ahgo', 'mail', 'cnpj', 'pref'],
   FEIRAS: ['processos_lab', 'feiras', 'agenda', 'telefone', '1doc', 'ahgo', 'mail', 'cnpj', 'pref'],
@@ -235,6 +246,49 @@ export type SetorDemanda =
   | 'EVENTOS & FEIRAS'
   | 'OUVIDORIA & DENÚNCIAS'
   | 'GERAL';
+
+/**
+ * Retorna o setor restrito de atuação do diretor setorial (ou null se for Diretor Geral / Master com visão de todos os setores)
+ */
+export function getSetorRestritoDoDiretor(user: UserProfile | null | undefined): SetorDemanda | null {
+  if (!user) return null;
+  if (isUserMaster(user)) return null;
+
+  const cargo = (user.cargo || '').toUpperCase();
+  const nivel = (user.nivel_acesso || '').toUpperCase();
+
+  // Diretor Geral tem acesso a todos os setores
+  if (nivel.includes('GERAL') || cargo.includes('GERAL') || nivel === 'DIRETOR GERAL (TODOS OS SETORES)') {
+    return null;
+  }
+
+  // Diretor Setorial: Alimentos
+  if (nivel.includes('ALIMENT') || cargo.includes('ALIMENT')) {
+    return 'ALIMENTOS';
+  }
+
+  // Diretor Setorial: Saúde
+  if (nivel.includes('SAÚDE') || nivel.includes('SAUDE') || cargo.includes('SAÚDE') || cargo.includes('SAUDE')) {
+    return 'SAÚDE';
+  }
+
+  // Diretor Setorial: Habite-se
+  if (nivel.includes('HABITE') || cargo.includes('HABITE')) {
+    return 'HABITE-SE SANITÁRIO';
+  }
+
+  // Diretor Setorial: Saneamento & Ambiental
+  if (nivel.includes('SANEAMENTO') || nivel.includes('AMBIENT') || cargo.includes('AMBIENT')) {
+    return 'SANEAMENTO & AMBIENTAL';
+  }
+
+  // Diretor Setorial: Feiras
+  if (nivel.includes('FEIRA') || cargo.includes('FEIRA')) {
+    return 'EVENTOS & FEIRAS';
+  }
+
+  return null;
+}
 
 export interface SetorConfig {
   id: SetorDemanda;

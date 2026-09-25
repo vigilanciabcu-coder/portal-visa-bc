@@ -666,21 +666,25 @@ export const MasterView: React.FC<MasterViewProps> = ({
                   onChange={(e) => setUserForm({ ...userForm, cargo: e.target.value as UserRole })}
                   className="w-full font-bold text-xs"
                 >
-                  <option value="AGENTE DE ENDEMIAS">AGENTE DE ENDEMIAS</option>
-                  <option value="ASSISTENTE ADMINISTRATIVO">ASSISTENTE ADMINISTRATIVO</option>
+                  <option value="DIRETOR-GERAL">DIRETOR-GERAL</option>
+                  <option value="DIRETOR DE ALIMENTOS">DIRETOR DE ALIMENTOS</option>
+                  <option value="DIRETOR DE SAÚDE">DIRETOR DE SAÚDE</option>
+                  <option value="DIRETOR DE HABITE-SE E ENGENHARIA">DIRETOR DE HABITE-SE E ENGENHARIA</option>
+                  <option value="DIRETOR DE SANEAMENTO E AMBIENTAL">DIRETOR DE SANEAMENTO E AMBIENTAL</option>
                   <option value="DIRETOR CCPU">DIRETOR CCPU</option>
                   <option value="DIRETOR DAL">DIRETOR DAL</option>
                   <option value="DIRETOR DFSIS">DIRETOR DFSIS</option>
                   <option value="DIRETOR PMCD">DIRETOR PMCD</option>
-                  <option value="DIRETOR-GERAL">DIRETOR-GERAL</option>
-                  <option value="FARMACÊUTICO/BIOQUÍMICO">FARMACÊUTICO/BIOQUÍMICO</option>
-                  <option value="FISCAL DE SAÚDE PÚBLICA">FISCAL DE SAÚDE PÚBLICA</option>
                   <option value="FISCAL DE VIGILÂNCIA SANITÁRIA">FISCAL DE VIGILÂNCIA SANITÁRIA</option>
-                  <option value="MASTER ADM">MASTER ADM</option>
+                  <option value="FISCAL DE SAÚDE PÚBLICA">FISCAL DE SAÚDE PÚBLICA</option>
+                  <option value="AGENTE DE ENDEMIAS">AGENTE DE ENDEMIAS</option>
+                  <option value="ASSISTENTE ADMINISTRATIVO">ASSISTENTE ADMINISTRATIVO</option>
+                  <option value="FARMACÊUTICO/BIOQUÍMICO">FARMACÊUTICO/BIOQUÍMICO</option>
                   <option value="MÉDICO VETERINÁRIO">MÉDICO VETERINÁRIO</option>
                   <option value="NUTRICIONISTA">NUTRICIONISTA</option>
                   <option value="SUPERVISOR DE CAMPO">SUPERVISOR DE CAMPO</option>
                   <option value="SUPERVISOR GERAL">SUPERVISOR GERAL</option>
+                  <option value="MASTER ADM">MASTER ADM</option>
                 </select>
               </div>
 
@@ -710,28 +714,59 @@ export const MasterView: React.FC<MasterViewProps> = ({
 
               <div className="md:col-span-2">
                 <label className="text-[10px] font-bold uppercase block mb-1 text-purple-600 dark:text-purple-400 flex items-center gap-1">
-                  <ShieldAlert className="w-3 h-3 text-purple-500" /> Acesso
+                  <ShieldAlert className="w-3 h-3 text-purple-500" /> Nível de Acesso
                 </label>
                 <select
                   value={userForm.nivel_acesso}
                   onChange={(e) => {
                     const newNivel = e.target.value as UserNivelAcesso;
-                    const isNowMaster = newNivel === 'MASTER (TUDO)';
+                    let cargoSugerido = userForm.cargo;
+                    let paginasSugeridas = userForm.paginas_permitidas;
+
+                    if (newNivel === 'MASTER (TUDO)') {
+                      cargoSugerido = 'MASTER ADM';
+                      paginasSugeridas = PRESET_PAGINAS.TODAS;
+                    } else if (newNivel === 'DIRETOR GERAL (TODOS OS SETORES)') {
+                      if (!cargoSugerido.includes('DIRETOR')) cargoSugerido = 'DIRETOR-GERAL';
+                      paginasSugeridas = PRESET_PAGINAS.DIRETOR_GERAL;
+                    } else if (newNivel === 'DIRETOR (ALIMENTOS)') {
+                      cargoSugerido = 'DIRETOR DE ALIMENTOS';
+                      paginasSugeridas = PRESET_PAGINAS.DIRETOR_SETORIAL;
+                    } else if (newNivel === 'DIRETOR (SAÚDE)') {
+                      cargoSugerido = 'DIRETOR DE SAÚDE';
+                      paginasSugeridas = PRESET_PAGINAS.DIRETOR_SETORIAL;
+                    } else if (newNivel === 'DIRETOR (HABITE-SE)') {
+                      cargoSugerido = 'DIRETOR DE HABITE-SE E ENGENHARIA';
+                      paginasSugeridas = PRESET_PAGINAS.DIRETOR_SETORIAL;
+                    } else if (newNivel === 'DIRETOR (SANEAMENTO & AMBIENTAL)') {
+                      cargoSugerido = 'DIRETOR DE SANEAMENTO E AMBIENTAL';
+                      paginasSugeridas = PRESET_PAGINAS.DIRETOR_SETORIAL;
+                    }
+
                     setUserForm({
                       ...userForm,
                       nivel_acesso: newNivel,
-                      cargo: isNowMaster && userForm.cargo !== 'MASTER ADM' ? 'MASTER ADM' : userForm.cargo,
-                      paginas_permitidas: isNowMaster ? PRESET_PAGINAS.TODAS : userForm.paginas_permitidas
+                      cargo: cargoSugerido,
+                      paginas_permitidas: paginasSugeridas
                     });
                   }}
                   className="w-full font-black text-[11px] border-purple-300 dark:border-purple-700 bg-purple-50/60 dark:bg-purple-950/40 text-purple-900 dark:text-purple-200 px-2 py-2 rounded-xl"
                 >
-                  <option value="MASTER (TUDO)">MASTER (TUDO)</option>
-                  <option value="VISA (FEIRAS)">VISA (FEIRAS)</option>
-                  <option value="VISA (FISCAL)">VISA (FISCAL)</option>
-                  <option value="VISA (LABORATÓRIO)">VISA (LABORATÓRIO)</option>
-                  <option value="VISA (SAÚDE)">VISA (SAÚDE)</option>
-                  <option value="VISA (ALIMENTOS)">VISA (ALIMENTOS)</option>
+                  <optgroup label="👑 Gestão Executiva & Diretoria">
+                    <option value="DIRETOR GERAL (TODOS OS SETORES)">👔 DIRETOR GERAL (TODOS OS SETORES)</option>
+                    <option value="DIRETOR (ALIMENTOS)">🍔 DIRETOR (ALIMENTOS)</option>
+                    <option value="DIRETOR (SAÚDE)">🏥 DIRETOR (SAÚDE)</option>
+                    <option value="DIRETOR (HABITE-SE)">🏗️ DIRETOR (HABITE-SE)</option>
+                    <option value="DIRETOR (SANEAMENTO & AMBIENTAL)">🌊 DIRETOR (SANEAMENTO & AMBIENTAL)</option>
+                    <option value="MASTER (TUDO)">👑 MASTER (TUDO)</option>
+                  </optgroup>
+                  <optgroup label="🛡️ Fiscais & Setores Técnicos">
+                    <option value="VISA (FISCAL)">📋 VISA (FISCAL GERAL)</option>
+                    <option value="VISA (ALIMENTOS)">🍕 VISA (ALIMENTOS)</option>
+                    <option value="VISA (SAÚDE)">💉 VISA (SAÚDE)</option>
+                    <option value="VISA (LABORATÓRIO)">🔬 VISA (LABORATÓRIO)</option>
+                    <option value="VISA (FEIRAS)">🎪 VISA (FEIRAS)</option>
+                  </optgroup>
                 </select>
               </div>
 
@@ -795,6 +830,20 @@ export const MasterView: React.FC<MasterViewProps> = ({
                           className="text-[10px] font-bold px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
                         >
                           Todas
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetPresetPaginas('DIRETOR_GERAL')}
+                          className="text-[10px] font-black px-2 py-1 rounded-lg bg-purple-100 dark:bg-purple-950/80 border border-purple-400 dark:border-purple-600 text-purple-900 dark:text-purple-200 hover:bg-purple-200 cursor-pointer"
+                        >
+                          👔 Dir. Geral
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetPresetPaginas('DIRETOR_SETORIAL')}
+                          className="text-[10px] font-black px-2 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-950/80 border border-indigo-400 dark:border-indigo-600 text-indigo-900 dark:text-indigo-200 hover:bg-indigo-200 cursor-pointer"
+                        >
+                          🏢 Dir. Setor
                         </button>
                         <button
                           type="button"
