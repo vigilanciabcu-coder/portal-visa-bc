@@ -371,9 +371,9 @@ export default function App() {
     localStorage.setItem('visa_chat', JSON.stringify(chat));
   }, [chat]);
 
-  // Atualização automática (F5) após 5 minutos para recarregar dados e retornar à tela inicial
+  // Atualização automática (F5) após 20 minutos de inatividade para recarregar dados e retornar à tela inicial
   useEffect(() => {
-    const FIVE_MINUTES_MS = 5 * 60 * 1000;
+    const TWENTY_MINUTES_MS = 20 * 60 * 1000;
     let timer: NodeJS.Timeout;
 
     const scheduleReload = () => {
@@ -381,7 +381,7 @@ export default function App() {
       timer = setTimeout(() => {
         // Recarrega na tela inicial (F5)
         window.location.href = window.location.pathname;
-      }, FIVE_MINUTES_MS);
+      }, TWENTY_MINUTES_MS);
     };
 
     scheduleReload();
