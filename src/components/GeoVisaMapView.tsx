@@ -201,13 +201,12 @@ export const GeoVisaMapView: React.FC<GeoVisaMapViewProps> = ({
     // Controle de Zoom estilizado no topo direito
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // Camada de Tiles padrão (CARTO Voyager HD 100% gratuita, sem necessidade de API Key)
+    // Camada de Tiles padrão (OpenStreetMap 100% gratuita, sem necessidade de API Key)
     const tileLayer = L.tileLayer(
-      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
       {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank">CARTO</a> &copy; VISA Balneário Camboriú',
-        maxZoom: 19,
-        subdomains: 'abcd'
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> &copy; VISA Balneário Camboriú',
+        maxZoom: 19
       }
     ).addTo(map);
 
@@ -224,7 +223,7 @@ export const GeoVisaMapView: React.FC<GeoVisaMapViewProps> = ({
     };
   }, []);
 
-  // Altera estilo do mapa (todas as camadas são 100% livres de chaves de API, sem mensagens de erro)
+  // Altera estilo do mapa (OpenStreetMap e OpenTopoMap são 100% livres de chaves de API)
   useEffect(() => {
     if (!mapInstanceRef.current) return;
     const map = mapInstanceRef.current as any;
@@ -233,29 +232,33 @@ export const GeoVisaMapView: React.FC<GeoVisaMapViewProps> = ({
     }
 
     const tilePane = map.getPanes?.()?.tilePane;
-    if (tilePane) tilePane.style.filter = 'none';
 
-    let url = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-    let attr = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank">CARTO</a> &copy; VISA BC';
+    let url = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+    let attr = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> &copy; VISA BC';
     let maxZoom = 19;
-    let subdomains = 'abcd';
+    let subdomains = 'abc';
 
     if (estiloMapa === 'relevo') {
       url = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
       attr = 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>, SRTM | &copy; <a href="https://opentopomap.org" target="_blank">OpenTopoMap</a>';
       maxZoom = 17;
       subdomains = 'abc';
+      if (tilePane) tilePane.style.filter = 'none';
     } else if (estiloMapa === 'escuro') {
-      url = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-      attr = '&copy; OpenStreetMap contributors &copy; CARTO &copy; VISA BC';
+      url = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+      attr = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors &copy; VISA BC';
       maxZoom = 19;
-      subdomains = 'abcd';
+      subdomains = 'abc';
+      if (tilePane) {
+        tilePane.style.filter = 'brightness(0.7) invert(1) contrast(1.8) hue-rotate(200deg) saturate(0.35)';
+      }
     } else {
-      // Padrão Ruas (CARTO Voyager HD)
-      url = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-      attr = '&copy; OpenStreetMap contributors &copy; CARTO &copy; VISA BC';
+      // Padrão Ruas (OpenStreetMap Oficial)
+      url = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+      attr = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> &copy; VISA BC';
       maxZoom = 19;
-      subdomains = 'abcd';
+      subdomains = 'abc';
+      if (tilePane) tilePane.style.filter = 'none';
     }
 
     const newLayer = L.tileLayer(url, { attribution: attr, maxZoom, subdomains }).addTo(map);
@@ -599,9 +602,9 @@ export const GeoVisaMapView: React.FC<GeoVisaMapViewProps> = ({
               className={`px-2 py-1 rounded-lg font-bold transition cursor-pointer ${
                 estiloMapa === 'ruas' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
-              title="Mapa em vetor de alta definição CARTO Voyager"
+              title="Mapa oficial e livre de ruas do OpenStreetMap"
             >
-              🗺️ Ruas HD
+              🗺️ Ruas
             </button>
             <button
               onClick={() => setEstiloMapa('relevo')}
