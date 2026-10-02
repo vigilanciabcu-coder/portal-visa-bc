@@ -1,6 +1,6 @@
 import React from 'react';
 import { PortalButton, UserProfile, userHasAccessToPage, isUserMaster } from '../types';
-import { ShieldCheck, Calendar, Microscope, Crown, User, Building2, Search, FileText, FileSpreadsheet, PhoneCall, FolderArchive, FileSignature, Users, Compass, Download } from 'lucide-react';
+import { ShieldCheck, Calendar, Microscope, Crown, User, Building2, Search, FileText, FileSpreadsheet, PhoneCall, FolderArchive, FileSignature, Users, Compass, Download, Github } from 'lucide-react';
 
 interface SidebarProps {
   buttons: PortalButton[];
@@ -9,6 +9,7 @@ interface SidebarProps {
   onNavigate: (view: 'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa') => void;
   onOpenExternal: (url: string) => void;
   onOpenPwaModal?: () => void;
+  onOpenGitHubModal?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -18,6 +19,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNavigate,
   onOpenExternal,
   onOpenPwaModal,
+  onOpenGitHubModal,
 }) => {
   const isMaster = isUserMaster(currentUser);
 
@@ -227,6 +229,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <Download className="w-6 h-6 text-blue-400 group-hover:scale-110 transition" />
               </div>
               <span className="sidebar-text font-black text-blue-300">BAIXAR APP</span>
+            </button>
+          </div>
+        )}
+
+        {/* Botão de Sincronização com GitHub */}
+        {onOpenGitHubModal && (
+          <div className="mt-1">
+            <button
+              onClick={onOpenGitHubModal}
+              className="w-full flex items-center py-1.5 px-2 rounded-lg transition cursor-pointer text-xs hover:bg-slate-800/80 text-slate-400 hover:text-white group"
+              title="Sincronizar ou enviar projeto para o GitHub"
+            >
+              <div className="w-8 flex justify-center flex-shrink-0">
+                <Github className="w-6 h-6 text-slate-400 group-hover:text-white group-hover:scale-110 transition" />
+              </div>
+              <span className="sidebar-text font-black">GITHUB</span>
             </button>
           </div>
         )}

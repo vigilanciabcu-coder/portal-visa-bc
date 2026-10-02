@@ -867,6 +867,86 @@ app.post('/api/habite-se/tramitar', (req, res) => {
   });
 });
 
+// ----------------------------------------------------
+// 🐙 GitHub Integration Endpoints (Backup & Sync)
+// ----------------------------------------------------
+app.get('/api/github/status', async (_req, res) => {
+  try {
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
+
+    const { stdout: commitInfo } = await execAsync('git log -1 --format="%h - %s (%ci)" 2>/dev/null || echo "Nenhum commit ainda"');
+    const { stdout: branchInfo } = await execAsync('git branch --show-current 2>/dev/null || echo "main"');
+
+    res.json({
+      initialized: true,
+      currentBranch: branchInfo.trim(),
+      lastCommit: commitInfo.trim()
+    });
+  } catch (err: any) {
+    res.json({
+      initialized: false,
+      error: err?.message || String(err)
+    });
+  }
+});
+
+app.post('/api/github/push', async (req, res) => {
+  try {
+    const { repoUrl, token, branch = 'main' } = req.body;
+    if (!repoUrl || !token) {
+      res.status(400).json({ sucesso: false, erro: 'URL do repositório e Token do GitHub são obrigatórios.' });
+      return;
+    }
+
+    let cleanUrl = repoUrl.trim();
+    if (cleanUrl.endsWith('.git')) {
+      cleanUrl = cleanUrl.slice(0, -4);
+    }
+    cleanUrl = cleanUrl.replace(/^https?:\/\//, '');
+
+    const authenticatedRemote = `https://${encodeURIComponent(token.trim())}@${cleanUrl}.git`;
+
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
+
+    // Salva e comita alterações pendentes
+    try {
+      await execAsync('git add .');
+      await execAsync('git commit -m "update: Sistema VISA-BC sincronizado"');
+    } catch {
+      // Ignora se não houver alterações para comitar
+    }
+
+    // Configura o remote autenticado
+    await execAsync('git remote remove origin 2>/dev/null || true');
+    await execAsync(`git remote add origin ${authenticatedRemote}`);
+    await execAsync(`git branch -M ${branch}`);
+
+    // Executa push
+    const { stdout, stderr } = await execAsync(`git push -u origin ${branch} --force`);
+
+    // Limpa a URL do remote removendo o token para segurança
+    await execAsync(`git remote set-url origin https://${cleanUrl}.git`);
+
+    res.json({
+      sucesso: true,
+      mensagem: `Código enviado com sucesso para o branch ${branch} do GitHub!`,
+      repo: `https://${cleanUrl}`,
+      detalhes: stdout || stderr
+    });
+  } catch (err: any) {
+    console.error('Erro no push para o GitHub:', err);
+    res.status(500).json({
+      sucesso: false,
+      erro: 'Falha ao sincronizar com o GitHub. Verifique a URL do repositório e se o Token possui permissão "repo".',
+      detalhes: err?.message || String(err)
+    });
+  }
+});
+
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
