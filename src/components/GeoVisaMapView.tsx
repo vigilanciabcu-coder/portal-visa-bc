@@ -217,7 +217,18 @@ export const GeoVisaMapView: React.FC<GeoVisaMapViewProps> = ({
     routeLayerRef.current = L.layerGroup().addTo(map);
     mapInstanceRef.current = map;
 
+    // Recalcula dimensões do mapa imediatamente e em redimensionamento
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 150);
+
+    const handleResize = () => {
+      map.invalidateSize();
+    };
+    window.addEventListener('resize', handleResize);
+
     return () => {
+      window.removeEventListener('resize', handleResize);
       map.remove();
       mapInstanceRef.current = null;
     };
@@ -494,7 +505,7 @@ export const GeoVisaMapView: React.FC<GeoVisaMapViewProps> = ({
   };
 
   return (
-    <div className="relative w-full h-[calc(100vh-68px)] bg-slate-950 overflow-hidden flex flex-col font-sans select-none">
+    <div className="relative w-full h-full min-h-[500px] flex-1 bg-slate-950 overflow-hidden flex flex-col font-sans select-none">
       
       {/* 🧭 BARRA SUPERIOR DE COMANDOS & FILTROS GEOGRÁFICOS */}
       <div className="z-30 bg-[#0f1422]/95 backdrop-blur-md border-b border-slate-800 p-2 sm:p-3 flex flex-wrap items-center justify-between gap-2.5 shadow-xl shrink-0">
@@ -670,7 +681,7 @@ export const GeoVisaMapView: React.FC<GeoVisaMapViewProps> = ({
         <div ref={mapContainerRef} className="w-full h-full z-10" />
 
         {/* 📊 BADGE ESTATÍSTICA FLUTUANTE (CANTO INFERIOR ESQUERDO) */}
-        <div className="absolute bottom-4 left-4 z-20 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-3 shadow-2xl text-xs space-y-1.5 max-w-[280px] pointer-events-auto">
+        <div className="absolute bottom-12 left-3 sm:bottom-14 sm:left-6 z-20 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-2xl p-3 shadow-2xl text-xs space-y-1.5 max-w-[280px] pointer-events-auto">
           <div className="flex items-center justify-between text-[11px] font-bold text-slate-300 border-b border-slate-800 pb-1">
             <span>Pontos no Mapa</span>
             <span className="font-mono text-blue-400">{processosFiltrados.length} locais</span>
@@ -699,7 +710,7 @@ export const GeoVisaMapView: React.FC<GeoVisaMapViewProps> = ({
 
         {/* 📋 PAINEL RÁPIDO DO ESTABELECIMENTO SELECIONADO (POPUP LATERAL INFERIOR) */}
         {processoSelecionado && (
-          <div className="absolute bottom-4 right-4 z-25 bg-[#101422]/95 backdrop-blur-md border border-blue-500/40 rounded-3xl p-4 sm:p-5 shadow-2xl text-slate-100 max-w-md w-[calc(100%-32px)] sm:w-auto animate-fadeIn pointer-events-auto">
+          <div className="absolute bottom-12 right-3 sm:bottom-14 sm:right-6 z-25 bg-[#101422]/95 backdrop-blur-md border border-blue-500/40 rounded-3xl p-4 sm:p-5 shadow-2xl text-slate-100 max-w-md w-[calc(100%-24px)] sm:w-auto animate-fadeIn pointer-events-auto">
             <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-3">
               <div className="space-y-0.5">
                 <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-950 text-blue-300 border border-blue-800 font-mono">

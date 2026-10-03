@@ -1102,7 +1102,7 @@ export const DemandasFiscaisView: React.FC<DemandasFiscaisViewProps> = ({
       {/* 🗺️ MODO 4: GEO VISA - MAPA SANITÁRIO & ROTEIRIZADOR     */}
       {/* ======================================================== */}
       {modoAtivo === 'geo_visa' && (
-        <div className="rounded-2xl overflow-hidden border border-slate-800 shadow-2xl h-[780px]">
+        <div className="rounded-2xl overflow-hidden border border-slate-800 shadow-2xl h-[calc(100vh-210px)] min-h-[620px]">
           <GeoVisaMapView
             processos={processos}
             users={users}
