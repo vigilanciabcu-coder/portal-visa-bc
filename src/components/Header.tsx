@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { ChevronDown, LogOut, Key, Sun, Moon, FileText, Download, Github } from 'lucide-react';
+import { ChevronDown, LogOut, Key, Sun, Moon, FileText, Download } from 'lucide-react';
 import { ConferenciaCadastralModal } from './ConferenciaCadastralModal';
 
 interface HeaderProps {
@@ -12,7 +12,6 @@ interface HeaderProps {
   onToggleDarkMode: () => void;
   onGoHome: () => void;
   onOpenPwaModal?: () => void;
-  onOpenGitHubModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,7 +23,6 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleDarkMode,
   onGoHome,
   onOpenPwaModal,
-  onOpenGitHubModal,
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [conferenciaModalOpen, setConferenciaModalOpen] = useState(false);
@@ -252,22 +250,6 @@ export const Header: React.FC<HeaderProps> = ({
                     <Download className="w-4 h-4" />
                   </div>
                   <span>Instalar Aplicativo (PWA)</span>
-                </button>
-              )}
-
-              {onOpenGitHubModal && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    onOpenGitHubModal();
-                  }}
-                  className="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-extrabold text-xs flex items-center gap-2.5 transition cursor-pointer"
-                >
-                  <div className="p-1.5 bg-slate-900 text-white rounded-lg border border-slate-700">
-                    <Github className="w-4 h-4" />
-                  </div>
-                  <span>Enviar para o GitHub</span>
                 </button>
               )}
 

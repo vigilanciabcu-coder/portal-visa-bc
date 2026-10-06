@@ -16,7 +16,6 @@ import { AniversarioModal } from './components/AniversarioModal';
 import { ValidacaoAutenticidadeModal } from './components/ValidacaoAutenticidadeModal';
 import { GeoVisaMapView } from './components/GeoVisaMapView';
 import { PWAInstallModal } from './components/PWAInstallModal';
-import { GitHubSyncModal } from './components/GitHubSyncModal';
 
 import {
   PortalButton,
@@ -426,8 +425,6 @@ export default function App() {
 
   // Modal de Instalação do Aplicativo (PWA)
   const [modalPwaOpen, setModalPwaOpen] = useState(false);
-  // Modal de Sincronização com GitHub
-  const [modalGitHubOpen, setModalGitHubOpen] = useState(false);
 
   // Atualização automática (F5) após 20 minutos de inatividade para recarregar dados e retornar à tela inicial
   useEffect(() => {
@@ -849,7 +846,6 @@ export default function App() {
           onToggleDarkMode={handleToggleDarkMode}
           onGoHome={() => setCurrentView('home')}
           onOpenPwaModal={() => setModalPwaOpen(true)}
-          onOpenGitHubModal={() => setModalGitHubOpen(true)}
         />
 
         {/* Main Workspace Layout */}
@@ -862,7 +858,6 @@ export default function App() {
             onNavigate={(v) => setCurrentView(v)}
             onOpenExternal={handleOpenExternal}
             onOpenPwaModal={() => setModalPwaOpen(true)}
-            onOpenGitHubModal={() => setModalGitHubOpen(true)}
           />
 
           {/* Main Display Area */}
@@ -1223,12 +1218,6 @@ export default function App() {
       <PWAInstallModal
         isOpen={modalPwaOpen}
         onClose={() => setModalPwaOpen(false)}
-      />
-
-      {/* Modal de Sincronização e Envio para o GitHub */}
-      <GitHubSyncModal
-        isOpen={modalGitHubOpen}
-        onClose={() => setModalGitHubOpen(false)}
       />
     </div>
   );
