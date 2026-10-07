@@ -53,6 +53,7 @@ export const SupabaseTab: React.FC<SupabaseTabProps> = ({ onRefreshData }) => {
     { name: 'contribuintes', description: 'Empresários, comerciantes, feirantes e autônomos', status: 'checking' },
     { name: 'cidadaos', description: 'Cidadãos cadastrados para consultas e solicitações', status: 'checking' },
     { name: 'pastas_visa', description: 'Pastas físicas, arquivos e situação cadastral do setor administrativo', status: 'checking' },
+    { name: 'solicitacoes_potabilidade', description: 'Solicitações de laudo de potabilidade da água (Laboratório e Munícipes)', status: 'checking' },
     { name: 'tabela_cnaes', description: 'Classificação Nacional de Atividades Econômicas, UFM, RT e Documentos', status: 'checking' }
   ]);
 
@@ -80,7 +81,8 @@ export const SupabaseTab: React.FC<SupabaseTabProps> = ({ onRefreshData }) => {
               'escala': 'escala_plantao',
               'feiras': 'feirantes',
               'laboratorio': 'amostras_laboratorio',
-              'pontos_coleta': 'pontos_coleta_laboratorio'
+              'pontos_coleta': 'pontos_coleta_laboratorio',
+              'solicitacoes_potabilidade': 'processos'
             };
             if (fallbacks[table.name]) {
               const fb = await supabase.from(fallbacks[table.name]).select('*', { count: 'exact', head: true });
@@ -240,7 +242,40 @@ ALTER TABLE public.processos ADD COLUMN IF NOT EXISTS pareceres JSONB DEFAULT '[
 ALTER TABLE public.processos ADD COLUMN IF NOT EXISTS tramitacoes JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.processos ADD COLUMN IF NOT EXISTS servidores JSONB DEFAULT '[]'::jsonb;
 
--- 7. TABELA DE AMOSTRAS DO LABORATÓRIO DE ÁGUA
+-- 7. TABELA DE SOLICITAÇÕES DE LAUDOS DE POTABILIDADE DA ÁGUA (LABORATÓRIO / CONTRIBUINTE)
+CREATE TABLE IF NOT EXISTS public.solicitacoes_potabilidade (
+    id TEXT PRIMARY KEY,
+    protocolo_1doc TEXT,
+    data_solicitacao DATE,
+    cnpj_cpf TEXT NOT NULL,
+    razao_social TEXT NOT NULL,
+    nome_fantasia TEXT,
+    categoria_estabelecimento TEXT,
+    quantidade_pontos INTEGER DEFAULT 1,
+    locais_coleta JSONB,
+    outro_local_especificado TEXT,
+    declaracao_compromisso BOOLEAN DEFAULT true,
+    taxa_ufm_total NUMERIC(10, 2) DEFAULT 0.40,
+    status_solicitacao TEXT DEFAULT 'AGUARDANDO PAGAMENTO',
+    endereco TEXT,
+    numero_complemento TEXT,
+    bairro TEXT,
+    cep TEXT,
+    telefone TEXT,
+    email TEXT,
+    responsavel_contato TEXT,
+    dados_complementares JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.solicitacoes_potabilidade ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir leitura para todos solicitacoes" ON public.solicitacoes_potabilidade;
+CREATE POLICY "Permitir leitura para todos solicitacoes" ON public.solicitacoes_potabilidade FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Permitir inserção e atualização solicitacoes" ON public.solicitacoes_potabilidade;
+CREATE POLICY "Permitir inserção e atualização solicitacoes" ON public.solicitacoes_potabilidade FOR ALL USING (true);
+
+-- 8. TABELA DE AMOSTRAS DO LABORATÓRIO DE ÁGUA
 CREATE TABLE IF NOT EXISTS public.amostras_laboratorio (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     codigo_amostra TEXT UNIQUE NOT NULL,

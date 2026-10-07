@@ -13,9 +13,19 @@ import { ConfirmModal } from './ConfirmModal';
 import { CnaeSearchModal } from './CnaeSearchModal';
 import { CadastroContabilidadeModal } from './CadastroContabilidadeModal';
 import { HabiteSeSanitarioModal } from './HabiteSeSanitarioModal';
-import { SolicitacaoLaudoPotabilidadeModal } from './SolicitacaoLaudoPotabilidadeModule';
+import {
+  SolicitacaoLaudoPotabilidadeModal,
+  FichaSolicitacaoPotabilidadeModal
+} from './SolicitacaoLaudoPotabilidadeModule';
+import { RelatorioColetaAguaModal } from './RelatorioColetaAguaModal';
+import { LaudoOficialAguaModal } from './LaudoOficialAguaModal';
 import { ProcessoDetalhesParecerModal } from './ProcessoDetalhesParecerModal';
-import { getSolicitacoesPotabilidade } from '../lib/potabilidadeService';
+import {
+  getSolicitacoesPotabilidade,
+  findAmostraByProcesso,
+  findAmostraBySolicitacao,
+  getAmostrasLaboratorio
+} from '../lib/potabilidadeService';
 import {
   fetchContabilidadesFromSupabase,
   saveContabilidadeToSupabase,
@@ -202,6 +212,9 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
   const [dropdownOpen, setDropdownOpen] = useState<'topbar' | 'banner' | null>(null);
   const [modalHabiteSeOpen, setModalHabiteSeOpen] = useState(false);
   const [modalPotabilidadeOpen, setModalPotabilidadeOpen] = useState(false);
+  const [modalFicha1Doc, setModalFicha1Doc] = useState<{ open: boolean; solicitacao: any | null }>({ open: false, solicitacao: null });
+  const [modalRelatorioColeta, setModalRelatorioColeta] = useState<{ open: boolean; amostra?: any | null; solicitacao?: any | null }>({ open: false, amostra: null, solicitacao: null });
+  const [modalLaudoOficial, setModalLaudoOficial] = useState<{ open: boolean; amostra?: any | null; solicitacao?: any | null }>({ open: false, amostra: null, solicitacao: null });
   const [empresaAlvoPotabilidade, setEmpresaAlvoPotabilidade] = useState<{
     cnpj_cpf: string;
     razao_social: string;
@@ -3218,6 +3231,26 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                     const isVigente = sit.includes('DEFERIDO') || sit.includes('ALVARÁ') || sit.includes('APROVADO') || sit.includes('CONCLU');
                     const isPend = sit.includes('NOTIF') || sit.includes('PEND') || (proc.status || '').toUpperCase().includes('PEND');
 
+                    // Verificação aprofundada de Demanda de Água / Potabilidade
+                    const isWaterDemand = (
+                      proc.setor?.toUpperCase().includes('LAB') ||
+                      proc.assunto?.toUpperCase().includes('POTABILIDADE') ||
+                      proc.assunto?.toUpperCase().includes('ÁGUA') ||
+                      String(proc.id).startsWith('pot-') ||
+                      proc.observacoes?.includes('LAUDO_POTABILIDADE')
+                    );
+                    const potabilidadesList = getSolicitacoesPotabilidade();
+                    const cleanPProcDoc = (proc.cnpj_cpf || '').replace(/\D/g, '');
+                    const matchingSolItem = potabilidadesList.find(s => {
+                      const sDoc = (s.cnpj_cpf || '').replace(/\D/g, '');
+                      return (s.protocolo_1doc && (s.protocolo_1doc === proc.num_processo || s.protocolo_1doc === proc.prot_1doc)) ||
+                             (cleanPProcDoc && sDoc === cleanPProcDoc) ||
+                             (s.id === String(proc.id).replace('pot-', ''));
+                    });
+                    const matchingAmostra = findAmostraByProcesso(proc);
+                    const isLaudoEmitido = matchingSolItem?.status_solicitacao === 'LAUDO EMITIDO' || matchingAmostra?.status === 'CONFORME' || matchingAmostra?.status === 'NÃO CONFORME' || proc.status === 'DEFERIDO';
+                    const isColetado = isLaudoEmitido || matchingSolItem?.status_solicitacao === 'COLETA REALIZADA' || matchingAmostra?.status === 'COLETA REALIZADA' || proc.situacao_fiscal?.includes('COLETA REALIZADA');
+
                     return (
                       <div
                         key={proc.id}
@@ -3266,8 +3299,217 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                           </div>
                         </div>
 
-                        {/* DESTAQUE DO HABITE-SE OU DA GESTÃO CONTÁBIL VINCULADA */}
-                        {proc.setor === 'HABITE-SE SANITÁRIO' ? (
+                        {/* DESTAQUE DO LAUDO DE POTABILIDADE DA ÁGUA, HABITE-SE OU DA GESTÃO CONTÁBIL VINCULADA */}
+                        {isWaterDemand ? (
+                          <div className="p-4 rounded-xl bg-gradient-to-r from-cyan-950/70 via-slate-900 to-blue-950/70 border border-cyan-500/50 space-y-3">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center gap-2 text-cyan-200 font-bold text-xs">
+                                <Droplets className="w-4 h-4 text-cyan-400 shrink-0" />
+                                <span>Fluxo Oficial: <strong>Parecer Técnico • Laudo de Potabilidade da Água (Portaria GM/MS nº 888/2021)</strong></span>
+                              </div>
+                              <span className={`text-[10px] font-mono border px-2.5 py-0.5 rounded font-black uppercase ${
+                                isLaudoEmitido
+                                  ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
+                                  : isColetado
+                                  ? 'bg-blue-950 text-blue-300 border-blue-600'
+                                  : 'bg-amber-950 text-amber-300 border-amber-600'
+                              }`}>
+                                {isLaudoEmitido ? '✓ LAUDO EMITIDO' : isColetado ? '✓ COLETA REALIZADA' : '⏳ AGUARDANDO COLETA'}
+                              </span>
+                            </div>
+
+                            {/* Timeline das 4 Etapas Oficiais */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-cyan-900/40 text-[11px]">
+                              {/* 1. Solicitação */}
+                              <div className="p-2 rounded-lg bg-emerald-950/40 border border-emerald-700/50 flex flex-col justify-between">
+                                <div className="flex items-center gap-1.5 text-emerald-300 font-bold">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                  <span>1. Solicitação 1Doc</span>
+                                </div>
+                                <span className="text-[10px] text-emerald-400/90 font-mono mt-1">Protocolada</span>
+                              </div>
+
+                              {/* 2. Coleta em Campo */}
+                              <div className={`p-2 rounded-lg border flex flex-col justify-between ${
+                                isColetado || isLaudoEmitido
+                                  ? 'bg-emerald-950/40 border-emerald-700/50'
+                                  : 'bg-amber-950/30 border-amber-700/50'
+                              }`}>
+                                <div className={`flex items-center gap-1.5 font-bold ${
+                                  isColetado || isLaudoEmitido ? 'text-emerald-300' : 'text-amber-300'
+                                }`}>
+                                  {isColetado || isLaudoEmitido ? (
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                  ) : (
+                                    <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                  )}
+                                  <span>2. Coleta em Campo</span>
+                                </div>
+                                <span className={`text-[10px] font-mono mt-1 ${
+                                  isColetado || isLaudoEmitido ? 'text-emerald-400' : 'text-amber-400'
+                                }`}>
+                                  {isColetado || isLaudoEmitido ? 'Realizada' : 'Na Fila da VISA'}
+                                </span>
+                              </div>
+
+                              {/* 3. Análise no Lab */}
+                              <div className={`p-2 rounded-lg border flex flex-col justify-between ${
+                                isLaudoEmitido
+                                  ? 'bg-emerald-950/40 border-emerald-700/50'
+                                  : isColetado
+                                  ? 'bg-blue-950/40 border-blue-700/50'
+                                  : 'bg-slate-800/40 border-slate-700/50'
+                              }`}>
+                                <div className={`flex items-center gap-1.5 font-bold ${
+                                  isLaudoEmitido ? 'text-emerald-300' : isColetado ? 'text-blue-300' : 'text-slate-400'
+                                }`}>
+                                  {isLaudoEmitido ? (
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                  ) : isColetado ? (
+                                    <Clock className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                                  ) : (
+                                    <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                  )}
+                                  <span>3. Análise no Lab</span>
+                                </div>
+                                <span className="text-[10px] font-mono mt-1 text-slate-300">
+                                  {isLaudoEmitido ? 'Concluída' : isColetado ? 'Em Bancada' : 'Aguardando'}
+                                </span>
+                              </div>
+
+                              {/* 4. Laudo Conclusivo */}
+                              <div className={`p-2 rounded-lg border flex flex-col justify-between ${
+                                isLaudoEmitido
+                                  ? 'bg-emerald-950/40 border-emerald-700/50'
+                                  : 'bg-slate-800/40 border-slate-700/50'
+                              }`}>
+                                <div className={`flex items-center gap-1.5 font-bold ${
+                                  isLaudoEmitido ? 'text-emerald-300' : 'text-slate-400'
+                                }`}>
+                                  {isLaudoEmitido ? (
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                  ) : (
+                                    <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                  )}
+                                  <span>4. Laudo Conclusivo</span>
+                                </div>
+                                <span className={`text-[10px] font-mono mt-1 ${
+                                  isLaudoEmitido ? 'text-emerald-400' : 'text-slate-400'
+                                }`}>
+                                  {isLaudoEmitido ? 'Assinado Digital' : 'Pendente'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Botões de Acesso aos Documentos Oficiais para o Munícipe/Contribuinte */}
+                            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-cyan-900/40">
+                              <span className="text-[10px] font-black uppercase text-cyan-300 tracking-wider">
+                                Documentos Oficiais Disponíveis:
+                              </span>
+
+                              {/* 1. Ficha Oficial 1Doc */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setModalFicha1Doc({
+                                    open: true,
+                                    solicitacao: matchingSolItem || {
+                                      id: proc.id,
+                                      protocolo_1doc: proc.num_processo || proc.prot_1doc || 'S/N',
+                                      data_solicitacao: proc.data_protocolo,
+                                      cnpj_cpf: proc.cnpj_cpf,
+                                      razao_social: proc.razao_social,
+                                      nome_fantasia: proc.nome_fantasia,
+                                      categoria_estabelecimento: 'Estabelecimento Cadastrado',
+                                      quantidade_pontos: 1,
+                                      locais_coleta: ['Torneira de Água Potável / Rede Predial'],
+                                      taxa_ufm_total: 0.40,
+                                      status_solicitacao: proc.situacao_fiscal || 'EM ANÁLISE'
+                                    }
+                                  });
+                                }}
+                                className="px-3 py-1.5 bg-[#182438] hover:bg-[#20304a] text-cyan-200 border border-cyan-500/40 rounded-lg text-xs font-bold uppercase flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                                title="Visualizar e imprimir ficha oficial com protocolo 1Doc e comprovante"
+                              >
+                                <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                                <span>📄 Ficha 1Doc</span>
+                              </button>
+
+                              {/* 2. Termo de Coleta em Campo */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setModalRelatorioColeta({
+                                    open: true,
+                                    amostra: matchingAmostra,
+                                    solicitacao: matchingSolItem || {
+                                      id: proc.id,
+                                      protocolo_1doc: proc.num_processo || proc.prot_1doc,
+                                      data_solicitacao: proc.data_protocolo,
+                                      cnpj_cpf: proc.cnpj_cpf,
+                                      razao_social: proc.razao_social,
+                                      nome_fantasia: proc.nome_fantasia,
+                                      categoria_estabelecimento: 'Estabelecimento Cadastrado',
+                                      quantidade_pontos: 1,
+                                      locais_coleta: ['Torneira da Manipulação'],
+                                      taxa_ufm_total: 0.40,
+                                      status_solicitacao: 'COLETA REALIZADA',
+                                      endereco: proc.endereco,
+                                      bairro: proc.bairro
+                                    }
+                                  });
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-1.5 transition cursor-pointer shadow-xs ${
+                                  isColetado || isLaudoEmitido
+                                    ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                                    : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                                }`}
+                                title="Visualizar Termo Oficial de Coleta de Amostra de Água em Campo assinado pelo fiscal"
+                              >
+                                <ClipboardCheck className="w-3.5 h-3.5" />
+                                <span>📋 Termo de Coleta em Campo</span>
+                              </button>
+
+                              {/* 3. Laudo Oficial Conclusivo de Potabilidade */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setModalLaudoOficial({
+                                    open: true,
+                                    amostra: matchingAmostra,
+                                    solicitacao: matchingSolItem || {
+                                      id: proc.id,
+                                      protocolo_1doc: proc.num_processo || proc.prot_1doc,
+                                      data_solicitacao: proc.data_protocolo,
+                                      cnpj_cpf: proc.cnpj_cpf,
+                                      razao_social: proc.razao_social,
+                                      nome_fantasia: proc.nome_fantasia,
+                                      categoria_estabelecimento: 'Estabelecimento Cadastrado',
+                                      quantidade_pontos: 1,
+                                      locais_coleta: ['Torneira da Manipulação'],
+                                      taxa_ufm_total: 0.40,
+                                      status_solicitacao: 'LAUDO EMITIDO',
+                                      endereco: proc.endereco,
+                                      bairro: proc.bairro
+                                    }
+                                  });
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-1.5 transition cursor-pointer shadow-xs ${
+                                  isLaudoEmitido
+                                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/40'
+                                    : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                                }`}
+                                title="Visualizar e imprimir Laudo Oficial de Análise de Potabilidade assinado digitalmente pelo responsável técnico"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>🔬 Laudo Oficial de Potabilidade</span>
+                              </button>
+                            </div>
+                          </div>
+                        ) : proc.setor === 'HABITE-SE SANITÁRIO' ? (
                           <div className="p-3.5 rounded-lg bg-blue-950/40 border border-blue-700/50 space-y-2">
                             <div className="flex items-center justify-between flex-wrap gap-2">
                               <div className="flex items-center gap-2 text-blue-200 font-bold text-xs">
@@ -4537,6 +4779,29 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
             initialBairro={empresaAlvoPotabilidade?.bairro}
             initialTelefone={empresaAlvoPotabilidade?.telefone}
             initialEmail={empresaAlvoPotabilidade?.email}
+            onSaveProcesso={onSaveProcesso}
+          />
+
+          {/* 📄 Ficha Oficial de Solicitação 1Doc */}
+          <FichaSolicitacaoPotabilidadeModal
+            solicitacao={modalFicha1Doc.solicitacao}
+            onClose={() => setModalFicha1Doc({ open: false, solicitacao: null })}
+          />
+
+          {/* 📋 Termo e Relatório Oficial de Coleta de Água em Campo */}
+          <RelatorioColetaAguaModal
+            isOpen={modalRelatorioColeta.open}
+            onClose={() => setModalRelatorioColeta({ open: false, amostra: null, solicitacao: null })}
+            amostra={modalRelatorioColeta.amostra}
+            solicitacao={modalRelatorioColeta.solicitacao}
+          />
+
+          {/* 🔬 Laudo Oficial de Análise de Potabilidade */}
+          <LaudoOficialAguaModal
+            isOpen={modalLaudoOficial.open}
+            onClose={() => setModalLaudoOficial({ open: false, amostra: null, solicitacao: null })}
+            amostra={modalLaudoOficial.amostra}
+            solicitacao={modalLaudoOficial.solicitacao}
           />
     </div>
   );

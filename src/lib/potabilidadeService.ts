@@ -1,5 +1,6 @@
-import { SolicitacaoLaudoPotabilidadeItem } from '../types';
+import { SolicitacaoLaudoPotabilidadeItem, AmostraLaboratorioItem } from '../types';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { saveProcessoToSupabase } from './supabaseService';
 
 const STORAGE_KEY = 'visa_solicitacoes_potabilidade';
 const EVENT_KEY = 'visa_solicitacoes_potabilidade_updated';
@@ -31,8 +32,10 @@ CREATE TABLE IF NOT EXISTS public.solicitacoes_potabilidade (
 
 -- Políticas de Acesso Seguro (RLS)
 ALTER TABLE public.solicitacoes_potabilidade ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Permitir leitura para todos" ON public.solicitacoes_potabilidade FOR SELECT USING (true);
-CREATE POLICY IF NOT EXISTS "Permitir inserção e atualização" ON public.solicitacoes_potabilidade FOR ALL USING (true);
+DROP POLICY IF EXISTS "Permitir leitura para todos" ON public.solicitacoes_potabilidade;
+CREATE POLICY "Permitir leitura para todos" ON public.solicitacoes_potabilidade FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Permitir inserção e atualização" ON public.solicitacoes_potabilidade;
+CREATE POLICY "Permitir inserção e atualização" ON public.solicitacoes_potabilidade FOR ALL USING (true);
 `;
 
 const SEED_SOLICITACOES: SolicitacaoLaudoPotabilidadeItem[] = [
@@ -85,6 +88,99 @@ const SEED_SOLICITACOES: SolicitacaoLaudoPotabilidadeItem[] = [
   }
 ];
 
+export function mapSolicitacaoToProcesso(sol: SolicitacaoLaudoPotabilidadeItem): any {
+  const taxa = typeof sol.taxa_ufm_total === 'number' ? sol.taxa_ufm_total.toFixed(2) : '0.40';
+  const locaisStr = Array.isArray(sol.locais_coleta) ? sol.locais_coleta.join(', ') : 'Pontos de água potável';
+  return {
+    id: sol.id.startsWith('pot-') ? sol.id : `pot-${sol.id}`,
+    num_processo: sol.protocolo_1doc || `1DOC-POT-${Date.now().toString().slice(-6)}`,
+    prot_1doc: sol.protocolo_1doc || '',
+    data_protocolo: sol.data_solicitacao ? String(sol.data_solicitacao).split('T')[0] : new Date().toISOString().split('T')[0],
+    cnpj_cpf: sol.cnpj_cpf,
+    razao_social: sol.razao_social,
+    nome_fantasia: sol.nome_fantasia || sol.razao_social,
+    assunto: `SOLICITAÇÃO DE PARECER TÉCNICO - LAUDO DE POTABILIDADE DA ÁGUA (${sol.quantidade_pontos || 1} PONTOS)`,
+    bairro: sol.bairro || 'Centro',
+    endereco: sol.endereco || '',
+    numero_complemento: sol.numero_complemento || '',
+    cep: sol.cep || '88330-000',
+    fiscal_responsavel: 'Laboratório VISA',
+    status: sol.status_solicitacao === 'LAUDO EMITIDO' ? 'DEFERIDO' : 'EM ANÁLISE',
+    situacao_cadastral: `AGUARDANDO COLETA (${sol.status_solicitacao || 'AGUARDANDO PAGAMENTO'})`,
+    setor: 'LABORATÓRIO',
+    grau_risco: 'BAIXO RISCO',
+    observacoes: `[LAUDO_POTABILIDADE_VINCULO] Taxa: ${taxa} UFM | Locais: ${locaisStr} | Contato: ${sol.responsavel_contato || ''} Tel: ${sol.telefone || ''} Email: ${sol.email || ''}. ${sol.observacoes || ''}`,
+    tramitacoes: [
+      {
+        id: `tram-${Date.now()}`,
+        dataHora: new Date().toISOString(),
+        de: 'CONTRIBUINTE / PROTOCOLO',
+        para: 'LABORATÓRIO DE ÁGUA',
+        despacho: `Solicitação oficial de laudo de potabilidade protocolada. Aguardando pagamento e coleta de ${sol.quantidade_pontos || 1} ponto(s).`,
+        servidorNome: sol.razao_social
+      }
+    ]
+  };
+}
+
+export function mapProcessoToSolicitacao(proc: any): SolicitacaoLaudoPotabilidadeItem {
+  let quantidade_pontos = 1;
+  const matchPontos = proc.assunto?.match(/(\d+)\s*PONTO/i) || proc.observacoes?.match(/Pontos?:\s*(\d+)/i);
+  if (matchPontos) {
+    quantidade_pontos = parseInt(matchPontos[1], 10);
+  }
+
+  let taxa_ufm = quantidade_pontos * 0.40;
+  const matchTaxa = proc.observacoes?.match(/Taxa:\s*([\d\.]+)/i);
+  if (matchTaxa) {
+    taxa_ufm = parseFloat(matchTaxa[1]);
+  }
+
+  let locais: string[] = [];
+  const matchLocais = proc.observacoes?.match(/Locais:\s*([^|\.]+)/i);
+  if (matchLocais) {
+    locais = matchLocais[1].split(',').map((s: string) => s.trim()).filter(Boolean);
+  }
+
+  let status: any = 'AGUARDANDO PAGAMENTO';
+  if (proc.status === 'DEFERIDO') {
+    status = 'LAUDO EMITIDO';
+  } else if (proc.situacao_cadastral?.includes('PAGO')) {
+    status = 'PAGO / AGUARDANDO COLETA';
+  } else if (proc.situacao_cadastral?.includes('COLETA REALIZADA')) {
+    status = 'COLETA REALIZADA';
+  } else if (proc.situacao_cadastral?.includes('EM ANÁLISE') || proc.status === 'EM ANÁLISE') {
+    status = 'PAGO / AGUARDANDO COLETA';
+  }
+
+  const cleanId = String(proc.id).startsWith('pot-') ? String(proc.id).replace('pot-', '') : String(proc.id);
+
+  return {
+    id: cleanId,
+    protocolo_1doc: proc.prot_1doc || proc.num_processo || '',
+    data_solicitacao: proc.data_protocolo || new Date().toISOString().split('T')[0],
+    cnpj_cpf: proc.cnpj_cpf || '',
+    razao_social: proc.razao_social || '',
+    nome_fantasia: proc.nome_fantasia || proc.razao_social || '',
+    categoria_estabelecimento: 'Geral / Estabelecimento Cadastrado',
+    quantidade_pontos,
+    locais_coleta: locais.length > 0 ? locais : ['Torneira principal / Rede predial'],
+    outro_local_especificado: '',
+    declaracao_compromisso: true,
+    taxa_ufm_total: taxa_ufm,
+    status_solicitacao: status,
+    endereco: proc.endereco || '',
+    numero_complemento: proc.numero_complemento || '',
+    bairro: proc.bairro || 'Centro',
+    cep: proc.cep || '88330-000',
+    telefone: proc.telefone || '',
+    email: proc.email || '',
+    responsavel_contato: proc.fiscal_responsavel || '',
+    observacoes: proc.observacoes || '',
+    created_at: proc.created_at || new Date().toISOString()
+  };
+}
+
 function mapRowToSolicitacao(row: any): SolicitacaoLaudoPotabilidadeItem {
   return {
     id: String(row.id),
@@ -101,7 +197,9 @@ function mapRowToSolicitacao(row: any): SolicitacaoLaudoPotabilidadeItem {
     taxa_ufm_total: Number(row.taxa_ufm_total) || 0.40,
     status_solicitacao: row.status_solicitacao || 'AGUARDANDO PAGAMENTO',
     endereco: row.endereco || '',
+    numero_complemento: row.numero_complemento || '',
     bairro: row.bairro || '',
+    cep: row.cep || '',
     telefone: row.telefone || '',
     email: row.email || '',
     responsavel_contato: row.responsavel_contato || '',
@@ -125,7 +223,9 @@ function mapSolicitacaoToRow(item: SolicitacaoLaudoPotabilidadeItem): any {
     taxa_ufm_total: item.taxa_ufm_total,
     status_solicitacao: item.status_solicitacao,
     endereco: item.endereco || '',
+    numero_complemento: item.numero_complemento || '',
     bairro: item.bairro || '',
+    cep: item.cep || '',
     telefone: item.telefone || '',
     email: item.email || '',
     responsavel_contato: item.responsavel_contato || '',
@@ -140,35 +240,71 @@ function mapSolicitacaoToRow(item: SolicitacaoLaudoPotabilidadeItem): any {
 export async function fetchSolicitacoesPotabilidadeFromSupabase(): Promise<SolicitacaoLaudoPotabilidadeItem[] | null> {
   if (!isSupabaseConfigured || !supabase) return null;
   try {
-    const { data, error } = await supabase
-      .from('solicitacoes_potabilidade')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const fetchedItems: SolicitacaoLaudoPotabilidadeItem[] = [];
 
-    if (error) {
-      // Se a tabela não existir, avisa no console sem travar
-      if (error.code === '42P01' || error.message?.includes('does not exist')) {
-        console.warn('Tabela solicitacoes_potabilidade ainda não criada no Supabase.');
-      } else {
-        console.warn('Erro ao consultar solicitacoes_potabilidade no Supabase:', error.message);
+    // 1. Tenta buscar da tabela dedicada 'solicitacoes_potabilidade'
+    try {
+      const { data, error } = await supabase
+        .from('solicitacoes_potabilidade')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        data.forEach(r => fetchedItems.push(mapRowToSolicitacao(r)));
       }
-      return null;
+    } catch (e) {
+      console.warn('Busca em solicitacoes_potabilidade falhou, tentando processos:', e);
     }
 
-    if (data && data.length > 0) {
-      const items = data.map(mapRowToSolicitacao);
-      // Mescla com os itens locais para não perder nada
-      const local = getSolicitacoesPotabilidade();
-      const map = new Map<string, SolicitacaoLaudoPotabilidadeItem>();
-      items.forEach(it => map.set(it.id, it));
-      local.forEach(it => {
-        if (!map.has(it.id)) map.set(it.id, it);
-      });
-      const merged = Array.from(map.values());
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-      window.dispatchEvent(new CustomEvent(EVENT_KEY, { detail: merged }));
-      return merged;
+    // 2. Busca também na tabela 'processos' (que sempre existe no Supabase)
+    try {
+      const { data: procData, error: procErr } = await supabase
+        .from('processos')
+        .select('*')
+        .or('setor.eq.LABORATÓRIO,assunto.ilike.%POTABILIDADE%,observacoes.ilike.%LAUDO_POTABILIDADE%,id.ilike.pot-%');
+
+      if (!procErr && procData && procData.length > 0) {
+        procData.forEach(p => {
+          const item = mapProcessoToSolicitacao(p);
+          const already = fetchedItems.some(
+            f => f.id === item.id || (f.protocolo_1doc && f.protocolo_1doc === item.protocolo_1doc)
+          );
+          if (!already) {
+            fetchedItems.push(item);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Busca de processos de potabilidade falhou:', e);
     }
+
+    // 3. Mescla com os itens locais para não perder solicitações criadas offline
+    const local = getSolicitacoesPotabilidade();
+    const map = new Map<string, SolicitacaoLaudoPotabilidadeItem>();
+    fetchedItems.forEach(it => map.set(it.id, it));
+
+    const pendingLocalUpload: SolicitacaoLaudoPotabilidadeItem[] = [];
+    local.forEach(it => {
+      if (!map.has(it.id)) {
+        map.set(it.id, it);
+        pendingLocalUpload.push(it);
+      }
+    });
+
+    const merged = Array.from(map.values());
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    window.dispatchEvent(new CustomEvent(EVENT_KEY, { detail: merged }));
+
+    // Se havia itens no navegador que não estavam no Supabase, envia agora em segundo plano!
+    if (pendingLocalUpload.length > 0) {
+      setTimeout(() => {
+        pendingLocalUpload.forEach(it => {
+          saveSolicitacaoPotabilidadeToSupabase(it).catch(e => console.warn('Erro ao subir item pendente:', e));
+        });
+      }, 500);
+    }
+
+    return merged;
   } catch (err) {
     console.warn('Exceção ao buscar solicitacoes_potabilidade do Supabase:', err);
   }
@@ -177,35 +313,57 @@ export async function fetchSolicitacoesPotabilidadeFromSupabase(): Promise<Solic
 
 export async function saveSolicitacaoPotabilidadeToSupabase(item: SolicitacaoLaudoPotabilidadeItem): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) return false;
+  let okProcesso = false;
+  let okTabela = false;
+
+  // 1. Sempre salva na tabela 'processos' do Supabase (que comprovadamente existe)
+  try {
+    const procPayload = mapSolicitacaoToProcesso(item);
+    okProcesso = await saveProcessoToSupabase(procPayload);
+  } catch (err) {
+    console.warn('Supabase: Erro ao salvar processo de potabilidade:', err);
+  }
+
+  // 2. Tenta também salvar na tabela dedicada 'solicitacoes_potabilidade' (se criada)
   try {
     const payload = mapSolicitacaoToRow(item);
     const { error } = await supabase
       .from('solicitacoes_potabilidade')
       .upsert(payload, { onConflict: 'id' });
 
-    if (error) {
-      console.warn('Supabase: Erro ao salvar solicitacoes_potabilidade:', error.message);
-      return false;
+    if (!error) {
+      okTabela = true;
     }
-    return true;
   } catch (err) {
-    console.warn('Supabase: Exceção ao gravar solicitacao_potabilidade:', err);
-    return false;
+    // Silencia se tabela ainda não existir no Supabase
   }
+
+  return okProcesso || okTabela;
 }
 
 export async function updateSolicitacaoPotabilidadeStatusInSupabase(id: string, newStatus: string): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) return false;
   try {
-    const { error } = await supabase
-      .from('solicitacoes_potabilidade')
-      .update({ status_solicitacao: newStatus, updated_at: new Date().toISOString() })
-      .eq('id', id);
+    // 1. Atualiza na tabela solicitacoes_potabilidade
+    try {
+      await supabase
+        .from('solicitacoes_potabilidade')
+        .update({ status_solicitacao: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', id);
+    } catch (e) {}
 
-    if (error) {
-      console.warn('Supabase: Erro ao atualizar status:', error.message);
-      return false;
-    }
+    // 2. Atualiza na tabela processos
+    const procStatus = newStatus === 'LAUDO EMITIDO' ? 'DEFERIDO' : 'EM ANÁLISE';
+    const cleanId = id.startsWith('pot-') ? id : `pot-${id}`;
+    await supabase
+      .from('processos')
+      .update({
+        status: procStatus,
+        situacao_cadastral: `AGUARDANDO COLETA (${newStatus})`,
+        updated_at: new Date().toISOString()
+      })
+      .or(`id.eq.${cleanId},id.eq.${id}`);
+
     return true;
   } catch (err) {
     console.warn('Supabase: Exceção ao atualizar status:', err);
@@ -216,15 +374,19 @@ export async function updateSolicitacaoPotabilidadeStatusInSupabase(id: string, 
 export async function deleteSolicitacaoPotabilidadeFromSupabase(id: string): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) return false;
   try {
-    const { error } = await supabase
-      .from('solicitacoes_potabilidade')
-      .delete()
-      .eq('id', id);
+    try {
+      await supabase
+        .from('solicitacoes_potabilidade')
+        .delete()
+        .eq('id', id);
+    } catch (e) {}
 
-    if (error) {
-      console.warn('Supabase: Erro ao excluir solicitação:', error.message);
-      return false;
-    }
+    const cleanId = id.startsWith('pot-') ? id : `pot-${id}`;
+    await supabase
+      .from('processos')
+      .delete()
+      .or(`id.eq.${cleanId},id.eq.${id}`);
+
     return true;
   } catch (err) {
     console.warn('Supabase: Exceção ao excluir solicitação:', err);
@@ -331,3 +493,65 @@ export function subscribeSolicitacoesPotabilidade(callback: (items: SolicitacaoL
     window.removeEventListener('storage', handler);
   };
 }
+
+export function getAmostrasLaboratorio(): AmostraLaboratorioItem[] {
+  try {
+    const raw = localStorage.getItem('visa_laboratorio');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao ler amostras de laboratório:', err);
+  }
+  return [];
+}
+
+export function findAmostraBySolicitacao(
+  solicitacao: SolicitacaoLaudoPotabilidadeItem,
+  amostrasList?: AmostraLaboratorioItem[]
+): AmostraLaboratorioItem | null {
+  const list = amostrasList && amostrasList.length > 0 ? amostrasList : getAmostrasLaboratorio();
+  if (!list || list.length === 0) return null;
+
+  const solProt = (solicitacao.protocolo_1doc || '').trim();
+  const solDoc = (solicitacao.cnpj_cpf || '').replace(/\D/g, '');
+  const solRazao = (solicitacao.razao_social || '').trim().toLowerCase();
+
+  return list.find((a) => {
+    const aProt = (a.protocolo || '').trim();
+    const aDoc = (a.cnpj_cpf || '').replace(/\D/g, '');
+    const aInter = (a.interessado || a.estabelecimento || '').trim().toLowerCase();
+
+    if (solProt && aProt && solProt === aProt) return true;
+    if (solDoc && aDoc && solDoc === aDoc) return true;
+    if (solRazao && aInter && (solRazao.includes(aInter) || aInter.includes(solRazao))) return true;
+    return false;
+  }) || null;
+}
+
+export function findAmostraByProcesso(
+  processo: any,
+  amostrasList?: AmostraLaboratorioItem[]
+): AmostraLaboratorioItem | null {
+  const list = amostrasList && amostrasList.length > 0 ? amostrasList : getAmostrasLaboratorio();
+  if (!list || list.length === 0 || !processo) return null;
+
+  const procNum = (processo.num_processo || processo.prot_1doc || '').trim();
+  const procDoc = (processo.cnpj_cpf || '').replace(/\D/g, '');
+  const procRazao = (processo.razao_social || '').trim().toLowerCase();
+
+  return list.find((a) => {
+    const aProt = (a.protocolo || '').trim();
+    const aDoc = (a.cnpj_cpf || '').replace(/\D/g, '');
+    const aInter = (a.interessado || a.estabelecimento || '').trim().toLowerCase();
+
+    if (procNum && aProt && procNum === aProt) return true;
+    if (procDoc && aDoc && procDoc === aDoc) return true;
+    if (procRazao && aInter && (procRazao.includes(aInter) || aInter.includes(procRazao))) return true;
+    return false;
+  }) || null;
+}
+

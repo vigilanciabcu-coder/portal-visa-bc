@@ -133,25 +133,26 @@ html, body, #root {
 }
 .dark .card-title { color: #f1f5f9; }
 
-/* --- RODAPÉ E ANIMAÇÃO MARQUEE LENTA --- */
+/* --- RODAPÉ INSTITUCIONAL FIXO --- */
 .footer-bar { 
-    position: fixed; 
-    bottom: 0; 
-    left: 0; 
     width: 100%; 
-    height: 40px; 
-    background: #000; 
-    color: white; 
+    height: 36px; 
+    background: linear-gradient(90deg, #07101e 0%, #0c182a 50%, #07101e 100%); 
+    border-top: 1px solid rgba(59, 130, 246, 0.35);
+    color: #cbd5e1; 
     display: flex; 
     align-items: center; 
-    z-index: 100; 
+    justify-content: space-between;
+    z-index: 40; 
     overflow: hidden; 
+    padding: 0 12px;
+    flex-shrink: 0;
 }
 .relogio-windows { 
-    width: 115px; 
+    width: 110px; 
     height: 100%; 
-    background: #111; 
-    border-left: 1px solid #333; 
+    background: rgba(15, 23, 42, 0.9); 
+    border-left: 1px solid rgba(59, 130, 246, 0.25); 
     display: flex; 
     flex-direction: column; 
     align-items: center; 
@@ -160,22 +161,6 @@ html, body, #root {
     z-index: 110; 
     font-size: 10px;
     font-weight: bold;
-}
-
-.marquee-box { flex: 1; overflow: hidden; position: relative; display: flex; align-items: center; }
-#marquee-text { 
-    display: inline-block; 
-    white-space: nowrap; 
-    font-weight: 800; 
-    text-transform: uppercase; 
-    font-size: 12px; 
-    letter-spacing: 0.05em;
-    padding-left: 100%; 
-    animation: slide-marquee 45s linear infinite; 
-}
-@keyframes slide-marquee {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-100%); }
 }
 
 /* --- CALENDÁRIO E AGENDA --- */

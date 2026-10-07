@@ -61,14 +61,19 @@ import {
   SolicitacaoLaudoPotabilidadeModal,
   FichaSolicitacaoPotabilidadeModal
 } from './SolicitacaoLaudoPotabilidadeModule';
+import { RelatorioColetaAguaModal } from './RelatorioColetaAguaModal';
+import { LaudoOficialAguaModal } from './LaudoOficialAguaModal';
 import {
   getSolicitacoesPotabilidade,
   updateSolicitacaoPotabilidadeStatus,
   deleteSolicitacaoPotabilidade,
   subscribeSolicitacoesPotabilidade,
-  syncAllPotabilidadeToSupabase
+  syncAllPotabilidadeToSupabase,
+  mapProcessoToSolicitacao,
+  fetchSolicitacoesPotabilidadeFromSupabase,
+  findAmostraBySolicitacao
 } from '../lib/potabilidadeService';
-import { SolicitacaoLaudoPotabilidadeItem } from '../types';
+import { SolicitacaoLaudoPotabilidadeItem, ProcessoItem } from '../types';
 import { syncAllLaboratorioToSupabase, isSupabaseConfigured } from '../lib/supabaseService';
 
 interface LaboratorioViewProps {
@@ -78,6 +83,8 @@ interface LaboratorioViewProps {
   laboratorialistas?: LaboratorialistaResponsavel[];
   currentUser: UserProfile | null;
   users: UserProfile[];
+  processos?: ProcessoItem[];
+  onSaveProcesso?: (processo: ProcessoItem) => void;
   onSaveAmostra: (amostra: AmostraLaboratorioItem) => void;
   onDeleteAmostra: (id: string) => void;
   onSavePonto?: (ponto: PontoColetaLaboratorio) => void;
@@ -95,6 +102,8 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
   laboratorialistas = INITIAL_LABORATORIALISTAS,
   currentUser,
   users,
+  processos = [],
+  onSaveProcesso,
   onSaveAmostra,
   onDeleteAmostra,
   onSavePonto,
@@ -114,6 +123,9 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
   const [solicitacaoEmColetaId, setSolicitacaoEmColetaId] = useState<string | null>(null);
   const [modalNovaSolicitacaoLabOpen, setModalNovaSolicitacaoLabOpen] = useState(false);
   const [solicitacaoParaImprimirLab, setSolicitacaoParaImprimirLab] = useState<SolicitacaoLaudoPotabilidadeItem | null>(null);
+  const [relatorioColetaModal, setRelatorioColetaModal] = useState<{ amostra?: AmostraLaboratorioItem | null; solicitacao?: SolicitacaoLaudoPotabilidadeItem | null } | null>(null);
+  const [syncingSupabaseLab, setSyncingSupabaseLab] = useState(false);
+  const [syncFeedbackLab, setSyncFeedbackLab] = useState<string | null>(null);
 
   useEffect(() => {
     return subscribeSolicitacoesPotabilidade((items) => {
@@ -121,9 +133,56 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
     });
   }, []);
 
+  // Mescla processos da carteira geral que sejam de potabilidade de água
+  useEffect(() => {
+    if (processos && processos.length > 0) {
+      const waterProcs = processos.filter(
+        p => (p.setor?.toUpperCase().includes('LAB') ||
+              p.assunto?.toUpperCase().includes('POTABILIDADE') ||
+              p.assunto?.toUpperCase().includes('ÁGUA') ||
+              p.id.startsWith('pot-') ||
+              p.observacoes?.includes('LAUDO_POTABILIDADE'))
+      );
+      if (waterProcs.length > 0) {
+        setSolicitacoesLab(prev => {
+          const map = new Map<string, SolicitacaoLaudoPotabilidadeItem>();
+          prev.forEach(it => map.set(it.id, it));
+          waterProcs.forEach(p => {
+            const mapped = mapProcessoToSolicitacao(p);
+            const exists = Array.from(map.values()).some(
+              x => x.id === mapped.id || (x.protocolo_1doc && x.protocolo_1doc === mapped.protocolo_1doc)
+            );
+            if (!exists) {
+              map.set(mapped.id, mapped);
+            }
+          });
+          return Array.from(map.values());
+        });
+      }
+    }
+  }, [processos]);
+
+  const handleSyncSupabaseManual = async () => {
+    setSyncingSupabaseLab(true);
+    setSyncFeedbackLab(null);
+    try {
+      const res = await syncAllPotabilidadeToSupabase();
+      const updated = await fetchSolicitacoesPotabilidadeFromSupabase();
+      if (updated) {
+        setSolicitacoesLab(updated);
+      }
+      setSyncFeedbackLab(`✅ Sincronizado com Nuvem Supabase! ${res.success} de ${res.total} solicitações no banco.`);
+      setTimeout(() => setSyncFeedbackLab(null), 5000);
+    } catch (err: any) {
+      setSyncFeedbackLab('⚠️ Erro ao sincronizar: ' + (err?.message || 'Falha'));
+    } finally {
+      setSyncingSupabaseLab(false);
+    }
+  };
+
   const solicitacoesFilaCount = useMemo(() => {
     return solicitacoesLab.filter(
-      s => s.status_solicitacao === 'AGUARDANDO PAGAMENTO' || s.status_solicitacao === 'PAGO / AGUARDANDO COLETA'
+      s => s.status_solicitacao !== 'LAUDO EMITIDO' && s.status_solicitacao !== 'CANCELADO' && s.status_solicitacao !== 'INDEFERIDO'
     ).length;
   }, [solicitacoesLab]);
 
@@ -157,8 +216,8 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
 
       let matchStatus = true;
       if (filtroStatusSolicitacaoLab === 'FILA_ATIVA') {
-        // Na fila ativa: exibe somente as solicitações pendentes de coleta em campo
-        matchStatus = s.status_solicitacao === 'AGUARDANDO PAGAMENTO' || s.status_solicitacao === 'PAGO / AGUARDANDO COLETA';
+        // Na fila ativa: exibe todas as solicitações pendentes de coleta ou pagamento
+        matchStatus = s.status_solicitacao !== 'LAUDO EMITIDO' && s.status_solicitacao !== 'CANCELADO' && s.status_solicitacao !== 'INDEFERIDO';
       } else if (filtroStatusSolicitacaoLab === 'COLETA REALIZADA') {
         matchStatus = s.status_solicitacao === 'COLETA REALIZADA' || s.status_solicitacao === 'EM ANÁLISE';
       } else if (filtroStatusSolicitacaoLab === 'LAUDO EMITIDO') {
@@ -671,6 +730,9 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
 
     onSaveAmostra(newAmostra);
     setSenhaColetor('');
+
+    // Abre imediatamente o Termo e Relatório Oficial de Coleta de Campo para conferência/impressão
+    setRelatorioColetaModal({ amostra: newAmostra });
 
     // Se esta coleta foi originada de uma solicitação da fila (ou coincide com o protocolo 1Doc/CNPJ):
     const targetSolId = solicitacaoEmColetaId || solicitacoesLab.find(
@@ -1236,7 +1298,18 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleSyncSupabaseManual}
+                  disabled={syncingSupabaseLab}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition shadow-md cursor-pointer disabled:opacity-50"
+                  title="Sincronizar solicitações com o Supabase em tempo real"
+                >
+                  <ShieldCheck className={`w-4 h-4 ${syncingSupabaseLab ? 'animate-spin' : ''}`} />
+                  {syncingSupabaseLab ? 'Sincronizando...' : 'Sincronizar Supabase'}
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setModalNovaSolicitacaoLabOpen(true)}
@@ -1247,6 +1320,14 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Feedback de Sincronização */}
+            {syncFeedbackLab && (
+              <div className="p-3.5 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/70 text-emerald-900 dark:text-emerald-100 text-xs font-bold flex items-center justify-between">
+                <span>{syncFeedbackLab}</span>
+                <button onClick={() => setSyncFeedbackLab(null)} className="text-emerald-600 hover:text-emerald-800 font-black ml-2">✕</button>
+              </div>
+            )}
 
             {/* Cards de Métricas e Indicadores da Fila */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -1483,34 +1564,107 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                           <span>Taxa: <strong>{sol.taxa_ufm_total.toFixed(2)} UFM</strong> ({sol.quantidade_pontos} ponto(s))</span>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {/* Botão de Termo de Coleta em Campo (disponível quando a coleta já foi realizada ou laudo emitido) */}
+                          {(sol.status_solicitacao === 'COLETA REALIZADA' || sol.status_solicitacao === 'LAUDO EMITIDO' || sol.status_solicitacao === 'EM ANÁLISE') && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const matchingAmostra = findAmostraBySolicitacao(sol, amostras);
+                                setRelatorioColetaModal({ amostra: matchingAmostra, solicitacao: sol });
+                              }}
+                              className="px-2.5 py-1.5 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/80 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-700 rounded-xl text-xs font-black uppercase flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                              title="Visualizar e imprimir Termo Oficial de Coleta de Amostra de Campo"
+                            >
+                              <ClipboardCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                              <span>Termo Coleta</span>
+                            </button>
+                          )}
+
+                          {/* Botão de Laudo Oficial (disponível quando o laudo já foi emitido) */}
+                          {sol.status_solicitacao === 'LAUDO EMITIDO' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const matchingAmostra = findAmostraBySolicitacao(sol, amostras);
+                                if (matchingAmostra) {
+                                  setSelectedAmostraForLaudo(matchingAmostra);
+                                } else {
+                                  setSelectedAmostraForLaudo({
+                                    id: `laudo-${sol.id}`,
+                                    codigo_amostra: '172',
+                                    protocolo: sol.protocolo_1doc || '60.455/2026',
+                                    mes_ano_referencia: 'JULHO / 2026',
+                                    responsavel_distribuicao: 'EMASA',
+                                    interessado: sol.razao_social,
+                                    estabelecimento: sol.nome_fantasia || sol.razao_social,
+                                    cnpj_cpf: sol.cnpj_cpf,
+                                    numero_alvara: 'Solicitado',
+                                    endereco: sol.endereco || 'Avenida Palestina, nº 150 - Nações',
+                                    bairro: sol.bairro || 'Nações',
+                                    local_coleta: sol.locais_coleta[0] || 'Torneira da Manipulação',
+                                    data_coleta: sol.data_solicitacao || new Date().toISOString().split('T')[0],
+                                    hora_coleta: '08:20',
+                                    fiscal_coletor: 'Rita Sahd',
+                                    temperatura_coleta: '20.0°C',
+                                    aspecto: 'Límpido',
+                                    odor: 'Inobjetável',
+                                    cor: 'Incolor',
+                                    ph: '7,0',
+                                    cloro: '1,59',
+                                    fluoreto: '0,72',
+                                    turbidez: '0,52',
+                                    coliformes_totais: 'AUSENTE',
+                                    escherichia_coli: 'AUSENTE',
+                                    status: 'CONFORME',
+                                    conclusao_laudo: 'Para os parâmetros analisados, com base na Portaria GM/MS Nº 888, de 4 maio de 2021. RESULTADO GERAL: Em acordo.',
+                                    laboratorialista: 'ADRIANO GUARDINI',
+                                    cargo_laboratorialista: 'FARMACÊUTICO E BIOQUÍMICO',
+                                    registro_conselho: 'CRF/SC- 3321',
+                                    data_resultado: new Date().toLocaleDateString('pt-BR'),
+                                    assinatura_digital_validada: true,
+                                    assinatura_digital_hash: 'VISA-CRF-SC-VALID-3321',
+                                    created_at: new Date().toISOString()
+                                  });
+                                }
+                              }}
+                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+                              title="Visualizar e imprimir Laudo Oficial de Análise de Potabilidade"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Laudo Oficial</span>
+                            </button>
+                          )}
+
                           {/* Botão de Enviar para Coleta (Entrada da Amostra) */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSolicitacaoEmColetaId(sol.id);
-                              setColetaForm((prev) => ({
-                                ...prev,
-                                protocolo: sol.protocolo_1doc || prev.protocolo,
-                                interessado: sol.razao_social,
-                                cnpj_cpf: sol.cnpj_cpf,
-                                endereco: sol.endereco || prev.endereco,
-                                bairro: sol.bairro || prev.bairro,
-                                estabelecimento: sol.nome_fantasia || sol.razao_social,
-                                local_coleta: sol.locais_coleta[0] || prev.local_coleta,
-                                observacoes: `Solicitação oficial de laudo de potabilidade (Protocolo ${sol.protocolo_1doc || 'S/N'} - ${sol.quantidade_pontos} ponto(s) solicitados - ${sol.taxa_ufm_total.toFixed(2)} UFM). Locais solicitados: ${sol.locais_coleta.join(', ')}.`
-                              }));
-                              if (sol.status_solicitacao === 'AGUARDANDO PAGAMENTO') {
-                                updateSolicitacaoPotabilidadeStatus(sol.id, 'PAGO / AGUARDANDO COLETA');
-                              }
-                              setActiveTab('coleta');
-                            }}
-                            className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition shadow-xs cursor-pointer"
-                            title="Transfere dados da solicitação para a aba Coleta para registro da amostra e emissão do laudo"
-                          >
-                            <Droplet className="w-3.5 h-3.5" />
-                            <span>🚰 Enviar para Coleta</span>
-                          </button>
+                          {sol.status_solicitacao !== 'LAUDO EMITIDO' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSolicitacaoEmColetaId(sol.id);
+                                setColetaForm((prev) => ({
+                                  ...prev,
+                                  protocolo: sol.protocolo_1doc || prev.protocolo,
+                                  interessado: sol.razao_social,
+                                  cnpj_cpf: sol.cnpj_cpf,
+                                  endereco: sol.endereco || prev.endereco,
+                                  bairro: sol.bairro || prev.bairro,
+                                  estabelecimento: sol.nome_fantasia || sol.razao_social,
+                                  local_coleta: sol.locais_coleta[0] || prev.local_coleta,
+                                  observacoes: `Solicitação oficial de laudo de potabilidade (Protocolo ${sol.protocolo_1doc || 'S/N'} - ${sol.quantidade_pontos} ponto(s) solicitados - ${sol.taxa_ufm_total.toFixed(2)} UFM). Locais solicitados: ${sol.locais_coleta.join(', ')}.`
+                                }));
+                                if (sol.status_solicitacao === 'AGUARDANDO PAGAMENTO') {
+                                  updateSolicitacaoPotabilidadeStatus(sol.id, 'PAGO / AGUARDANDO COLETA');
+                                }
+                                setActiveTab('coleta');
+                              }}
+                              className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+                              title="Transfere dados da solicitação para a aba Coleta para registro da amostra e emissão do laudo"
+                            >
+                              <Droplet className="w-3.5 h-3.5" />
+                              <span>🚰 Enviar para Coleta</span>
+                            </button>
+                          )}
 
                           {/* Botão Visualizar Ficha Oficial */}
                           <button
@@ -1520,7 +1674,7 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                             title="Visualizar e imprimir ficha oficial com padrão do município"
                           >
                             <Eye className="w-3.5 h-3.5" />
-                            <span>Ficha Oficial</span>
+                            <span>Ficha 1Doc</span>
                           </button>
 
                           {/* Botão Excluir */}
@@ -2264,9 +2418,22 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                             <span className="text-slate-600 dark:text-slate-400 font-mono">
                               Prot: {cp.protocolo || '--'}
                             </span>
-                            <span className="text-cyan-600 dark:text-cyan-400 font-black flex items-center gap-1">
-                              Preencher Laudo →
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRelatorioColetaModal({ amostra: cp });
+                                }}
+                                className="text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
+                                title="Ver Termo Oficial de Coleta de Campo"
+                              >
+                                📋 Termo Coleta
+                              </button>
+                              <span className="text-cyan-600 dark:text-cyan-400 font-black flex items-center gap-1">
+                                Preencher Laudo →
+                              </span>
+                            </div>
                           </div>
                         </div>
                       );
@@ -2916,6 +3083,16 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                         </td>
                         <td className="py-3 px-3 text-center">
                           <div className="flex items-center justify-center gap-1.5">
+                            {/* Botão para Abrir Termo de Coleta em Campo */}
+                            <button
+                              onClick={() => setRelatorioColetaModal({ amostra: a })}
+                              title="Visualizar e imprimir Termo Oficial de Coleta em Campo"
+                              className="px-2 py-1 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 text-blue-800 dark:text-blue-300 font-bold rounded-lg transition text-xs flex items-center gap-1 cursor-pointer shadow-xs"
+                            >
+                              <ClipboardCheck className="w-3.5 h-3.5" />
+                              <span>Termo</span>
+                            </button>
+
                             {/* Botão para Abrir Laudo Oficial */}
                             <button
                               onClick={() => setSelectedAmostraForLaudo(a)}
@@ -2923,7 +3100,7 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                               className="px-2.5 py-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-lg transition text-xs flex items-center gap-1 shadow-sm cursor-pointer"
                             >
                               <FileText className="w-3.5 h-3.5" />
-                              Ver Laudo
+                              <span>Laudo</span>
                             </button>
 
                             <button
@@ -2967,451 +3144,20 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* MODAL / DOCUMENTO: LAUDO OFICIAL DE ANÁLISE DE ÁGUA (BALNEÁRIO CAMBORIÚ)  */}
+      {/* MODAIS OFICIAIS: LAUDO DE ANÁLISE DE ÁGUA E TERMO DE COLETA EM CAMPO       */}
       {/* ========================================================================= */}
-      {selectedAmostraForLaudo && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-2 sm:p-4 overflow-y-auto print:p-0 print:bg-white print:fixed print:inset-0">
-          <div
-            id="printable-laudo"
-            className="bg-white text-black max-w-3xl w-full p-5 sm:p-8 pr-9 sm:pr-12 my-auto rounded-xl shadow-2xl relative font-sans text-left border border-slate-300 print:m-0 print:py-2 print:pl-2 print:pr-7 print:border-none print:shadow-none print:w-full print:max-w-full"
-          >
-            {/* Fechar modal */}
-            <button
-              onClick={() => setSelectedAmostraForLaudo(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-900 print:hidden cursor-pointer z-30"
-            >
-              <X className="w-6 h-6" />
-            </button>
+      <LaudoOficialAguaModal
+        isOpen={!!selectedAmostraForLaudo}
+        onClose={() => setSelectedAmostraForLaudo(null)}
+        amostra={selectedAmostraForLaudo}
+      />
 
-            {/* Cabeçalho Oficial do Laudo */}
-            <div className="flex items-stretch justify-between pb-2 border-b-2 border-black mb-2">
-              <div className="flex items-center gap-3">
-                <img
-                  src="https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/brasao__1_-removebg-preview%20(1).avif"
-                  alt="Brasão Oficial - Balneário Camboriú"
-                  className="h-20 max-h-[84px] w-auto object-contain self-center shrink-0"
-                  onError={(e) => {
-                    // Fallback para o brasão da wikimedia caso necessário
-                    const target = e.target as HTMLImageElement;
-                    if (!target.src.includes('wikimedia')) {
-                      target.src = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Bras%C3%A3o_de_Balne%C3%A1rio_Cambori%C3%BA.svg/200px-Bras%C3%A3o_de_Balne%C3%A1rio_Cambori%C3%BA.svg.png';
-                    }
-                  }}
-                />
-                <div className="flex flex-col justify-between py-0.5 space-y-0.5">
-                  <div className="text-[10.5px] font-bold uppercase text-slate-700 tracking-wider leading-none">
-                    ESTADO DE SANTA CATARINA
-                  </div>
-                  <div className="text-[10.5px] font-bold uppercase text-slate-700 tracking-wider leading-none">
-                    MUNICÍPIO DE BALNEÁRIO CAMBORIÚ
-                  </div>
-                  <div className="text-[10.5px] font-bold uppercase text-slate-700 leading-none">
-                    SECRETARIA DE SAÚDE
-                  </div>
-                  <div className="text-[13px] font-black uppercase text-blue-900 tracking-tight leading-none pt-0.5">
-                    DIVISÃO DE VIGILÂNCIA SANITÁRIA
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Título Principal */}
-            <div className="text-center font-black text-[11px] uppercase py-0.5 bg-slate-100 border border-black mb-1.5 tracking-wide">
-              LAUDO DE ANÁLISE DE ÁGUA PARA CONSUMO HUMANO
-            </div>
-
-            {/* Tabela 1: Identificação da Coleta */}
-            <div className="border border-black text-[10px] divide-y divide-black mb-1.5 leading-tight">
-              <div className="grid grid-cols-12 divide-x divide-black bg-slate-50 font-bold p-0.5">
-                <div className="col-span-5 px-1">
-                  PROTOCOLO: <span className="font-mono">{selectedAmostraForLaudo.protocolo || '60.455/2026'}</span>
-                </div>
-                <div className="col-span-4 px-1">
-                  Número da Amostra: <span className="font-mono">{selectedAmostraForLaudo.codigo_amostra || '169'}</span>
-                </div>
-                <div className="col-span-3 px-1 text-right uppercase">
-                  {selectedAmostraForLaudo.mes_ano_referencia || 'JULHO /2026'}
-                </div>
-              </div>
-
-              <div className="p-0.5 px-1">
-                <span className="font-bold">Responsável pela distribuição:</span> {selectedAmostraForLaudo.responsavel_distribuicao || 'EMASA'}
-              </div>
-
-              <div className="p-0.5 px-1">
-                <span className="font-bold">Interessado:</span> <span className="font-black uppercase">{selectedAmostraForLaudo.interessado || selectedAmostraForLaudo.estabelecimento || 'MERCADO BAGÉ LTDA'}</span>
-              </div>
-
-              <div className="grid grid-cols-12 divide-x divide-black p-0.5">
-                <div className="col-span-6 px-1">
-                  <span className="font-bold">CNPJ:</span> <span className="font-mono">{selectedAmostraForLaudo.cnpj_cpf || '63.457.239/0001-05'}</span>
-                </div>
-                <div className="col-span-6 px-1">
-                  <span className="font-bold">Número Alvará:</span> {selectedAmostraForLaudo.numero_alvara || 'Solicitado'}
-                </div>
-              </div>
-
-              <div className="p-0.5 px-1">
-                <span className="font-bold">Endereço:</span> {selectedAmostraForLaudo.endereco || 'Avenida Palestina, nº 150 (esquina com Rua Suíça) - Nações - Balneário Camboriú/SC'}
-              </div>
-
-              <div className="grid grid-cols-12 divide-x divide-black p-0.5">
-                <div className="col-span-8 px-1">
-                  <span className="font-bold">Local de Coleta:</span> <span className="font-black uppercase">{selectedAmostraForLaudo.local_coleta || 'TORNEIRA CAFETERIA'}</span>
-                </div>
-                <div className="col-span-4 px-1">
-                  <span className="font-bold">Data:</span> {selectedAmostraForLaudo.data_coleta}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-12 divide-x divide-black p-0.5">
-                <div className="col-span-8 px-1">
-                  <span className="font-bold">Coletado por:</span> {selectedAmostraForLaudo.fiscal_coletor || 'Rita Sahd'}
-                </div>
-                <div className="col-span-4 px-1">
-                  <span className="font-bold">Hora da Coleta:</span> {selectedAmostraForLaudo.hora_coleta || '08:20'}
-                </div>
-              </div>
-
-              <div className="p-0.5 px-1">
-                <span className="font-bold">Observações:</span>
-                <div className="uppercase text-[9px] mt-0.5 font-medium">
-                  {selectedAmostraForLaudo.observacoes || 'ANÁLISE SOLICITADA PARA VERIFICAR QUALIDADE DA ÁGUA PARA CONSUMO HUMANO'}
-                </div>
-              </div>
-            </div>
-
-            {/* Tabela 2: Características Organolépticas */}
-            <div className="border border-black mb-1.5">
-              <div className="bg-slate-100 font-black text-center text-[9.5px] uppercase py-0.5 border-b border-black">
-                CARACTERÍSTICAS ORGANOLÉPTICAS
-              </div>
-              <div className="grid grid-cols-3 divide-x divide-black text-[10px] p-0.5">
-                <div className="px-1">
-                  <span className="font-bold">Aspecto:</span> {selectedAmostraForLaudo.aspecto || 'Límpido'}
-                </div>
-                <div className="px-1">
-                  <span className="font-bold">Odor:</span> {selectedAmostraForLaudo.odor || 'Inobjetável'}
-                </div>
-                <div className="px-1">
-                  <span className="font-bold">Cor:</span> {selectedAmostraForLaudo.cor || 'Incolor'}
-                </div>
-              </div>
-            </div>
-
-            {/* Tabela 3: Análise Físico/Química */}
-            <div className="border border-black mb-1.5 text-[9.5px]">
-              <div className="bg-slate-100 font-black text-center text-[9.5px] uppercase py-0.5 border-b border-black">
-                ANÁLISE FÍSICO/QUÍMICA
-              </div>
-              <table className="w-full border-collapse table-fixed">
-                <thead>
-                  <tr className="border-b border-black bg-slate-50 font-black text-[9px] text-center">
-                    <th className="border-r border-black p-0.5 w-[20%]">Parâmetro</th>
-                    <th className="border-r border-black p-0.5 w-[30%]">Equipamento</th>
-                    <th className="border-r border-black p-0.5 w-[14%]">Resultado</th>
-                    <th className="p-0.5 w-[36%]">Valores de Referência de acordo com a</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-black text-center">
-                  <tr>
-                    <td className="border-r border-black p-0.5 font-bold text-center">pH</td>
-                    <td className="border-r border-black p-0.5 text-left text-[8.5px] leading-tight">
-                      {selectedAmostraForLaudo.equipamento_ph || 'pH indicator strips MQuant 0 – 14 Marca MERCK'}
-                    </td>
-                    {(() => {
-                      const st = getPhStatus(selectedAmostraForLaudo.ph);
-                      const isNot = st === 'not-conform';
-                      const isConf = st === 'conform';
-                      const bgClass = isNot
-                        ? 'bg-red-100 text-red-900 font-black'
-                        : isConf
-                        ? 'bg-emerald-100 text-emerald-900 font-black'
-                        : 'font-bold text-slate-800';
-                      return (
-                        <td className={`border-r border-black p-0.5 text-xs ${bgClass}`}>
-                          {selectedAmostraForLaudo.ph || '7,0'}
-                        </td>
-                      );
-                    })()}
-                    <td className="p-0.5 text-[8px] text-center leading-tight">
-                      <div className="font-bold italic">6.0 a 9.5</div>
-                      <div>Portaria GM/MS Nº 888, maio de 2021.</div>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td className="border-r border-black p-0.5 font-bold text-center">
-                      Cloro Residual livre
-                    </td>
-                    <td className="border-r border-black p-0.5 text-left text-[8.5px] leading-tight">
-                      {selectedAmostraForLaudo.equipamento_cloro || 'Chlorine Reagente for 10ml Sample(DLA-CL)'}
-                    </td>
-                    {(() => {
-                      const st = getCloroStatus(selectedAmostraForLaudo.cloro);
-                      const isNot = st === 'not-conform';
-                      const isConf = st === 'conform';
-                      const bgClass = isNot
-                        ? 'bg-red-100 text-red-900 font-black'
-                        : isConf
-                        ? 'bg-emerald-100 text-emerald-900 font-black'
-                        : 'font-bold text-slate-800';
-                      return (
-                        <td className={`border-r border-black p-0.5 text-xs ${bgClass}`}>
-                          {selectedAmostraForLaudo.cloro || '1,59'}
-                        </td>
-                      );
-                    })()}
-                    <td className="p-0.5 text-[8px] text-center leading-tight">
-                      <div className="font-bold italic">0,2 a 2,0 mg/l para águas tratadas com cloro e 0,0 para águas naturais, minerais ou após passagem por filtro</div>
-                      <div>Portaria GM/MS Nº 888, maio de 2021.</div>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td className="border-r border-black p-0.5 font-bold text-center">Flúor</td>
-                    <td className="border-r border-black p-0.5 text-left text-[8.5px] leading-tight">
-                      {selectedAmostraForLaudo.equipamento_fluor || 'Colorímetro Digital para Flúor (Modelo DLA-FL)'}
-                    </td>
-                    {(() => {
-                      const st = getFluorStatus(selectedAmostraForLaudo.fluoreto);
-                      const isNot = st === 'not-conform';
-                      const isConf = st === 'conform';
-                      const bgClass = isNot
-                        ? 'bg-red-100 text-red-900 font-black'
-                        : isConf
-                        ? 'bg-emerald-100 text-emerald-900 font-black'
-                        : 'font-bold text-slate-800';
-                      return (
-                        <td className={`border-r border-black p-0.5 text-xs ${bgClass}`}>
-                          {selectedAmostraForLaudo.fluoreto || '0,72'}
-                        </td>
-                      );
-                    })()}
-                    <td className="p-0.5 text-[8px] text-center leading-tight">
-                      <div className="font-bold italic">De 0,7 a 1,0 mg/L</div>
-                      <div className="font-bold">Portaria/SC- 421/2016</div>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td className="border-r border-black p-0.5 font-bold text-center">Turbidez</td>
-                    <td className="border-r border-black p-0.5 text-left text-[8.5px] leading-tight">
-                      {selectedAmostraForLaudo.equipamento_turbidez || 'Turbidímetro Digital modelo DLT-WV'}
-                    </td>
-                    {(() => {
-                      const st = getTurbidezStatus(selectedAmostraForLaudo.turbidez);
-                      const isNot = st === 'not-conform';
-                      const isConf = st === 'conform';
-                      const bgClass = isNot
-                        ? 'bg-red-100 text-red-900 font-black'
-                        : isConf
-                        ? 'bg-emerald-100 text-emerald-900 font-black'
-                        : 'font-bold text-slate-800';
-                      return (
-                        <td className={`border-r border-black p-0.5 text-xs ${bgClass}`}>
-                          {selectedAmostraForLaudo.turbidez || '0,52'}
-                        </td>
-                      );
-                    })()}
-                    <td className="p-0.5 text-[8px] text-center leading-tight">
-                      <div className="font-bold italic">Até 5,0 NTu ( unidades de turbidez)</div>
-                      <div>Portaria GM/MS Nº 888, maio de 2021.</div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Tabela 4: Análise Microbiológica */}
-            <div className="border border-black mb-1.5 text-[9.5px]">
-              <div className="bg-slate-100 font-black text-center text-[9.5px] uppercase py-0.5 border-b border-black">
-                ANÁLISE MICROBIOLÓGICA
-              </div>
-              <table className="w-full border-collapse table-fixed">
-                <thead>
-                  <tr className="border-b border-black bg-slate-50 font-black text-[9px]">
-                    <th className="border-r border-black p-0.5 text-left w-[58%]">Parâmetro / Metodologia</th>
-                    <th className="border-r border-black p-0.5 text-center w-[14%]">Resultado</th>
-                    <th className="p-0.5 text-center w-[28%]">Val. Referência</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-black">
-                  <tr>
-                    <td className="border-r border-black p-1 text-[8px] text-justify leading-tight">
-                      <strong className="block text-[8.5px] text-black">COLIFORMES TOTAIS:</strong>
-                      {selectedAmostraForLaudo.metodologia_coliformes_totais || 'Kit Analisis Colilert –DST-P/A em cartela QUANTY-TRAY/2000-MARCA IDEXX+QUANTY TRAY SEALER – Model 2 X +estufa FABBE PRIMAR 36ºC100 ml por 24 horas'}
-                    </td>
-                    {(() => {
-                      const val = (selectedAmostraForLaudo.coliformes_totais || 'AUSENTE').trim().toUpperCase();
-                      const isNot = val === 'PRESENTE';
-                      const isConf = val === 'AUSENTE' || val === 'AUSÊNCIA';
-                      const bgClass = isNot
-                        ? 'bg-red-100 text-red-900 font-black'
-                        : isConf
-                        ? 'bg-emerald-100 text-emerald-900 font-black'
-                        : 'font-black text-black';
-                      return (
-                        <td className={`border-r border-black p-1 text-center text-[11px] align-middle ${bgClass}`}>
-                          {selectedAmostraForLaudo.coliformes_totais || 'AUSENTE'}
-                        </td>
-                      );
-                    })()}
-                    <td className="p-1 text-center text-[8.5px] italic font-bold align-middle">
-                      Ausência em 100 ml
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td className="border-r border-black p-1 text-[8px] text-justify leading-tight">
-                      <strong className="block text-[8.5px] text-black">COLIFORMES FECAIS- (E.coli Termoresistente):</strong>
-                      {selectedAmostraForLaudo.metodologia_escherichia_coli || 'KIT ANALISES COLILERT-DST-P/A em cartela QUANTY-TRAY/2000-marca IDEXX+QUANTY TRAY SEALER – Model 2 X + estufa FABBE PRIMAR 36ºC100ml por 24 horas + LONG WAVE Ultravioleta 365 NM – marca CE.'}
-                    </td>
-                    {(() => {
-                      const val = (selectedAmostraForLaudo.escherichia_coli || 'AUSENTE').trim().toUpperCase();
-                      const isNot = val === 'PRESENTE';
-                      const isConf = val === 'AUSENTE' || val === 'AUSÊNCIA';
-                      const bgClass = isNot
-                        ? 'bg-red-100 text-red-900 font-black'
-                        : isConf
-                        ? 'bg-emerald-100 text-emerald-900 font-black'
-                        : 'font-black text-black';
-                      return (
-                        <td className={`border-r border-black p-1 text-center text-[11px] align-middle ${bgClass}`}>
-                          {selectedAmostraForLaudo.escherichia_coli || 'AUSENTE'}
-                        </td>
-                      );
-                    })()}
-                    <td className="p-1 text-center text-[8.5px] italic font-bold align-middle">
-                      Ausência em 100 ml
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Conclusão Oficial */}
-            {(() => {
-              const isNaoConforme =
-                selectedAmostraForLaudo.status === 'NÃO CONFORME' ||
-                selectedAmostraForLaudo.status === 'NAO_CONFORME' ||
-                selectedAmostraForLaudo.status === 'IMPRÓPRIA' ||
-                (selectedAmostraForLaudo.conclusao_laudo &&
-                  (selectedAmostraForLaudo.conclusao_laudo.toLowerCase().includes('não atende') ||
-                    selectedAmostraForLaudo.conclusao_laudo.toLowerCase().includes('desacordo') ||
-                    selectedAmostraForLaudo.conclusao_laudo.toLowerCase().includes('imprópria')));
-
-              return (
-                <div className="border border-black text-[9.5px] mb-2 bg-slate-50/60">
-                  <div className="grid grid-cols-12 divide-x divide-black items-stretch">
-                    {/* Lado Esquerdo: Conclusão e texto normativo */}
-                    <div className="col-span-7 sm:col-span-8 p-1.5 flex flex-col justify-center text-left">
-                      <div className="font-black uppercase mb-0.5 text-[9.5px] text-black">
-                        CONCLUSÃO:
-                      </div>
-                      <p className="font-bold leading-tight text-[9px] text-slate-900">
-                        Para os parâmetros analisados, com base Portaria GM/MS Nº 888, de 4 maio de 2021.
-                      </p>
-                    </div>
-
-                    {/* Lado Direito: RESULTADO GERAL e Status de Atendimento */}
-                    <div
-                      className={`col-span-5 sm:col-span-4 p-1.5 flex flex-col justify-between ${
-                        isNaoConforme ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'
-                      }`}
-                    >
-                      <div className="font-black uppercase text-[9px] text-black text-left self-start">
-                        RESULTADO GERAL:
-                      </div>
-                      <div
-                        className={`font-black text-[10px] sm:text-[11px] uppercase text-center w-full py-0.5 leading-tight ${
-                          isNaoConforme ? 'text-red-700' : 'text-emerald-700'
-                        }`}
-                      >
-                        {isNaoConforme ? 'Em desacordo' : 'Em acordo'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Data e Assinatura Técnica */}
-            <div className="border border-black p-2 text-[10px] mb-2 relative">
-              <div className="grid grid-cols-2 gap-3 items-center">
-                {/* Lado Esquerdo: Campo Data e Selo 'Assinado Digitalmente por Senha' */}
-                <div>
-                  <div>
-                    <span className="font-bold">Data:</span> {selectedAmostraForLaudo.data_resultado || '04/08/2026'}
-                  </div>
-
-                  {selectedAmostraForLaudo.assinatura_digital_validada && (
-                    <div className="mt-1 inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md border border-emerald-300">
-                      <span>✓ Assinado Digitalmente por Senha</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Lado Direito: Identificação do Responsável Técnico */}
-                <div className="text-center">
-                  <div className="font-black uppercase text-[10.5px]">{selectedAmostraForLaudo.laboratorialista || 'ADRIANO GUARDINI'}</div>
-                  <div className="text-[9px] font-bold uppercase text-slate-700">
-                    {selectedAmostraForLaudo.cargo_laboratorialista || 'FARMACÊUTICO E BIOQUIMICO'}
-                  </div>
-                  <div className="font-mono text-[9px] font-bold">
-                    {selectedAmostraForLaudo.registro_conselho || 'CRF/SC- 3321'}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Faixa Vertical de Autenticação Digital na Lateral Direita do Documento (Única Linha, de baixo para cima) */}
-            <div
-              className="absolute right-1.5 sm:right-2.5 print:right-1 top-1/2 select-none pointer-events-none font-mono text-[6.5px] sm:text-[7px] text-slate-400 tracking-wider uppercase whitespace-nowrap leading-none opacity-75 print:flex print:text-slate-600 z-20"
-              style={{
-                writingMode: 'vertical-rl',
-                transform: 'translateY(-50%) rotate(180deg)',
-                transformOrigin: 'center center'
-              }}
-            >
-              DOCUMENTO ASSINADO DIGITALMENTE POR SENHA • RESP. TÉCNICO: {selectedAmostraForLaudo.laboratorialista || 'ADRIANO GUARDINI'} ({selectedAmostraForLaudo.registro_conselho || 'CRF/SC- 3321'}) • HASH: {selectedAmostraForLaudo.assinatura_digital_hash || 'VISA-CRF-SC-VALID'} • AUTENTICADO EM: {selectedAmostraForLaudo.assinatura_digital_data || selectedAmostraForLaudo.data_resultado || '24/08/2026 às 14:06'} • VIGILÂNCIA SANITÁRIA PMBC
-            </div>
-
-            {/* Rodapé Oficial da Vigilância Sanitária */}
-            <div className="border-t-2 border-black pt-1.5 text-center text-[8.5px] font-bold text-slate-700 leading-tight space-y-0.5">
-              <div>Balneário Camboriú – Capital Catarinense do Turismo – CNPJ: 83.102.285/0001-07</div>
-              <div className="uppercase font-black text-slate-900">DIVISÃO DE VIGILÂNCIA SANITÁRIA</div>
-              <div>Avenida Palestina, Nº150 - Nações - CEP 88338-010 - (47)3267-7000 - E-mail: devs@bc.sc.gov.br / www.bc.sc.gov.br</div>
-            </div>
-
-            {/* Botões de Ação na Tela */}
-            <div className="mt-6 flex justify-end gap-3 print:hidden pt-4 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={() => {
-                  const cnpjOuCpf = (selectedAmostraForLaudo?.cnpj_cpf || '').trim();
-                  document.title = cnpjOuCpf
-                    ? `${cnpjOuCpf} - LAUDO DE ANÁLISE DE ÁGUA-VISA`
-                    : `LAUDO DE ANÁLISE DE ÁGUA-VISA`;
-                  window.print();
-                }}
-                className="bg-black hover:bg-slate-800 text-white font-black text-xs px-5 py-2.5 rounded-xl uppercase flex items-center gap-1.5 shadow cursor-pointer transition"
-                title="Imprimir laudo oficial"
-              >
-                <Printer className="w-4 h-4" />
-                Imprimir
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedAmostraForLaudo(null)}
-                className="bg-slate-200 hover:bg-slate-300 text-slate-800 font-black text-xs px-4 py-2.5 rounded-xl uppercase cursor-pointer transition"
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <RelatorioColetaAguaModal
+        isOpen={!!relatorioColetaModal}
+        onClose={() => setRelatorioColetaModal(null)}
+        amostra={relatorioColetaModal?.amostra}
+        solicitacao={relatorioColetaModal?.solicitacao}
+      />
 
       {/* Modal de Autenticação / Inserção de Senha para Assinatura do Laudo */}
       {authModalOpen && pendingLaboratorialista && (

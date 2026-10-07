@@ -1180,44 +1180,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
           )}
         </div>
       </div>
-
-      {/* Rodapé Oficial da Divisão DVIS (Barra Total em Tom Azul Institucional, máx 3 linhas, fina e elegante) */}
-      <footer className="w-full pt-2.5 pb-2.5 px-4 sm:px-6 bg-gradient-to-r from-blue-950 via-[#0d1b2e] to-slate-900 rounded-2xl border border-blue-600/40 shadow-lg text-slate-200">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-1.5 border-b border-blue-800/40 pb-1.5 text-center sm:text-left">
-          <div className="flex items-center gap-2 font-black uppercase text-blue-300 tracking-wider text-[11px]">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
-            <span className="text-white">Divisão de Vigilância Sanitária e Ambiental (DVIS)</span>
-            <span className="text-blue-600 hidden md:inline">•</span>
-            <span className="text-blue-300 font-bold hidden md:inline">Secretaria Municipal de Saúde</span>
-          </div>
-          <div className="text-[10px] text-blue-300/80 font-medium">
-            Prefeitura Municipal de Balneário Camboriú / SC
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 text-[11px] text-center sm:text-left">
-          <div className="flex items-center justify-center sm:justify-start gap-1.5 text-slate-300">
-            <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-            <span><strong className="text-white">Presencial:</strong> Av. Palestina, Nº 150 - Nações (88338-010)</span>
-          </div>
-          <div className="flex items-center justify-center gap-1.5 text-slate-300">
-            <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span><strong className="text-white">Atendimento:</strong> Seg a Sex, 07:00 às 19:00</span>
-          </div>
-          <div className="flex items-center justify-center sm:justify-end gap-3 text-slate-300">
-            <span className="flex items-center gap-1">
-              <Phone className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> (47) 3267-7000
-            </span>
-            <span className="text-blue-700">|</span>
-            <a
-              href="mailto:devs@bc.sc.gov.br"
-              className="flex items-center gap-1 text-cyan-300 hover:text-cyan-200 font-bold hover:underline"
-            >
-              <Mail className="w-3.5 h-3.5 text-cyan-400 shrink-0" /> devs@bc.sc.gov.br
-            </a>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };

@@ -28,7 +28,10 @@ import {
   getSolicitacoesPotabilidade,
   saveSolicitacaoPotabilidade,
   deleteSolicitacaoPotabilidade,
-  subscribeSolicitacoesPotabilidade
+  subscribeSolicitacoesPotabilidade,
+  mapSolicitacaoToProcesso,
+  syncAllPotabilidadeToSupabase,
+  fetchSolicitacoesPotabilidadeFromSupabase
 } from '../lib/potabilidadeService';
 
 export interface SolicitacaoLaudoPotabilidadeModuleProps {
@@ -42,6 +45,7 @@ export interface SolicitacaoLaudoPotabilidadeModuleProps {
   initialEmail?: string;
   initialContato?: string;
   onEnviarParaColeta?: (solicitacao: SolicitacaoLaudoPotabilidadeItem) => void;
+  onSaveProcesso?: (processo: any) => void;
   onClose?: () => void;
   isModal?: boolean;
 }
@@ -94,17 +98,35 @@ export const SolicitacaoLaudoPotabilidadeModule: React.FC<SolicitacaoLaudoPotabi
   initialEmail,
   initialContato,
   onEnviarParaColeta,
+  onSaveProcesso,
   onClose,
   isModal
 }) => {
   // Lista persistida de solicitações
   const [solicitacoes, setSolicitacoes] = useState<SolicitacaoLaudoPotabilidadeItem[]>(() => getSolicitacoesPotabilidade());
+  const [syncingCloud, setSyncingCloud] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   useEffect(() => {
     return subscribeSolicitacoesPotabilidade((items) => {
       setSolicitacoes(items);
     });
   }, []);
+
+  const handleSincronizarSupabase = async () => {
+    setSyncingCloud(true);
+    setSyncMsg(null);
+    try {
+      const res = await syncAllPotabilidadeToSupabase();
+      await fetchSolicitacoesPotabilidadeFromSupabase();
+      setSyncMsg(`✅ Sincronizado com Sucesso! ${res.success} solicitação(ões) gravadas na nuvem Supabase.`);
+      setTimeout(() => setSyncMsg(null), 6000);
+    } catch (err: any) {
+      setSyncMsg('⚠️ Erro ao sincronizar: ' + (err?.message || 'Falha de conexão'));
+    } finally {
+      setSyncingCloud(false);
+    }
+  };
 
   // Aba ativa: 'formulario' ou 'historico'
   const [subAba, setSubAba] = useState<'formulario' | 'historico'>('formulario');
@@ -268,6 +290,15 @@ export const SolicitacaoLaudoPotabilidadeModule: React.FC<SolicitacaoLaudoPotabi
 
     saveSolicitacaoPotabilidade(novaSolicitacao);
 
+    if (onSaveProcesso) {
+      try {
+        const processoEquivalente = mapSolicitacaoToProcesso(novaSolicitacao);
+        onSaveProcesso(processoEquivalente);
+      } catch (err) {
+        console.warn('Erro ao repassar processo de potabilidade:', err);
+      }
+    }
+
     setFeedbackMsg({
       tipo: 'sucesso',
       texto: `✅ Solicitação protocolada com sucesso! Protocolo 1Doc: ${novaSolicitacao.protocolo_1doc} • Taxa: ${novaSolicitacao.taxa_ufm_total.toFixed(2)} UFM (${novaSolicitacao.quantidade_pontos} ponto(s)).`
@@ -368,8 +399,27 @@ export const SolicitacaoLaudoPotabilidadeModule: React.FC<SolicitacaoLaudoPotabi
             <FileText className="w-4 h-4" />
             Solicitações Realizadas ({solicitacoes.length})
           </button>
+
+          <button
+            type="button"
+            onClick={handleSincronizarSupabase}
+            disabled={syncingCloud}
+            className="px-3 py-2 rounded-xl text-xs font-black uppercase transition cursor-pointer flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md disabled:opacity-50"
+            title="Sincronizar com a Nuvem Supabase"
+          >
+            <ShieldCheck className={`w-4 h-4 ${syncingCloud ? 'animate-spin' : ''}`} />
+            {syncingCloud ? 'Sincronizando...' : 'Sincronizar Nuvem'}
+          </button>
         </div>
       </div>
+
+      {/* Alerta de Sincronização Supabase */}
+      {syncMsg && (
+        <div className="p-3.5 rounded-xl border border-cyan-300 dark:border-cyan-800 bg-cyan-50 dark:bg-cyan-950/70 text-cyan-900 dark:text-cyan-100 text-xs font-bold flex items-center justify-between">
+          <span>{syncMsg}</span>
+          <button onClick={() => setSyncMsg(null)} className="text-cyan-600 hover:text-cyan-800 font-black ml-2">✕</button>
+        </div>
+      )}
 
       {/* Alerta de Feedback */}
       {feedbackMsg && (

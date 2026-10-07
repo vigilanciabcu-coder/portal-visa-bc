@@ -24,10 +24,25 @@ import {
   Layers,
   FileCheck2,
   Check,
-  KeyRound
+  KeyRound,
+  Droplet,
+  Droplets,
+  ClipboardCheck
 } from 'lucide-react';
 import { INITIAL_CONTABILIDADES } from '../data/mockData';
 import { fetchContabilidadesFromSupabase, isSupabaseConfigured } from '../lib/supabaseService';
+import {
+  SolicitacaoLaudoPotabilidadeModal,
+  FichaSolicitacaoPotabilidadeModal
+} from './SolicitacaoLaudoPotabilidadeModule';
+import { RelatorioColetaAguaModal } from './RelatorioColetaAguaModal';
+import { LaudoOficialAguaModal } from './LaudoOficialAguaModal';
+import {
+  getSolicitacoesPotabilidade,
+  findAmostraByProcesso,
+  findAmostraBySolicitacao
+} from '../lib/potabilidadeService';
+import { SolicitacaoLaudoPotabilidadeItem } from '../types';
 
 interface CidadaoViewProps {
   processos?: ProcessoItem[];
@@ -52,6 +67,10 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
 }) => {
   const [busca, setBusca] = useState('');
   const [resultadoSelecionado, setResultadoSelecionado] = useState<ProcessoItem | null>(null);
+  const [modalPotabilidadeOpen, setModalPotabilidadeOpen] = useState(false);
+  const [modalFicha1Doc, setModalFicha1Doc] = useState<{ open: boolean; solicitacao: any | null }>({ open: false, solicitacao: null });
+  const [modalRelatorioColeta, setModalRelatorioColeta] = useState<{ open: boolean; amostra?: any | null; solicitacao?: any | null }>({ open: false, amostra: null, solicitacao: null });
+  const [modalLaudoOficial, setModalLaudoOficial] = useState<{ open: boolean; amostra?: any | null; solicitacao?: any | null }>({ open: false, amostra: null, solicitacao: null });
   const [contabilidades, setContabilidades] = useState<ContabilidadeProfile[]>(() => {
     const saved = localStorage.getItem('visa_contabilidades_lab');
     return saved ? JSON.parse(saved) : INITIAL_CONTABILIDADES;
@@ -562,6 +581,130 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
               </div>
             </div>
 
+            {/* Seção de Laudo de Potabilidade da Água para o Munícipe */}
+            {(() => {
+              const potList = getSolicitacoesPotabilidade();
+              const cleanC = cleanDoc(resultadoSelecionado.cnpj_cpf);
+              const matchingPot = potList.filter(s => cleanDoc(s.cnpj_cpf) === cleanC);
+              const matchingAmostra = findAmostraByProcesso(resultadoSelecionado);
+
+              if (matchingPot.length === 0 && !matchingAmostra) {
+                return (
+                  <div className="p-3.5 rounded-2xl bg-cyan-50/60 dark:bg-cyan-950/30 border border-cyan-200 dark:border-cyan-800/60 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2.5 text-cyan-900 dark:text-cyan-200">
+                      <Droplet className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0" />
+                      <span>
+                        Necessita de <strong>Laudo Oficial de Potabilidade da Água</strong> para seu estabelecimento?
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setModalPotabilidadeOpen(true)}
+                      className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-lg uppercase text-[11px] flex items-center gap-1 cursor-pointer transition shadow-xs shrink-0"
+                    >
+                      <Droplet className="w-3.5 h-3.5" /> Solicitar Laudo
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-950/80 via-slate-900 to-blue-950/80 border border-cyan-500/50 space-y-3 text-white">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2 text-cyan-200 font-bold text-xs">
+                      <Droplets className="w-4 h-4 text-cyan-400 shrink-0" />
+                      <span className="uppercase tracking-wider">
+                        Laudos de Análise de Potabilidade da Água • Laboratório VISA BC
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setModalPotabilidadeOpen(true)}
+                      className="px-2.5 py-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-lg uppercase text-[10px] flex items-center gap-1 cursor-pointer transition"
+                    >
+                      + Nova Solicitação
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {matchingPot.map(sol => {
+                      const isLaudo = sol.status_solicitacao === 'LAUDO EMITIDO' || matchingAmostra?.status === 'CONFORME' || matchingAmostra?.status === 'NÃO CONFORME';
+                      const isCol = isLaudo || sol.status_solicitacao === 'COLETA REALIZADA' || matchingAmostra?.status === 'COLETA REALIZADA';
+
+                      return (
+                        <div key={sol.id} className="p-3 rounded-xl bg-black/40 border border-cyan-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono font-black text-cyan-300 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-800">
+                                Prot. {sol.protocolo_1doc || 'S/N'}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded font-black text-[10px] uppercase border ${
+                                isLaudo
+                                  ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
+                                  : isCol
+                                  ? 'bg-blue-950 text-blue-300 border-blue-600'
+                                  : 'bg-amber-950 text-amber-300 border-amber-600'
+                              }`}>
+                                {sol.status_solicitacao}
+                              </span>
+                              <span className="text-slate-400 text-[11px]">
+                                {sol.quantidade_pontos} ponto(s) • Taxa: {sol.taxa_ufm_total.toFixed(2)} UFM
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-300 mt-1">
+                              Locais: {sol.locais_coleta.join(', ')} • Solicitado em: {new Date(sol.data_solicitacao).toLocaleDateString('pt-BR')}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => setModalFicha1Doc({ open: true, solicitacao: sol })}
+                              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded-lg text-xs font-bold uppercase flex items-center gap-1 cursor-pointer"
+                            >
+                              <FileText className="w-3.5 h-3.5" /> Ficha 1Doc
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setModalRelatorioColeta({
+                                open: true,
+                                amostra: matchingAmostra,
+                                solicitacao: sol
+                              })}
+                              className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-1 cursor-pointer ${
+                                isCol
+                                  ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                                  : 'bg-slate-800 text-slate-400 border border-slate-700'
+                              }`}
+                            >
+                              <ClipboardCheck className="w-3.5 h-3.5" /> Termo Coleta
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setModalLaudoOficial({
+                                open: true,
+                                amostra: matchingAmostra,
+                                solicitacao: sol
+                              })}
+                              className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-1 cursor-pointer ${
+                                isLaudo
+                                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                                  : 'bg-slate-800 text-slate-400 border border-slate-700'
+                              }`}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Laudo Oficial
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Aviso de Autenticidade */}
             <div className="p-3 bg-blue-100/60 dark:bg-blue-950/50 rounded-xl border border-blue-200 dark:border-blue-800 flex items-center justify-between gap-3 text-xs text-blue-900 dark:text-blue-200">
               <div className="flex items-center gap-2">
@@ -643,45 +786,56 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
             Portal oficial da Prefeitura Municipal de Balneário Camboriú, notícias, secretarias e serviços.
           </p>
         </div>
+
+        <div
+          onClick={() => setModalPotabilidadeOpen(true)}
+          className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-cyan-500 hover:shadow-lg transition cursor-pointer group space-y-2 text-left"
+        >
+          <div className="w-10 h-10 rounded-xl bg-cyan-100 dark:bg-cyan-950/80 text-cyan-600 dark:text-cyan-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Droplet className="w-5 h-5" />
+          </div>
+          <h3 className="text-sm font-black uppercase text-slate-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400">
+            Laudo de Potabilidade de Água
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Solicite análise bacteriológica e físico-química de poços, reservatórios e rede predial com laudo da VISA.
+          </p>
+        </div>
       </div>
 
-      {/* Rodapé Oficial da Divisão DVIS (Barra Total em Tom Azul Institucional, máx 3 linhas, fina e elegante) */}
-      <footer className="w-full pt-2.5 pb-2.5 px-4 sm:px-6 bg-gradient-to-r from-blue-950 via-[#0d1b2e] to-slate-900 rounded-2xl border border-blue-600/40 shadow-lg text-slate-200">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-1.5 border-b border-blue-800/40 pb-1.5 text-center sm:text-left">
-          <div className="flex items-center gap-2 font-black uppercase text-blue-300 tracking-wider text-[11px]">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
-            <span className="text-white">Divisão de Vigilância Sanitária e Ambiental (DVIS)</span>
-            <span className="text-blue-600 hidden md:inline">•</span>
-            <span className="text-blue-300 font-bold hidden md:inline">Secretaria Municipal de Saúde</span>
-          </div>
-          <div className="text-[10px] text-blue-300/80 font-medium">
-            Prefeitura Municipal de Balneário Camboriú / SC
-          </div>
-        </div>
+      {/* 💧 Modal Oficial de Solicitação de Laudo de Potabilidade */}
+      <SolicitacaoLaudoPotabilidadeModal
+        isOpen={modalPotabilidadeOpen}
+        onClose={() => setModalPotabilidadeOpen(false)}
+        currentUser={currentUser}
+        initialCnpj={resultadoSelecionado?.cnpj_cpf || (currentUser?.cpf || '')}
+        initialRazao={resultadoSelecionado?.razao_social || currentUser?.nome_completo || ''}
+        initialNomeFantasia={resultadoSelecionado?.nome_fantasia}
+        initialEndereco={resultadoSelecionado?.endereco}
+        initialBairro={resultadoSelecionado?.bairro}
+      />
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 text-[11px] text-center sm:text-left">
-          <div className="flex items-center justify-center sm:justify-start gap-1.5 text-slate-300">
-            <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-            <span><strong className="text-white">Presencial:</strong> Av. Palestina, Nº 150 - Nações (88338-010)</span>
-          </div>
-          <div className="flex items-center justify-center gap-1.5 text-slate-300">
-            <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span><strong className="text-white">Atendimento:</strong> Seg a Sex, 07:00 às 19:00</span>
-          </div>
-          <div className="flex items-center justify-center sm:justify-end gap-3 text-slate-300">
-            <span className="flex items-center gap-1">
-              <Phone className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> (47) 3267-7000
-            </span>
-            <span className="text-blue-700">|</span>
-            <a
-              href="mailto:devs@bc.sc.gov.br"
-              className="flex items-center gap-1 text-cyan-300 hover:text-cyan-200 font-bold hover:underline"
-            >
-              <Mail className="w-3.5 h-3.5 text-cyan-400 shrink-0" /> devs@bc.sc.gov.br
-            </a>
-          </div>
-        </div>
-      </footer>
+      {/* 📄 Ficha Oficial de Solicitação 1Doc */}
+      <FichaSolicitacaoPotabilidadeModal
+        solicitacao={modalFicha1Doc.solicitacao}
+        onClose={() => setModalFicha1Doc({ open: false, solicitacao: null })}
+      />
+
+      {/* 📋 Termo e Relatório Oficial de Coleta de Campo */}
+      <RelatorioColetaAguaModal
+        isOpen={modalRelatorioColeta.open}
+        onClose={() => setModalRelatorioColeta({ open: false, amostra: null, solicitacao: null })}
+        amostra={modalRelatorioColeta.amostra}
+        solicitacao={modalRelatorioColeta.solicitacao}
+      />
+
+      {/* 🔬 Laudo Oficial de Análise de Potabilidade */}
+      <LaudoOficialAguaModal
+        isOpen={modalLaudoOficial.open}
+        onClose={() => setModalLaudoOficial({ open: false, amostra: null, solicitacao: null })}
+        amostra={modalLaudoOficial.amostra}
+        solicitacao={modalLaudoOficial.solicitacao}
+      />
     </div>
   );
 };
