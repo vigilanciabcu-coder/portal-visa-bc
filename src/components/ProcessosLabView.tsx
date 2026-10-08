@@ -129,6 +129,7 @@ interface ProcessosLabViewProps {
   users: UserProfile[];
   onSaveProcesso: (item: ProcessoItem) => void;
   onDeleteProcesso?: (id: string) => void;
+  onOpenExternal?: (url: string) => void;
 }
 
 export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
@@ -136,7 +137,8 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
   currentUser,
   users,
   onSaveProcesso,
-  onDeleteProcesso
+  onDeleteProcesso,
+  onOpenExternal
 }) => {
   // Navigation Tabs: 'cadastro' | 'denuncias' | 'historico' | 'dashboard'
   const [currentTab, setCurrentTab] = useState<'cadastro' | 'denuncias' | 'historico' | 'dashboard'>('cadastro');
@@ -153,26 +155,34 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
 
   // ================= ESTADOS DO MÓDULO DE CONTABILIDADES (LAB) =================
   const [abaAtivaLab, setAbaAtivaLab] = useState<'painel_contabilidade' | 'painel_contribuinte' | 'visa_processos'>(() => {
-    return currentUser?.tipo_usuario === 'CONTRIBUINTE' ? 'painel_contribuinte' : 'painel_contabilidade';
+    if (currentUser?.tipo_usuario === 'CONTRIBUINTE' || currentUser?.tipo_usuario === 'CIDADAO') {
+      return 'painel_contribuinte';
+    }
+    if (currentUser?.tipo_usuario === 'CONTABILIDADE') return 'painel_contabilidade';
+    if (currentUser?.tipo_usuario === 'SERVIDOR' || isMaster) return 'painel_contabilidade';
+    return 'painel_contribuinte';
   });
   
   // CNPJ / CPF pesquisado pelo contribuinte
   const [buscaCnpjContribuinte, setBuscaCnpjContribuinte] = useState(() => {
     if (currentUser?.cpf) return currentUser.cpf;
+    if (currentUser?.tipo_usuario === 'CONTRIBUINTE' || currentUser?.tipo_usuario === 'CIDADAO') {
+      return '';
+    }
     if (processos && processos.length > 0) return processos[0].cnpj_cpf;
-    return '83.102.285/0001-07';
+    return '';
   });
   const [contribuinteProcessoSelecionado, setContribuinteProcessoSelecionado] = useState<ProcessoItem | null>(null);
 
   useEffect(() => {
-    if (isContribuinte && currentUser?.cpf) {
+    if ((isContribuinte || currentUser?.tipo_usuario === 'CIDADAO') && currentUser?.cpf) {
       setBuscaCnpjContribuinte(currentUser.cpf);
     } else if (!podeBuscarOutrosCnpjs && currentUser?.cpf) {
       setBuscaCnpjContribuinte(currentUser.cpf);
-    } else if (!buscaCnpjContribuinte && processos.length > 0) {
+    } else if (!buscaCnpjContribuinte && podeBuscarOutrosCnpjs && processos.length > 0) {
       setBuscaCnpjContribuinte(processos[0].cnpj_cpf);
     }
-  }, [isContribuinte, podeBuscarOutrosCnpjs, currentUser?.cpf, processos, buscaCnpjContribuinte]);
+  }, [isContribuinte, podeBuscarOutrosCnpjs, currentUser, processos, buscaCnpjContribuinte]);
 
   // Contabilidades Cadastradas (com persistência local no Lab)
   const [contabilidades, setContabilidades] = useState<ContabilidadeProfile[]>(() => {
@@ -233,6 +243,10 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
     cnpj: string;
     razao: string;
   } | null>(null);
+
+  // Modal para Contribuinte vincular seu próprio CNPJ a um escritório de contabilidade
+  const [modalVincularContadorOpen, setModalVincularContadorOpen] = useState(false);
+  const [contadorIdSelecionado, setContadorIdSelecionado] = useState('');
 
   const [solicitacaoObs, setSolicitacaoObs] = useState('');
   const [solicitacaoArquivoNome, setSolicitacaoArquivoNome] = useState('');
@@ -1022,6 +1036,47 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
     }) || null;
   };
 
+  // Vinculação de escritório contábil pelo próprio contribuinte
+  const handleVincularContadorAoCnpj = (contabId: string, cnpjAlvo: string) => {
+    if (!cnpjAlvo || !contabId) return;
+    const cleanTarget = cleanDoc(cnpjAlvo);
+    setContabilidades(prev => {
+      const updated = prev.map(c => {
+        // Remove de outros para evitar duplicidade de contabilidade ativa
+        const cleanedList = (c.cnpjs_vinculados || []).filter(v => cleanDoc(v) !== cleanTarget);
+        if (c.id === contabId) {
+          cleanedList.push(cnpjAlvo);
+        }
+        return { ...c, cnpjs_vinculados: cleanedList };
+      });
+      try {
+        localStorage.setItem('visa_contabilidades_lab', JSON.stringify(updated));
+      } catch (err) {
+        console.error(err);
+      }
+      return updated;
+    });
+    setModalVincularContadorOpen(false);
+  };
+
+  // Desvinculação de contador (retorna para gestão direta pelo contribuinte)
+  const handleDesvincularContadorDoCnpj = (cnpjAlvo: string) => {
+    if (!cnpjAlvo) return;
+    const cleanTarget = cleanDoc(cnpjAlvo);
+    setContabilidades(prev => {
+      const updated = prev.map(c => ({
+        ...c,
+        cnpjs_vinculados: (c.cnpjs_vinculados || []).filter(v => cleanDoc(v) !== cleanTarget)
+      }));
+      try {
+        localStorage.setItem('visa_contabilidades_lab', JSON.stringify(updated));
+      } catch (err) {
+        console.error(err);
+      }
+      return updated;
+    });
+  };
+
   // Identifica o escritório contábil específico do usuário logado (se for CONTABILIDADE)
   const contabilidadeDoUsuario = useMemo(() => {
     if (currentUser?.tipo_usuario !== 'CONTABILIDADE') return null;
@@ -1081,7 +1136,10 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
     if (currentUser?.tipo_usuario === 'CONTABILIDADE' && contabilidadeDoUsuario) {
       return contabilidadeDoUsuario;
     }
-    return contabilidades.find(c => c.id === selectedContabilidadeId) || contabilidades[0];
+    if (currentUser?.tipo_usuario === 'CONTRIBUINTE' || currentUser?.tipo_usuario === 'CIDADAO') {
+      return null;
+    }
+    return contabilidades.find(c => c.id === selectedContabilidadeId) || contabilidades[0] || null;
   }, [currentUser, contabilidadeDoUsuario, contabilidades, selectedContabilidadeId]);
 
   // Desvincular CNPJ da carteira do escritório contábil
@@ -1172,15 +1230,21 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
     const qText = (buscaCnpjContribuinte || '').trim().toLowerCase();
     if (!q && !qText) return [];
 
+    // Se o usuário logado for Contribuinte ou Cidadão, ou se for digitado um documento de 11+ dígitos, a busca DEVE ser por documento exato
+    const exactDocMatchOnly = isContribuinte || currentUser?.tipo_usuario === 'CIDADAO' || q.length >= 11;
+
     // 1. Processos de alvará, sanitários e habite-se
     const matches: ProcessoItem[] = processos.filter(p => {
       const pDoc = cleanDoc(p.cnpj_cpf);
+      if (exactDocMatchOnly) {
+        return pDoc === q;
+      }
       const pRazao = (p.razao_social || '').toLowerCase();
       const pFantasia = (p.nome_fantasia || '').toLowerCase();
       const pProc = (p.num_processo || '').toLowerCase();
 
-      return (q.length >= 4 && pDoc.includes(q)) || 
-             (qText.length >= 3 && (pRazao.includes(qText) || pFantasia.includes(qText) || pProc.includes(qText)));
+      return (q.length >= 8 && pDoc.includes(q)) || 
+             (qText.length >= 4 && (pRazao.includes(qText) || pFantasia.includes(qText) || pProc.includes(qText)));
     });
 
     // 2. Solicitações de laudo de potabilidade de água da empresa
@@ -1189,12 +1253,17 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
       if (Array.isArray(potabilidades)) {
         potabilidades.forEach(pot => {
           const potDoc = cleanDoc(pot.cnpj_cpf);
-          const potRazao = (pot.razao_social || '').toLowerCase();
-          const potFantasia = (pot.nome_fantasia || '').toLowerCase();
-          const potProt = (pot.protocolo_1doc || '').toLowerCase();
+          let matchPot = false;
+          if (exactDocMatchOnly) {
+            matchPot = potDoc === q;
+          } else {
+            const potRazao = (pot.razao_social || '').toLowerCase();
+            const potFantasia = (pot.nome_fantasia || '').toLowerCase();
+            const potProt = (pot.protocolo_1doc || '').toLowerCase();
 
-          const matchPot = (q.length >= 4 && potDoc.includes(q)) ||
-                           (qText.length >= 3 && (potRazao.includes(qText) || potFantasia.includes(qText) || potProt.includes(qText)));
+            matchPot = (q.length >= 8 && potDoc.includes(q)) ||
+                       (qText.length >= 4 && (potRazao.includes(qText) || potFantasia.includes(qText) || potProt.includes(qText)));
+          }
 
           if (matchPot) {
             const jaExiste = matches.some(m => m.num_processo === pot.protocolo_1doc);
@@ -1226,76 +1295,13 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
       console.warn('Erro ao carregar demandas de potabilidade:', e);
     }
 
-    if (matches.length === 0 && (q.length >= 8 || qText.length >= 3)) {
-      const savedContribs = (() => {
-        try {
-          const raw = localStorage.getItem('visa_contribuintes');
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-          }
-        } catch {
-          // ignore
-        }
-        return INITIAL_CONTRIBUINTES;
-      })();
-
-      const matchedContrib = savedContribs.find((c: any) => {
-        const cDoc = cleanDoc(c.cnpj_cpf);
-        const cRazao = (c.razao_social || '').toLowerCase();
-        return (q.length >= 8 && cDoc.includes(q)) || (qText.length >= 3 && cRazao.includes(qText));
-      });
-
-      if (matchedContrib) {
-        matches.push({
-          id: matchedContrib.id || 'contrib-' + matchedContrib.cnpj_cpf,
-          num_processo: 'Aguardando 1Doc',
-          data_protocolo: matchedContrib.data_cadastro ? String(matchedContrib.data_cadastro).split('T')[0] : new Date().toISOString().split('T')[0],
-          cnpj_cpf: matchedContrib.cnpj_cpf,
-          razao_social: matchedContrib.razao_social,
-          nome_fantasia: matchedContrib.nome_fantasia || '',
-          assunto: 'ALVARÁ SANITÁRIO',
-          bairro: matchedContrib.bairro || 'Balneário Camboriú',
-          endereco: matchedContrib.endereco || '',
-          status: 'EM ANÁLISE' as ProcessoStatus,
-          situacao_cadastral: 'EMPRESA REGISTRADA • AGUARDANDO PROTOCOLO OU VISTORIA',
-          grau_risco: 'BAIXO RISCO' as const,
-          fiscal_responsavel: 'A Definir'
-        });
-      } else if (contabilidadeAtiva?.cnpjs_vinculados?.length) {
-        const matchCarteiraCnpj = contabilidadeAtiva.cnpjs_vinculados.find(v => {
-          const cv = cleanDoc(v);
-          return (q.length >= 4 && cv.includes(q));
-        });
-
-        if (matchCarteiraCnpj) {
-          const contribInfo = savedContribs.find((c: any) => cleanDoc(c.cnpj_cpf) === cleanDoc(matchCarteiraCnpj));
-          matches.push({
-            id: 'carteira-temp-' + cleanDoc(matchCarteiraCnpj),
-            num_processo: 'Aguardando 1Doc',
-            data_protocolo: contabilidadeAtiva.data_cadastro || new Date().toISOString().split('T')[0],
-            cnpj_cpf: matchCarteiraCnpj,
-            razao_social: contribInfo?.razao_social || 'Cliente Vinculado à Carteira Contábil',
-            nome_fantasia: contribInfo?.nome_fantasia || '',
-            assunto: 'ALVARÁ SANITÁRIO',
-            bairro: contribInfo?.bairro || 'Balneário Camboriú',
-            endereco: contribInfo?.endereco || 'Balneário Camboriú, SC',
-            status: 'EM ANÁLISE' as ProcessoStatus,
-            situacao_cadastral: 'VINCULADO AO ESCRITÓRIO • AGUARDANDO PROTOCOLO OU VISTORIA',
-            grau_risco: 'BAIXO RISCO' as const,
-            fiscal_responsavel: 'A Definir'
-          });
-        }
-      }
-    }
-
     // Ordena todas as demandas solicitadas pela empresa em ordem do mais novo em cima:
     return matches.sort((a, b) => {
       const dateA = new Date(a.data_protocolo || a.data_entrada || '1970-01-01').getTime();
       const dateB = new Date(b.data_protocolo || b.data_entrada || '1970-01-01').getTime();
       return dateB - dateA;
     });
-  }, [buscaCnpjContribuinte, processos, contabilidadeAtiva]);
+  }, [buscaCnpjContribuinte, processos, isContribuinte, currentUser]);
 
   // Obter lista de processos/empresas que pertencem à carteira da contabilidade ativa
   const empresasCarteira = useMemo(() => {
@@ -1354,18 +1360,6 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
 
   // Dados oficiais fixos da empresa consultada para exibição contínua no topo/cabeçalho
   const dadosEmpresaConsultada = useMemo(() => {
-    if (processosContribuinte.length > 0) {
-      const p = processosContribuinte[0];
-      return {
-        razao_social: p.razao_social || p.nome_fantasia || 'Razão Social não informada',
-        nome_fantasia: p.nome_fantasia,
-        cnpj_cpf: p.cnpj_cpf,
-        endereco: p.endereco,
-        bairro: p.bairro,
-        cnae: p.cnae,
-        descricao_atividade: p.descricao_atividade
-      };
-    }
     const qClean = cleanDoc(buscaCnpjContribuinte);
     if (qClean) {
       const savedContribs = (() => {
@@ -1385,17 +1379,41 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
       if (found) {
         return {
           razao_social: found.razao_social || 'Razão Social não informada',
-          nome_fantasia: found.nome_fantasia,
+          nome_fantasia: found.nome_fantasia || found.razao_social,
           cnpj_cpf: found.cnpj_cpf,
-          endereco: found.endereco,
-          bairro: found.bairro,
-          cnae: found.cnae,
-          descricao_atividade: found.descricao_atividade
+          endereco: found.endereco || 'Endereço Comercial',
+          bairro: found.bairro || 'Balneário Camboriú',
+          cnae: found.cnae || found.cnae_principal || '',
+          descricao_atividade: found.descricao_atividade || found.cnae_principal_descricao || found.ramo_atividade || 'Atividade Regulada'
+        };
+      }
+      if (currentUser && cleanDoc(currentUser.cpf) === qClean) {
+        return {
+          razao_social: currentUser.nome_completo || 'Contribuinte Cadastrado',
+          nome_fantasia: currentUser.nome_completo,
+          cnpj_cpf: currentUser.cpf,
+          endereco: '',
+          bairro: currentUser.bairro || 'Balneário Camboriú',
+          cnae: '',
+          descricao_atividade: currentUser.cargo || 'Atividade Regulada'
         };
       }
     }
+
+    if (processosContribuinte.length > 0) {
+      const p = processosContribuinte[0];
+      return {
+        razao_social: p.razao_social || p.nome_fantasia || 'Razão Social não informada',
+        nome_fantasia: p.nome_fantasia,
+        cnpj_cpf: p.cnpj_cpf,
+        endereco: p.endereco,
+        bairro: p.bairro,
+        cnae: p.cnae,
+        descricao_atividade: p.descricao_atividade
+      };
+    }
     return null;
-  }, [processosContribuinte, buscaCnpjContribuinte, empresasCarteira]);
+  }, [processosContribuinte, buscaCnpjContribuinte, empresasCarteira, currentUser]);
 
   // Métricas da Carteira
   const metricasCarteira = useMemo(() => {
@@ -3137,6 +3155,51 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                         </span>
                       </span>
                     </div>
+
+                    {/* Situação Contábil da Empresa */}
+                    <div className="pt-1 flex items-center gap-2 flex-wrap text-[11px]">
+                      {(() => {
+                        const contab = getContabilidadePorCnpj(dadosEmpresaConsultada.cnpj_cpf);
+                        if (contab) {
+                          return (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-indigo-950/80 border border-indigo-700/60 text-indigo-200 font-bold">
+                                <Briefcase className="w-3 h-3 text-indigo-400 shrink-0" />
+                                Escritório de Contabilidade: <strong className="text-white">{contab.nome_fantasia || contab.razao_social}</strong> (CRC: {contab.crc || 'REGULAR'})
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleDesvincularContadorDoCnpj(dadosEmpresaConsultada.cnpj_cpf)}
+                                className="text-[10px] text-rose-400 hover:text-rose-300 underline font-semibold cursor-pointer"
+                                title="Desvincular e assumir gestão direta pelo próprio contribuinte"
+                              >
+                                Desvincular
+                              </button>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-900 border border-slate-700 text-slate-300 font-medium">
+                              <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
+                              Gestão Direta pelo Contribuinte <span className="text-[10px] text-amber-400 font-bold">(Sem contador vinculado)</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setContadorIdSelecionado(contabilidades[0]?.id || '');
+                                setModalVincularContadorOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] uppercase shadow transition cursor-pointer"
+                              title="Vincular este CNPJ ao seu escritório de contabilidade credenciado"
+                            >
+                              <Briefcase className="w-3 h-3" />
+                              Vincular Contador
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-1 py-1">
@@ -3214,15 +3277,108 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
               </div>
 
               {processosContribuinte.length === 0 ? (
-                <div className="p-8 rounded-xl bg-[#242424] border border-[#333333] text-center space-y-3">
-                  <Building2 className="w-12 h-12 mx-auto text-slate-600" />
-                  <h4 className="text-sm font-bold text-slate-200">
-                    Nenhuma empresa encontrada para "{buscaCnpjContribuinte}"
-                  </h4>
-                  <p className="text-xs text-slate-400 max-w-md mx-auto">
-                    Caso você tenha acabado de abrir sua empresa, solicite a abertura de processo sanitário via 1Doc ou vincule seu CNPJ junto ao seu escritório contábil.
-                  </p>
-                </div>
+                dadosEmpresaConsultada ? (
+                  <div className="p-6 sm:p-8 rounded-2xl bg-[#202020] border border-[#333333] text-center space-y-4 shadow-xl">
+                    <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center mx-auto text-2xl shadow-inner">
+                      📋
+                    </div>
+                    <div className="space-y-1.5 max-w-lg mx-auto">
+                      <span className="text-[10px] font-mono uppercase font-black px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">
+                        Cadastro Regular & Ativo
+                      </span>
+                      <h4 className="text-base font-black text-white uppercase tracking-wide">
+                        Nenhuma Solicitação de Alvará ou Processo Aberto
+                      </h4>
+                      <p className="text-xs text-slate-300">
+                        O cadastro de <strong>{dadosEmpresaConsultada.razao_social || dadosEmpresaConsultada.cnpj_cpf}</strong> foi realizado com sucesso. Como a conta acabou de ser criada, você ainda não possui solicitações de Alvará Sanitário, Habite-se ou Laudos de Água em tramitação.
+                      </p>
+                    </div>
+
+                    {/* Status da Gestão Contábil */}
+                    <div className="max-w-md mx-auto p-3 rounded-xl bg-[#181818] border border-[#2e2e2e] flex items-center justify-between text-xs text-slate-400 gap-2">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-slate-500 shrink-0" />
+                        <span>Gestão direta pelo próprio contribuinte (sem contador vinculado).</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setContadorIdSelecionado(contabilidades[0]?.id || '');
+                          setModalVincularContadorOpen(true);
+                        }}
+                        className="text-[10px] text-indigo-400 hover:text-indigo-300 font-mono font-bold bg-[#262626] hover:bg-[#303030] border border-indigo-500/40 px-2.5 py-1 rounded shrink-0 transition cursor-pointer flex items-center gap-1"
+                      >
+                        <Briefcase className="w-3 h-3 text-indigo-400" />
+                        Vincular Contador
+                      </button>
+                    </div>
+
+                    {/* Botões de Ação para Iniciar Solicitação */}
+                    <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => onOpenExternal ? onOpenExternal('https://bc.1doc.com.br/b.php?pg=o/login&n=3') : window.open('https://bc.1doc.com.br', '_blank')}
+                        className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl text-xs uppercase flex items-center gap-2 shadow-lg transition cursor-pointer"
+                        title="Abrir protocolo de alvará sanitário inicial via 1Doc"
+                      >
+                        <FilePlus2 className="w-4 h-4 text-indigo-200" />
+                        <span>Solicitar Alvará Sanitário (1Doc)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmpresaAlvoPotabilidade({
+                            cnpj_cpf: dadosEmpresaConsultada.cnpj_cpf,
+                            razao_social: dadosEmpresaConsultada.razao_social,
+                            nome_fantasia: dadosEmpresaConsultada.nome_fantasia,
+                            endereco: dadosEmpresaConsultada.endereco,
+                            bairro: dadosEmpresaConsultada.bairro
+                          });
+                          setModalPotabilidadeOpen(true);
+                        }}
+                        className="px-4 py-2.5 bg-cyan-700 hover:bg-cyan-600 text-white font-black rounded-xl text-xs uppercase flex items-center gap-2 shadow-lg transition cursor-pointer"
+                        title="Solicitar laudo oficial de potabilidade da água no laboratório VISA"
+                      >
+                        <Droplets className="w-4 h-4 text-cyan-200" />
+                        <span>Solicitar Laudo de Água</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setModalHabiteSeOpen(true)}
+                        className="px-4 py-2.5 bg-blue-700 hover:bg-blue-600 text-white font-black rounded-xl text-xs uppercase flex items-center gap-2 shadow-lg transition cursor-pointer"
+                        title="Requerer Habite-se Sanitário (LC nº 40/2019)"
+                      >
+                        <Home className="w-4 h-4 text-blue-200" />
+                        <span>Requerer Habite-se Sanitário</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setContadorIdSelecionado(contabilidades[0]?.id || '');
+                          setModalVincularContadorOpen(true);
+                        }}
+                        className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold rounded-xl text-xs uppercase flex items-center gap-2 shadow-lg transition cursor-pointer"
+                        title="Vincular o CNPJ ao seu escritório de contabilidade credenciado"
+                      >
+                        <Briefcase className="w-4 h-4 text-indigo-400" />
+                        <span>Vincular Contador</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-8 rounded-xl bg-[#242424] border border-[#333333] text-center space-y-3">
+                    <Building2 className="w-12 h-12 mx-auto text-slate-600" />
+                    <h4 className="text-sm font-bold text-slate-200">
+                      Nenhuma empresa encontrada para "{buscaCnpjContribuinte}"
+                    </h4>
+                    <p className="text-xs text-slate-400 max-w-md mx-auto">
+                      Caso você tenha acabado de abrir sua empresa, solicite a abertura de processo sanitário via 1Doc ou vincule seu CNPJ junto ao seu escritório contábil.
+                    </p>
+                  </div>
+                )
               ) : (
                 <div className="space-y-4">
                   {processosContribuinte.map((proc) => {
@@ -4803,6 +4959,76 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
             amostra={modalLaudoOficial.amostra}
             solicitacao={modalLaudoOficial.solicitacao}
           />
+
+          {/* 🏢 Modal para Contribuinte Vincular seu CNPJ a um Escritório de Contabilidade */}
+          {modalVincularContadorOpen && dadosEmpresaConsultada && (
+            <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[2200] flex items-center justify-center p-3 sm:p-4">
+              <div className="bg-[#1e2338] rounded-3xl p-6 max-w-lg w-full border border-indigo-500/40 shadow-2xl space-y-4 text-left text-white animate-scaleUp">
+                <div className="flex items-center justify-between border-b border-indigo-800/60 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300">
+                      <Briefcase className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black uppercase text-white">Vincular Escritório de Contabilidade</h3>
+                      <p className="text-xs text-indigo-300">Atribua a gestão sanitária ao seu contador credenciado</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setModalVincularContadorOpen(false)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#141828] border border-indigo-900/60 space-y-1 text-xs">
+                  <span className="text-indigo-400 text-[10px] font-mono uppercase font-black">Empresa Selecionada:</span>
+                  <p className="font-bold text-white uppercase">{dadosEmpresaConsultada.razao_social}</p>
+                  <p className="font-mono text-cyan-300 text-[11px]">CNPJ/CPF: {dadosEmpresaConsultada.cnpj_cpf}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase text-slate-300 block">
+                    Selecione o Escritório Contábil Credenciado na VISA:
+                  </label>
+                  <select
+                    value={contadorIdSelecionado}
+                    onChange={(e) => setContadorIdSelecionado(e.target.value)}
+                    className="w-full bg-[#121626] border border-indigo-700/60 text-white text-xs px-3 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {contabilidades.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nome_fantasia || c.razao_social} • CRC: {c.crc || 'REGULAR'} ({c.cnpj})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10.5px] text-slate-400">
+                    Ao vincular, o escritório de contabilidade terá acesso à carteira de processos, solicitações de alvará e habite-se deste CNPJ.
+                  </p>
+                </div>
+
+                <div className="pt-3 flex items-center justify-end gap-2 border-t border-indigo-900/60">
+                  <button
+                    type="button"
+                    onClick={() => setModalVincularContadorOpen(false)}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleVincularContadorAoCnpj(contadorIdSelecionado || contabilidades[0]?.id, dadosEmpresaConsultada.cnpj_cpf)}
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase shadow-lg transition flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    Confirmar Vinculação
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
     </div>
   );
 };

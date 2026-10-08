@@ -953,6 +953,7 @@ export default function App() {
                     users={users}
                     onSaveProcesso={handleSaveProcesso}
                     onDeleteProcesso={handleDeleteProcesso}
+                    onOpenExternal={handleOpenExternal}
                   />
                 ) : (
                   <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-xl mx-auto text-center border border-red-200 dark:border-red-900 shadow-xl space-y-4 my-12">

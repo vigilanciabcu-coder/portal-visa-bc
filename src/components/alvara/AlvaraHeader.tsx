@@ -9,7 +9,10 @@ interface AlvaraHeaderProps {
 
 export function AlvaraHeader({ onBack, googleDocsTemplateUrl }: AlvaraHeaderProps) {
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl px-4 py-3 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-wrap items-center justify-between gap-3">
+    <div
+      style={{ height: '113.792px' }}
+      className="bg-white dark:bg-slate-900 rounded-2xl px-4 py-3 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-wrap items-center justify-between gap-3"
+    >
       <div className="flex items-center gap-3">
         <button
           type="button"
