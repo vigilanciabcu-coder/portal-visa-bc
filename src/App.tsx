@@ -178,12 +178,38 @@ export default function App() {
 
   const [processos, setProcessos] = useState<ProcessoItem[]>(() => {
     const saved = localStorage.getItem('visa_processos');
-    return saved ? JSON.parse(saved) : INITIAL_PROCESSOS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const map = new Map<string, ProcessoItem>();
+          INITIAL_PROCESSOS.forEach(p => map.set(p.id, p));
+          parsed.forEach((p: ProcessoItem) => map.set(p.id, p));
+          return Array.from(map.values());
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return INITIAL_PROCESSOS;
   });
 
   const [amostrasLaboratorio, setAmostrasLaboratorio] = useState<AmostraLaboratorioItem[]>(() => {
     const saved = localStorage.getItem('visa_laboratorio');
-    return saved ? JSON.parse(saved) : INITIAL_LABORATORIO;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const map = new Map<string, AmostraLaboratorioItem>();
+          INITIAL_LABORATORIO.forEach(a => map.set(a.id, a));
+          parsed.forEach((a: AmostraLaboratorioItem) => map.set(a.id, a));
+          return Array.from(map.values());
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return INITIAL_LABORATORIO;
   });
 
   const [pontosColeta, setPontosColeta] = useState<PontoColetaLaboratorio[]>(() => {

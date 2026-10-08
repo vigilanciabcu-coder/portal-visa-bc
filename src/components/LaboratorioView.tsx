@@ -71,7 +71,10 @@ import {
   syncAllPotabilidadeToSupabase,
   mapProcessoToSolicitacao,
   fetchSolicitacoesPotabilidadeFromSupabase,
-  findAmostraBySolicitacao
+  findAmostraBySolicitacao,
+  findAmostrasBySolicitacao,
+  findAmostrasByProcesso,
+  gerarAmostrasParaSolicitacao
 } from '../lib/potabilidadeService';
 import { SolicitacaoLaudoPotabilidadeItem, ProcessoItem } from '../types';
 import { syncAllLaboratorioToSupabase, isSupabaseConfigured } from '../lib/supabaseService';
@@ -1557,141 +1560,205 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                         </div>
                       </div>
 
-                      {/* Rodapé de Ações do Laboratorialista */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-700/80">
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                          <Droplet className="w-3.5 h-3.5 text-cyan-500" />
-                          <span>Taxa: <strong>{sol.taxa_ufm_total.toFixed(2)} UFM</strong> ({sol.quantidade_pontos} ponto(s))</span>
-                        </div>
+                        {/* Lista Detalhada das N Coletas / Pontos Solicitados */}
+                        {(() => {
+                          const matchingAmostras = findAmostrasBySolicitacao(sol, amostras);
+                          const totalPontos = Math.max(Number(sol.quantidade_pontos) || 1, 1);
+                          const concluidas = matchingAmostras.filter(a => a.status === 'CONFORME' || a.status === 'NÃO CONFORME').length;
 
-                        <div className="flex flex-wrap items-center gap-2">
-                          {/* Botão de Termo de Coleta em Campo (disponível quando a coleta já foi realizada ou laudo emitido) */}
-                          {(sol.status_solicitacao === 'COLETA REALIZADA' || sol.status_solicitacao === 'LAUDO EMITIDO' || sol.status_solicitacao === 'EM ANÁLISE') && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const matchingAmostra = findAmostraBySolicitacao(sol, amostras);
-                                setRelatorioColetaModal({ amostra: matchingAmostra, solicitacao: sol });
-                              }}
-                              className="px-2.5 py-1.5 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/80 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-700 rounded-xl text-xs font-black uppercase flex items-center gap-1.5 transition cursor-pointer shadow-xs"
-                              title="Visualizar e imprimir Termo Oficial de Coleta de Amostra de Campo"
-                            >
-                              <ClipboardCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                              <span>Termo Coleta</span>
-                            </button>
-                          )}
+                          return (
+                            <div className="pt-2 border-t border-slate-100 dark:border-slate-700/80 space-y-2">
+                              <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
+                                <span className="font-bold flex items-center gap-1.5 text-cyan-800 dark:text-cyan-300">
+                                  <FlaskConical className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                                  Coletas & Laudos por Ponto ({matchingAmostras.length}/{totalPontos} Amostras na Fila • {concluidas}/{totalPontos} Laudos Emitidos)
+                                </span>
+                                {totalPontos > 1 && matchingAmostras.length < totalPontos && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const criadas = gerarAmostrasParaSolicitacao(sol, amostras, {
+                                        statusInicial: 'EM ANÁLISE'
+                                      });
+                                      criadas.forEach(a => onSaveAmostra(a));
+                                      updateSolicitacaoPotabilidadeStatus(sol.id, 'COLETA REALIZADA');
+                                      setSyncFeedbackLab(`✅ Foram abertas as ${totalPontos} coletas na bancada do laboratório para o protocolo ${sol.protocolo_1doc || sol.razao_social}!`);
+                                      setTimeout(() => setSyncFeedbackLab(null), 5000);
+                                      setActiveTab('laboratorio');
+                                    }}
+                                    className="px-2.5 py-1 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-black text-[10.5px] uppercase flex items-center gap-1 transition shadow-xs cursor-pointer"
+                                    title="Gera automaticamente todas as coletas/amostras desta solicitação para análise imediata em bancada"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                    Abrir as {totalPontos} Coletas na Bancada
+                                  </button>
+                                )}
+                              </div>
 
-                          {/* Botão de Laudo Oficial (disponível quando o laudo já foi emitido) */}
-                          {sol.status_solicitacao === 'LAUDO EMITIDO' && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const matchingAmostra = findAmostraBySolicitacao(sol, amostras);
-                                if (matchingAmostra) {
-                                  setSelectedAmostraForLaudo(matchingAmostra);
-                                } else {
-                                  setSelectedAmostraForLaudo({
-                                    id: `laudo-${sol.id}`,
-                                    codigo_amostra: '172',
-                                    protocolo: sol.protocolo_1doc || '60.455/2026',
-                                    mes_ano_referencia: 'JULHO / 2026',
-                                    responsavel_distribuicao: 'EMASA',
-                                    interessado: sol.razao_social,
-                                    estabelecimento: sol.nome_fantasia || sol.razao_social,
-                                    cnpj_cpf: sol.cnpj_cpf,
-                                    numero_alvara: 'Solicitado',
-                                    endereco: sol.endereco || 'Avenida Palestina, nº 150 - Nações',
-                                    bairro: sol.bairro || 'Nações',
-                                    local_coleta: sol.locais_coleta[0] || 'Torneira da Manipulação',
-                                    data_coleta: sol.data_solicitacao || new Date().toISOString().split('T')[0],
-                                    hora_coleta: '08:20',
-                                    fiscal_coletor: 'Rita Sahd',
-                                    temperatura_coleta: '20.0°C',
-                                    aspecto: 'Límpido',
-                                    odor: 'Inobjetável',
-                                    cor: 'Incolor',
-                                    ph: '7,0',
-                                    cloro: '1,59',
-                                    fluoreto: '0,72',
-                                    turbidez: '0,52',
-                                    coliformes_totais: 'AUSENTE',
-                                    escherichia_coli: 'AUSENTE',
-                                    status: 'CONFORME',
-                                    conclusao_laudo: 'Para os parâmetros analisados, com base na Portaria GM/MS Nº 888, de 4 maio de 2021. RESULTADO GERAL: Em acordo.',
-                                    laboratorialista: 'ADRIANO GUARDINI',
-                                    cargo_laboratorialista: 'FARMACÊUTICO E BIOQUÍMICO',
-                                    registro_conselho: 'CRF/SC- 3321',
-                                    data_resultado: new Date().toLocaleDateString('pt-BR'),
-                                    assinatura_digital_validada: true,
-                                    assinatura_digital_hash: 'VISA-CRF-SC-VALID-3321',
-                                    created_at: new Date().toISOString()
+                              {/* Grid com cada uma das coletas / pontos solicitados */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1 text-xs">
+                                {Array.from({ length: totalPontos }).map((_, pIdx) => {
+                                  const pNumero = pIdx + 1;
+                                  const localNome = (sol.locais_coleta && sol.locais_coleta[pIdx]) || `Ponto ${pNumero} - Torneira/Bebedouro`;
+                                  const am = matchingAmostras.find(
+                                    a => a.local_coleta.includes(`Ponto ${pNumero}`) ||
+                                         (a.codigo_amostra && a.codigo_amostra.endsWith(`/${pNumero}`))
+                                  ) || matchingAmostras[pIdx];
+
+                                  const isLaudoPronto = am && (am.status === 'CONFORME' || am.status === 'NÃO CONFORME' || Boolean(am.laudo_numero));
+                                  const isEmBancada = am && !isLaudoPronto;
+
+                                  return (
+                                    <div
+                                      key={pIdx}
+                                      className={`p-2.5 rounded-xl border flex flex-col justify-between space-y-2 transition ${
+                                        isLaudoPronto
+                                          ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700/60'
+                                          : isEmBancada
+                                            ? 'bg-blue-50/60 dark:bg-blue-950/30 border-blue-300 dark:border-blue-700/60'
+                                            : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700'
+                                      }`}
+                                    >
+                                      <div>
+                                        <div className="flex items-center justify-between text-[11px] mb-1">
+                                          <span className="font-mono font-black text-cyan-800 dark:text-cyan-300">
+                                            {am ? `Amostra #${am.codigo_amostra}` : `Coleta ${pNumero}/${totalPontos}`}
+                                          </span>
+                                          <span className={`text-[9px] font-black px-1.5 py-0.2 rounded uppercase border ${
+                                            isLaudoPronto
+                                              ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border-emerald-400'
+                                              : isEmBancada
+                                                ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 border-blue-400'
+                                                : 'bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border-amber-400'
+                                          }`}>
+                                            {isLaudoPronto ? 'Laudo Emitido' : isEmBancada ? 'Em Análise' : 'Aguardando'}
+                                          </span>
+                                        </div>
+                                        <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 line-clamp-2" title={localNome}>
+                                          {localNome}
+                                        </p>
+                                      </div>
+
+                                      {/* Ações individuais deste ponto */}
+                                      <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-700/60">
+                                        {am ? (
+                                          <>
+                                            <button
+                                              type="button"
+                                              onClick={() => setRelatorioColetaModal({ amostra: am, solicitacao: sol })}
+                                              className="flex-1 py-1 px-1.5 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:hover:bg-blue-800 text-blue-800 dark:text-blue-200 rounded text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 cursor-pointer"
+                                              title={`Ver Termo de Coleta do Ponto ${pNumero}`}
+                                            >
+                                              <ClipboardCheck className="w-3 h-3" />
+                                              <span>Termo</span>
+                                            </button>
+
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setSelectedAmostraForLaudo(am);
+                                              }}
+                                              className={`flex-1 py-1 px-1.5 rounded text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 cursor-pointer ${
+                                                isLaudoPronto
+                                                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
+                                                  : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200'
+                                              }`}
+                                              title={`Ver ou emitir Laudo Oficial do Ponto ${pNumero}`}
+                                            >
+                                              <CheckCircle2 className="w-3 h-3" />
+                                              <span>{isLaudoPronto ? 'Laudo' : 'Analisar'}</span>
+                                            </button>
+                                          </>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setSolicitacaoEmColetaId(sol.id);
+                                              setColetaForm((prev) => ({
+                                                ...prev,
+                                                protocolo: sol.protocolo_1doc || prev.protocolo,
+                                                interessado: sol.razao_social,
+                                                cnpj_cpf: sol.cnpj_cpf,
+                                                endereco: sol.endereco || prev.endereco,
+                                                bairro: sol.bairro || prev.bairro,
+                                                estabelecimento: sol.nome_fantasia || sol.razao_social,
+                                                local_coleta: localNome,
+                                                observacoes: `Coleta referente à Solicitação 1Doc: ${sol.protocolo_1doc} (Ponto ${pNumero} de ${totalPontos}).`
+                                              }));
+                                              setActiveTab('coleta');
+                                            }}
+                                            className="w-full py-1 px-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 cursor-pointer shadow-xs"
+                                            title={`Realizar coleta de campo para o Ponto ${pNumero}`}
+                                          >
+                                            <Droplet className="w-3 h-3" />
+                                            <span>Coletar Ponto {pNumero}</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Rodapé de Ações Gerais do Laboratorialista */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-700/80">
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                            <Droplet className="w-3.5 h-3.5 text-cyan-500" />
+                            <span>Taxa: <strong>{sol.taxa_ufm_total.toFixed(2)} UFM</strong> ({sol.quantidade_pontos} ponto(s) / coletas)</span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* Botão de Enviar Todas as Coletas para a Bancada */}
+                            {sol.status_solicitacao !== 'LAUDO EMITIDO' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const criadas = gerarAmostrasParaSolicitacao(sol, amostras, {
+                                    statusInicial: 'EM ANÁLISE'
                                   });
-                                }
-                              }}
-                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition shadow-xs cursor-pointer"
-                              title="Visualizar e imprimir Laudo Oficial de Análise de Potabilidade"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>Laudo Oficial</span>
-                            </button>
-                          )}
+                                  criadas.forEach(a => onSaveAmostra(a));
+                                  updateSolicitacaoPotabilidadeStatus(sol.id, 'COLETA REALIZADA');
+                                  setSyncFeedbackLab(`✅ Foram abertas ${sol.quantidade_pontos} coletas na bancada do laboratório para o protocolo ${sol.protocolo_1doc || sol.razao_social}!`);
+                                  setTimeout(() => setSyncFeedbackLab(null), 5000);
+                                  setActiveTab('laboratorio');
+                                }}
+                                className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+                                title="Abre todas as coletas solicitadas deste pedido na fila e bancada de análises do laboratório"
+                              >
+                                <Droplet className="w-3.5 h-3.5" />
+                                <span>🚰 Abrir {sol.quantidade_pontos} Coletas na Bancada</span>
+                              </button>
+                            )}
 
-                          {/* Botão de Enviar para Coleta (Entrada da Amostra) */}
-                          {sol.status_solicitacao !== 'LAUDO EMITIDO' && (
+                            {/* Botão Visualizar Ficha Oficial */}
+                            <button
+                              type="button"
+                              onClick={() => setSolicitacaoParaImprimirLab(sol)}
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold uppercase flex items-center gap-1.5 transition cursor-pointer"
+                              title="Visualizar e imprimir ficha oficial com padrão do município"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Ficha 1Doc</span>
+                            </button>
+
+                            {/* Botão Excluir */}
                             <button
                               type="button"
                               onClick={() => {
-                                setSolicitacaoEmColetaId(sol.id);
-                                setColetaForm((prev) => ({
-                                  ...prev,
-                                  protocolo: sol.protocolo_1doc || prev.protocolo,
-                                  interessado: sol.razao_social,
-                                  cnpj_cpf: sol.cnpj_cpf,
-                                  endereco: sol.endereco || prev.endereco,
-                                  bairro: sol.bairro || prev.bairro,
-                                  estabelecimento: sol.nome_fantasia || sol.razao_social,
-                                  local_coleta: sol.locais_coleta[0] || prev.local_coleta,
-                                  observacoes: `Solicitação oficial de laudo de potabilidade (Protocolo ${sol.protocolo_1doc || 'S/N'} - ${sol.quantidade_pontos} ponto(s) solicitados - ${sol.taxa_ufm_total.toFixed(2)} UFM). Locais solicitados: ${sol.locais_coleta.join(', ')}.`
-                                }));
-                                if (sol.status_solicitacao === 'AGUARDANDO PAGAMENTO') {
-                                  updateSolicitacaoPotabilidadeStatus(sol.id, 'PAGO / AGUARDANDO COLETA');
+                                if (confirm(`Deseja realmente excluir a solicitação do protocolo ${sol.protocolo_1doc || sol.razao_social}?`)) {
+                                  deleteSolicitacaoPotabilidade(sol.id);
                                 }
-                                setActiveTab('coleta');
                               }}
-                              className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition shadow-xs cursor-pointer"
-                              title="Transfere dados da solicitação para a aba Coleta para registro da amostra e emissão do laudo"
+                              className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg transition cursor-pointer"
+                              title="Excluir solicitação"
                             >
-                              <Droplet className="w-3.5 h-3.5" />
-                              <span>🚰 Enviar para Coleta</span>
+                              <Trash2 className="w-4 h-4" />
                             </button>
-                          )}
-
-                          {/* Botão Visualizar Ficha Oficial */}
-                          <button
-                            type="button"
-                            onClick={() => setSolicitacaoParaImprimirLab(sol)}
-                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold uppercase flex items-center gap-1.5 transition cursor-pointer"
-                            title="Visualizar e imprimir ficha oficial com padrão do município"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>Ficha 1Doc</span>
-                          </button>
-
-                          {/* Botão Excluir */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (confirm(`Deseja realmente excluir a solicitação do protocolo ${sol.protocolo_1doc || sol.razao_social}?`)) {
-                                deleteSolicitacaoPotabilidade(sol.id);
-                              }
-                            }}
-                            className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg transition cursor-pointer"
-                            title="Excluir solicitação"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          </div>
                         </div>
-                      </div>
                     </div>
                   );
                 })

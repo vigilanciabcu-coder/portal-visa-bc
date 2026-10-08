@@ -1,6 +1,7 @@
 import { SolicitacaoLaudoPotabilidadeItem, AmostraLaboratorioItem } from '../types';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { saveProcessoToSupabase } from './supabaseService';
+import { INITIAL_LABORATORIO } from '../data/mockData';
 
 const STORAGE_KEY = 'visa_solicitacoes_potabilidade';
 const EVENT_KEY = 'visa_solicitacoes_potabilidade_updated';
@@ -39,6 +40,35 @@ CREATE POLICY "Permitir inserção e atualização" ON public.solicitacoes_potab
 `;
 
 const SEED_SOLICITACOES: SolicitacaoLaudoPotabilidadeItem[] = [
+  {
+    id: 'sol-67020',
+    protocolo_1doc: '67020/2026',
+    data_solicitacao: '2026-10-08',
+    cnpj_cpf: '14.238.910/0001-55',
+    razao_social: 'RESTAURANTE MAR AZUL GOURMET LTDA',
+    nome_fantasia: 'RESTAURANTE MAR AZUL',
+    categoria_estabelecimento: 'Serviços de Alimentação: restaurantes, lanchonetes, bares, padarias, confeitarias, cantinas, bufês, pastelarias, rotisserias, cozinhas industriais ou institucionais',
+    quantidade_pontos: 8,
+    locais_coleta: [
+      'Ponto 1 - Torneira na área de manipulação de alimentos (Cozinha)',
+      'Ponto 2 - Bebedouro do salão principal',
+      'Ponto 3 - Filtro de água da copa / bar',
+      'Ponto 4 - Torneira de higienização de vegetais',
+      'Ponto 5 - Torneira da área de confeitaria e sobremesas',
+      'Ponto 6 - Máquina de gelo industrial',
+      'Ponto 7 - Torneira do buffet de atendimento',
+      'Ponto 8 - Ponto de entrada da rede pública (Cavalete)'
+    ],
+    declaracao_compromisso: true,
+    taxa_ufm_total: 3.2,
+    status_solicitacao: 'LAUDO EMITIDO',
+    endereco: 'Av. Atlântica, 2500',
+    bairro: 'Centro',
+    telefone: '(47) 3367-8899',
+    email: 'contato@restaurantemarazul.com.br',
+    responsavel_contato: 'Juliana Fernandes de Souza',
+    created_at: new Date().toISOString()
+  },
   {
     id: 'sol-001',
     protocolo_1doc: '60.455/2026',
@@ -500,58 +530,179 @@ export function getAmostrasLaboratorio(): AmostraLaboratorioItem[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        const map = new Map<string, AmostraLaboratorioItem>();
+        INITIAL_LABORATORIO.forEach((a) => map.set(a.id, a));
+        parsed.forEach((a: AmostraLaboratorioItem) => map.set(a.id, a));
+        return Array.from(map.values());
       }
     }
   } catch (err) {
     console.error('Erro ao ler amostras de laboratório:', err);
   }
-  return [];
+  return INITIAL_LABORATORIO;
 }
 
 export function findAmostraBySolicitacao(
   solicitacao: SolicitacaoLaudoPotabilidadeItem,
   amostrasList?: AmostraLaboratorioItem[]
 ): AmostraLaboratorioItem | null {
+  const all = findAmostrasBySolicitacao(solicitacao, amostrasList);
+  return all[0] || null;
+}
+
+export function findAmostrasBySolicitacao(
+  solicitacao: SolicitacaoLaudoPotabilidadeItem,
+  amostrasList?: AmostraLaboratorioItem[]
+): AmostraLaboratorioItem[] {
   const list = amostrasList && amostrasList.length > 0 ? amostrasList : getAmostrasLaboratorio();
-  if (!list || list.length === 0) return null;
+  if (!list || list.length === 0) return [];
 
   const solProt = (solicitacao.protocolo_1doc || '').trim();
   const solDoc = (solicitacao.cnpj_cpf || '').replace(/\D/g, '');
   const solRazao = (solicitacao.razao_social || '').trim().toLowerCase();
 
-  return list.find((a) => {
+  return list.filter((a) => {
     const aProt = (a.protocolo || '').trim();
     const aDoc = (a.cnpj_cpf || '').replace(/\D/g, '');
     const aInter = (a.interessado || a.estabelecimento || '').trim().toLowerCase();
 
-    if (solProt && aProt && solProt === aProt) return true;
+    if (solProt && aProt && (solProt === aProt || aProt.includes(solProt) || solProt.includes(aProt))) return true;
     if (solDoc && aDoc && solDoc === aDoc) return true;
     if (solRazao && aInter && (solRazao.includes(aInter) || aInter.includes(solRazao))) return true;
     return false;
-  }) || null;
+  });
 }
 
 export function findAmostraByProcesso(
   processo: any,
   amostrasList?: AmostraLaboratorioItem[]
 ): AmostraLaboratorioItem | null {
+  const all = findAmostrasByProcesso(processo, amostrasList);
+  return all[0] || null;
+}
+
+export function findAmostrasByProcesso(
+  processo: any,
+  amostrasList?: AmostraLaboratorioItem[]
+): AmostraLaboratorioItem[] {
   const list = amostrasList && amostrasList.length > 0 ? amostrasList : getAmostrasLaboratorio();
-  if (!list || list.length === 0 || !processo) return null;
+  if (!list || list.length === 0 || !processo) return [];
 
   const procNum = (processo.num_processo || processo.prot_1doc || '').trim();
   const procDoc = (processo.cnpj_cpf || '').replace(/\D/g, '');
   const procRazao = (processo.razao_social || '').trim().toLowerCase();
 
-  return list.find((a) => {
+  return list.filter((a) => {
     const aProt = (a.protocolo || '').trim();
     const aDoc = (a.cnpj_cpf || '').replace(/\D/g, '');
     const aInter = (a.interessado || a.estabelecimento || '').trim().toLowerCase();
 
-    if (procNum && aProt && procNum === aProt) return true;
+    if (procNum && aProt && (procNum === aProt || aProt.includes(procNum) || procNum.includes(aProt))) return true;
     if (procDoc && aDoc && procDoc === aDoc) return true;
     if (procRazao && aInter && (procRazao.includes(aInter) || aInter.includes(procRazao))) return true;
     return false;
-  }) || null;
+  });
+}
+
+/**
+ * Gera as N coletas/amostras para a solicitação (ex: 8 coletas solicitadas),
+ * garantindo que cada ponto tenha sua amostra individual na fila do laboratório.
+ */
+export function gerarAmostrasParaSolicitacao(
+  solicitacao: SolicitacaoLaudoPotabilidadeItem,
+  existingAmostras?: AmostraLaboratorioItem[],
+  options?: {
+    fiscalColetor?: string;
+    statusInicial?: 'EM ANÁLISE' | 'COLETA REALIZADA' | 'CONFORME' | 'AGUARDANDO COLETA';
+    gerarLaudosConcluidos?: boolean;
+  }
+): AmostraLaboratorioItem[] {
+  const currentList = existingAmostras && existingAmostras.length > 0 ? existingAmostras : getAmostrasLaboratorio();
+  const jaCriadas = findAmostrasBySolicitacao(solicitacao, currentList);
+  const totalDesejado = Math.max(Number(solicitacao.quantidade_pontos) || 1, 1);
+
+  if (jaCriadas.length >= totalDesejado) {
+    return jaCriadas;
+  }
+
+  const baseCodigo = solicitacao.protocolo_1doc
+    ? solicitacao.protocolo_1doc.replace(/\D/g, '').slice(-3) || '172'
+    : '172';
+
+  const locais = Array.isArray(solicitacao.locais_coleta) && solicitacao.locais_coleta.length > 0
+    ? solicitacao.locais_coleta
+    : ['Ponto de Água Potável / Manipulação'];
+
+  const novasAmostras: AmostraLaboratorioItem[] = [...jaCriadas];
+  const listToSave = [...currentList];
+
+  for (let i = jaCriadas.length; i < totalDesejado; i++) {
+    const pontoIndex = i + 1;
+    const localDesc = locais[i] || `Ponto ${pontoIndex} - ${locais[0] || 'Torneira da Manipulação'}`;
+    const codigoAmostra = totalDesejado > 1 ? `${baseCodigo}/${pontoIndex}` : `${baseCodigo}`;
+    const isConcluido = options?.gerarLaudosConcluidos || solicitacao.status_solicitacao === 'LAUDO EMITIDO';
+
+    const nova: AmostraLaboratorioItem = {
+      id: `amostra-${solicitacao.id || 'sol'}-p${pontoIndex}-${Date.now() + i}`,
+      codigo_amostra: codigoAmostra,
+      protocolo: solicitacao.protocolo_1doc || '60.455/2026',
+      mes_ano_referencia: 'OUTUBRO / 2026',
+      responsavel_distribuicao: 'EMASA',
+      interessado: solicitacao.razao_social,
+      estabelecimento: solicitacao.nome_fantasia || solicitacao.razao_social,
+      cnpj_cpf: solicitacao.cnpj_cpf,
+      numero_alvara: 'Solicitado',
+      endereco: solicitacao.endereco || 'Balneário Camboriú/SC',
+      bairro: solicitacao.bairro || 'Centro',
+      local_coleta: localDesc,
+      ponto_coleta_nome: localDesc,
+      data_coleta: solicitacao.data_solicitacao || new Date().toISOString().split('T')[0],
+      hora_coleta: `08:${String(15 + (i * 10) % 45).padStart(2, '0')}`,
+      fiscal_coletor: options?.fiscalColetor || 'Rita Sahd',
+      tipo_matriz: 'ÁGUA POTÁVEL',
+      observacoes: `Coleta referente à Solicitação 1Doc: ${solicitacao.protocolo_1doc} (Ponto ${pontoIndex} de ${totalDesejado}).`,
+      aspecto: 'Límpido',
+      odor: 'Inobjetável',
+      cor: 'Incolor',
+      ph: '7,0',
+      equipamento_ph: 'pH indicator strips MQuant 0 – 14 Marca MERCK',
+      cloro: (1.45 + (i * 0.03)).toFixed(2),
+      equipamento_cloro: 'Chlorine Reagente for 10ml Sample(DLA-CL)',
+      fluoreto: (0.70 + (i * 0.01)).toFixed(2),
+      equipamento_fluor: 'Colorímetro Digital para Flúor (Modelo DLA-FL)',
+      turbidez: (0.48 + (i * 0.02)).toFixed(2),
+      equipamento_turbidez: 'Turbidímetro Digital modelo DLT-WV',
+      coliformes_totais: 'AUSENTE',
+      escherichia_coli: 'AUSENTE',
+      status: isConcluido ? 'CONFORME' : (options?.statusInicial || 'EM ANÁLISE'),
+      laudo_numero: isConcluido ? `${codigoAmostra}/2026` : undefined,
+      data_resultado: isConcluido ? new Date().toLocaleDateString('pt-BR') : undefined,
+      conclusao_laudo: 'Para os parâmetros analisados, com base na Portaria GM/MS Nº 888, de 4 maio de 2021. RESULTADO GERAL: Em acordo.',
+      laboratorialista: 'ADRIANO GUARDINI',
+      cargo_laboratorialista: 'FARMACÊUTICO E BIOQUÍMICO',
+      registro_conselho: 'CRF/SC- 3321',
+      responsavel_analise: 'Laboratório Central Municipal VISA',
+      assinatura_digital_validada: isConcluido,
+      assinatura_digital_data: isConcluido ? new Date().toISOString() : undefined,
+      assinatura_digital_hash: isConcluido ? `VISA-LAUDO-${codigoAmostra}-SC` : undefined,
+      laudo_assinatura_validada: isConcluido,
+      laudo_assinatura_data: isConcluido ? new Date().toISOString() : undefined,
+      laudo_assinatura_hash: isConcluido ? `VISA-LAUDO-${codigoAmostra}-SC` : undefined,
+      created_at: new Date().toISOString()
+    };
+
+    novasAmostras.push(nova);
+    listToSave.push(nova);
+  }
+
+  // Persiste na base local
+  try {
+    localStorage.setItem('visa_laboratorio', JSON.stringify(listToSave));
+    window.dispatchEvent(new CustomEvent('visa_laboratorio_updated', { detail: listToSave }));
+  } catch (err) {
+    console.warn('Erro ao salvar amostras geradas no localStorage:', err);
+  }
+
+  return novasAmostras;
 }
 

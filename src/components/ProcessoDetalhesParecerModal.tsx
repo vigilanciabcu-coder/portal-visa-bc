@@ -29,7 +29,8 @@ import {
   Save,
   RefreshCw,
   ArrowRight,
-  ClipboardCheck
+  ClipboardCheck,
+  FlaskConical
 } from 'lucide-react';
 import { ProcessoItem, ProcessoStatus, TipoParecerTecnico, ParecerTecnicoItem, UserProfile } from '../types';
 import {
@@ -42,7 +43,8 @@ import {
   getSolicitacoesPotabilidade,
   subscribeSolicitacoesPotabilidade,
   findAmostraByProcesso,
-  findAmostraBySolicitacao
+  findAmostraBySolicitacao,
+  findAmostrasBySolicitacao
 } from '../lib/potabilidadeService';
 import { SolicitacaoLaudoPotabilidadeItem } from '../types';
 import { DocumentoOficialPdfModal, TipoDocumentoOficial } from './DocumentoOficialPdfModal';
@@ -728,89 +730,179 @@ export const ProcessoDetalhesParecerModal: React.FC<ProcessoDetalhesParecerModal
             {solicitacoesPotabilidadeProcesso.length > 0 && (
               <div className="pt-2 border-t border-cyan-900/40 space-y-2.5">
                 {solicitacoesPotabilidadeProcesso.map((sol) => {
-                  const matchingAmostra = findAmostraBySolicitacao(sol);
+                  const matchingAmostras = findAmostrasBySolicitacao(sol);
+                  const matchingAmostra = matchingAmostras[0] || findAmostraBySolicitacao(sol);
+                  const totalPontos = Math.max(Number(sol.quantidade_pontos) || 1, 1);
                   const isLaudoEmitido = sol.status_solicitacao === 'LAUDO EMITIDO' || matchingAmostra?.status === 'CONFORME' || matchingAmostra?.status === 'NÃO CONFORME';
                   const isColetado = isLaudoEmitido || sol.status_solicitacao === 'COLETA REALIZADA' || matchingAmostra?.status === 'COLETA REALIZADA';
+                  const concluidasCount = matchingAmostras.filter(a => a.status === 'CONFORME' || a.status === 'NÃO CONFORME' || Boolean(a.laudo_numero)).length;
 
                   return (
                     <div
                       key={sol.id}
-                      className="p-3 rounded-lg bg-black/40 border border-cyan-500/30 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
+                      className="p-3.5 rounded-xl bg-black/40 border border-cyan-500/30 space-y-3 text-xs"
                     >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono font-black text-cyan-300 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-800">
-                            Prot. {sol.protocolo_1doc || 'S/N'}
-                          </span>
-                          <span className={`px-2 py-0.5 rounded font-black text-[10px] uppercase border ${
-                            isLaudoEmitido
-                              ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
-                              : isColetado
-                              ? 'bg-blue-950 text-blue-300 border-blue-600'
-                              : 'bg-amber-950 text-amber-300 border-amber-600'
-                          }`}>
-                            {sol.status_solicitacao}
-                          </span>
-                          <span className="text-slate-400 font-medium text-[11px]">
-                            {sol.quantidade_pontos} ponto(s) • Taxa: {sol.taxa_ufm_total.toFixed(2)} UFM
-                          </span>
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono font-black text-cyan-300 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-800">
+                              Prot. {sol.protocolo_1doc || 'S/N'}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded font-black text-[10px] uppercase border ${
+                              isLaudoEmitido
+                                ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
+                                : isColetado
+                                ? 'bg-blue-950 text-blue-300 border-blue-600'
+                                : 'bg-amber-950 text-amber-300 border-amber-600'
+                            }`}>
+                              {isLaudoEmitido ? `✓ ${concluidasCount || totalPontos} LAUDO(S) EMITIDO(S)` : sol.status_solicitacao}
+                            </span>
+                            <span className="text-slate-400 font-medium text-[11px]">
+                              {totalPontos} coleta(s)/ponto(s) • Taxa: {sol.taxa_ufm_total.toFixed(2)} UFM
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-300">
+                            {totalPontos > 1 ? `${totalPontos} Locais de Coleta Programados` : `Local: ${sol.locais_coleta[0] || 'Água Potável'}`} • Solicitado em: {new Date(sol.data_solicitacao).toLocaleDateString('pt-BR')}
+                          </p>
                         </div>
-                        <p className="text-[11px] text-slate-300">
-                          Locais: {sol.locais_coleta.join(', ')} • Solicitado em: {new Date(sol.data_solicitacao).toLocaleDateString('pt-BR')}
-                        </p>
+
+                        {/* Botão de Ficha 1Doc Geral */}
+                        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => setModalFicha1Doc({ open: true, solicitacao: sol })}
+                            className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded-lg text-xs font-bold uppercase flex items-center gap-1 transition cursor-pointer"
+                            title="Visualizar ficha oficial da solicitação 1Doc"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Ficha 1Doc</span>
+                          </button>
+
+                          {totalPontos === 1 && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setModalRelatorioColeta({
+                                  open: true,
+                                  amostra: matchingAmostra,
+                                  solicitacao: sol
+                                })}
+                                className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-1 transition cursor-pointer ${
+                                  isColetado || isLaudoEmitido
+                                    ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-xs'
+                                    : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                                }`}
+                                title="Visualizar Termo Oficial de Coleta de Campo assinado pelo fiscal"
+                              >
+                                <ClipboardCheck className="w-3.5 h-3.5" />
+                                <span>Termo Coleta</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setModalLaudoOficial({
+                                  open: true,
+                                  amostra: matchingAmostra,
+                                  solicitacao: sol
+                                })}
+                                className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-1 transition cursor-pointer ${
+                                  isLaudoEmitido
+                                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
+                                    : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                                }`}
+                                title="Visualizar Laudo Oficial de Análise de Potabilidade"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Laudo Oficial</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Botões de Documentos Oficiais */}
-                      <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                        {/* 1. Ficha 1Doc */}
-                        <button
-                          type="button"
-                          onClick={() => setModalFicha1Doc({ open: true, solicitacao: sol })}
-                          className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded-lg text-xs font-bold uppercase flex items-center gap-1 transition cursor-pointer"
-                          title="Visualizar ficha oficial da solicitação 1Doc"
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                          <span>Ficha 1Doc</span>
-                        </button>
+                      {/* Grade das N Coletas e N Laudos Individuais para solicitações com múltiplos pontos */}
+                      {totalPontos > 1 && (
+                        <div className="pt-2 border-t border-cyan-900/50 space-y-2">
+                          <span className="text-[10.5px] font-black uppercase text-cyan-300 tracking-wider flex items-center gap-1.5">
+                            <FlaskConical className="w-3.5 h-3.5 text-cyan-400" />
+                            Coletas Realizadas & Laudos Emitidos ({concluidasCount}/{totalPontos}):
+                          </span>
 
-                        {/* 2. Termo de Coleta em Campo */}
-                        <button
-                          type="button"
-                          onClick={() => setModalRelatorioColeta({
-                            open: true,
-                            amostra: matchingAmostra,
-                            solicitacao: sol
-                          })}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-1 transition cursor-pointer ${
-                            isColetado || isLaudoEmitido
-                              ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-xs'
-                              : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
-                          }`}
-                          title="Visualizar Termo Oficial de Coleta de Campo assinado pelo fiscal"
-                        >
-                          <ClipboardCheck className="w-3.5 h-3.5" />
-                          <span>Termo Coleta</span>
-                        </button>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1">
+                            {Array.from({ length: totalPontos }).map((_, pIdx) => {
+                              const pNumero = pIdx + 1;
+                              const localNome = (sol.locais_coleta && sol.locais_coleta[pIdx]) || `Ponto ${pNumero} - Água Potável`;
+                              const am = matchingAmostras.find(
+                                a => a.local_coleta.includes(`Ponto ${pNumero}`) ||
+                                     (a.codigo_amostra && a.codigo_amostra.endsWith(`/${pNumero}`))
+                              ) || matchingAmostras[pIdx];
 
-                        {/* 3. Laudo Oficial */}
-                        <button
-                          type="button"
-                          onClick={() => setModalLaudoOficial({
-                            open: true,
-                            amostra: matchingAmostra,
-                            solicitacao: sol
-                          })}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-1 transition cursor-pointer ${
-                            isLaudoEmitido
-                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
-                              : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
-                          }`}
-                          title="Visualizar Laudo Oficial de Análise de Potabilidade"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Laudo Oficial</span>
-                        </button>
-                      </div>
+                              const isPronto = am && (am.status === 'CONFORME' || am.status === 'NÃO CONFORME' || Boolean(am.laudo_numero));
+
+                              return (
+                                <div
+                                  key={pIdx}
+                                  className="p-2.5 rounded-xl border border-slate-700 bg-[#162030] flex flex-col justify-between space-y-2"
+                                >
+                                  <div>
+                                    <div className="flex items-center justify-between text-[11px] mb-1">
+                                      <span className="font-mono font-black text-cyan-300">
+                                        {am ? `Amostra #${am.codigo_amostra}` : `Coleta ${pNumero}/${totalPontos}`}
+                                      </span>
+                                      <span className={`text-[9px] font-black px-1.5 py-0.2 rounded uppercase border font-mono ${
+                                        isPronto
+                                          ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
+                                          : 'bg-amber-950 text-amber-300 border-amber-600'
+                                      }`}>
+                                        {isPronto ? `Laudo ${am?.laudo_numero || 'Emitido'}` : 'Em Análise'}
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] font-bold text-slate-200 line-clamp-2" title={localNome}>
+                                      {localNome}
+                                    </p>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-700/60">
+                                    {am && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setModalRelatorioColeta({
+                                          open: true,
+                                          amostra: am,
+                                          solicitacao: sol
+                                        })}
+                                        className="flex-1 py-1 px-1.5 bg-blue-950/80 hover:bg-blue-900 border border-blue-700/60 text-blue-200 rounded text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 cursor-pointer"
+                                        title={`Ver Termo de Coleta do Ponto ${pNumero}`}
+                                      >
+                                        <ClipboardCheck className="w-3 h-3" />
+                                        <span>Termo</span>
+                                      </button>
+                                    )}
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setModalLaudoOficial({
+                                        open: true,
+                                        amostra: am || matchingAmostra,
+                                        solicitacao: sol
+                                      })}
+                                      className={`flex-1 py-1 px-1.5 rounded text-[10px] font-black uppercase transition flex items-center justify-center gap-1 cursor-pointer shadow-xs ${
+                                        isPronto
+                                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                                          : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                                      }`}
+                                      title={`Visualizar Laudo Oficial emitido para o Ponto ${pNumero}`}
+                                    >
+                                      <CheckCircle2 className="w-3 h-3" />
+                                      <span>Laudo {pNumero}</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
