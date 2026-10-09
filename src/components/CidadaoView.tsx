@@ -191,7 +191,7 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
     : null;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 text-left py-2">
+    <div className="w-full space-y-6 text-left py-1 sm:py-2">
       {/* Banner Superior Boas-Vindas */}
       <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden border border-blue-800/60">
         <div className="absolute right-0 top-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
@@ -434,7 +434,7 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
                 {resultados.map((proc) => {
                   const contabVinculada = getContabilidadeVinculada(proc.cnpj_cpf);
                   const isSelected = resultadoSelecionado?.id === proc.id;
@@ -896,7 +896,7 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
       </div>
 
       {/* Grid de Serviços de Utilidade Pública */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <div
           onClick={() => onOpenExternal('https://bc.1doc.com.br/b.php?pg=o/login&n=3')}
           className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-500 hover:shadow-lg transition cursor-pointer group space-y-2 text-left"

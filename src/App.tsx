@@ -888,7 +888,13 @@ export default function App() {
 
           {/* Main Display Area */}
           <main className="flex-1 flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-950 relative">
-            <div className={`flex-1 ${currentView === 'geo_visa' ? 'p-0 pb-0 flex flex-col h-full overflow-hidden' : 'overflow-y-auto px-1 sm:px-2 md:px-3 lg:px-4 py-2 sm:py-3'}`}>
+            <div className={`flex-1 ${
+              currentView === 'geo_visa'
+                ? 'p-0 pb-0 flex flex-col h-full overflow-hidden'
+                : (currentView === 'demandas_fiscal' || currentView === 'demandas_diretor' || currentView === 'demandas' || currentView === 'processos' || currentView === 'processos_lab')
+                  ? 'overflow-y-auto p-0'
+                  : 'overflow-y-auto px-1.5 sm:px-2.5 md:px-3.5 py-2 sm:py-3'
+            }`}>
               {currentView === 'home' && (
                 <HomeView
                   buttons={PORTAL_BUTTONS}

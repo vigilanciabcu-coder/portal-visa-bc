@@ -289,7 +289,7 @@ export const TelefonesView: React.FC<TelefonesViewProps> = ({ currentUser, onBac
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12 font-sans print:p-0 print:m-0 print:space-y-3 print:max-w-none">
+    <div className="space-y-6 w-full pb-12 font-sans print:p-0 print:m-0 print:space-y-3 print:max-w-none">
       {/* Header Principal - Oculto na Impressão */}
       <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-3xl p-6 md:p-8 shadow-xl relative overflow-hidden border border-blue-800/50 print:hidden">
         <div className="absolute -right-12 -top-12 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>

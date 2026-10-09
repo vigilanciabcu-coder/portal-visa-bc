@@ -612,7 +612,7 @@ Responsável pela Consulta: ${currentUser?.nome_completo || 'Fiscal Sanitário'}
 
       {/* ÁREA DE BUSCA & ENQUADRAMENTO NO TOPO */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200 dark:border-slate-800 relative z-20">
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="w-full space-y-6">
           <div className="text-center space-y-1">
             <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
               Assistente de Consulta Rápida

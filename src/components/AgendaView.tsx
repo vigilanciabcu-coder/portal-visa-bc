@@ -206,7 +206,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   const countFeriados = monthItems.filter((x) => x.tipo === 'FERIADO' || x.tipo === 'FACULTATIVO').length;
 
   return (
-    <div className="w-full max-w-[1750px] mx-auto space-y-4 text-left">
+    <div className="w-full space-y-4 text-left">
       {/* Top Header & Controls */}
       <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm gap-4">
         {/* Title & Badge */}

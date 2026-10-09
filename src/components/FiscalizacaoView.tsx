@@ -524,7 +524,7 @@ export const FiscalizacaoView: React.FC<FiscalizacaoViewProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 text-left">
+    <div className="w-full space-y-6 text-left">
       {/* Top Banner & Stats */}
       <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-950 p-6 rounded-3xl border border-slate-800 text-white shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>

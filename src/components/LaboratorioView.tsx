@@ -1275,13 +1275,13 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
       )}
 
       {/* Conteúdo Principal */}
-      <div className="p-6 flex-1 max-w-7xl w-full mx-auto space-y-6">
+      <div className="p-2 sm:p-4 md:p-6 flex-1 w-full space-y-6">
 
         {/* ============================================================== */}
         {/* 0. GESTÃO DE SOLICITAÇÕES DE LAUDO (PARA O LABORATORIALISTA)  */}
         {/* ============================================================== */}
         {activeTab === 'solicitacao' && (
-          <div className="text-left max-w-7xl mx-auto w-full space-y-6">
+          <div className="text-left w-full space-y-6">
             {/* Header do Módulo do Laboratorialista */}
             <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-950 p-6 rounded-2xl border border-cyan-500/30 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
@@ -1802,7 +1802,7 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
         {/* 1. COLETA (ENTRADA DO COLETOR - BASEADA NO LAUDO OFICIAL)       */}
         {/* ============================================================== */}
         {activeTab === 'coleta' && (
-          <div className="text-left max-w-5xl mx-auto w-full">
+          <div className="text-left w-full">
             <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm">
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3 mb-5">
                 <div>

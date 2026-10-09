@@ -677,9 +677,9 @@ CREATE POLICY "Permitir Acesso Completo Pastas Visa" ON public.pastas_visa FOR A
   const alvaraOk = pastas.filter((p) => (p.alvara_atualizado || '').toUpperCase() === 'SIM').length;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-3 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-2 sm:p-4">
       {/* CABEÇALHO */}
-      <div className="max-w-7xl mx-auto mb-6">
+      <div className="w-full mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-4">
             <button
@@ -794,7 +794,7 @@ CREATE POLICY "Permitir Acesso Completo Pastas Visa" ON public.pastas_visa FOR A
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* ========================================================= */}
         {/* FORMULÁRIO DE CADASTRO E EDIÇÃO (COLUNA ESQUERDA) */}
         {/* ========================================================= */}
