@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
-import { X, Printer, Droplet, FileCheck2, MapPin, Calendar, Clock, UserCheck, ShieldCheck, Thermometer } from 'lucide-react';
+import { X, Printer, Droplet, FileCheck2, MapPin, Calendar, Clock, UserCheck, ShieldCheck, Thermometer, AlertTriangle } from 'lucide-react';
 import { AmostraLaboratorioItem, SolicitacaoLaudoPotabilidadeItem } from '../types';
+import { isColetaRealizada } from '../lib/potabilidadeService';
 
 export interface RelatorioColetaAguaModalProps {
   isOpen: boolean;
@@ -29,6 +30,59 @@ export const RelatorioColetaAguaModal: React.FC<RelatorioColetaAguaModalProps> =
   }, [isOpen, amostra, solicitacao]);
 
   if (!isOpen || (!amostra && !solicitacao)) return null;
+
+  const coletaLiberada = isColetaRealizada(amostra, solicitacao);
+
+  if (!coletaLiberada) {
+    const protocolo = amostra?.protocolo || solicitacao?.protocolo_1doc || 'S/N';
+    const interessado = amostra?.interessado || amostra?.estabelecimento || solicitacao?.razao_social || 'Requerente';
+    return (
+      <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fadeIn">
+        <div className="bg-slate-900 text-white rounded-2xl max-w-lg w-full p-6 sm:p-7 shadow-2xl relative border border-slate-700 text-left space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center gap-2.5 text-blue-400">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <h3 className="font-black text-sm uppercase tracking-wide">
+                Termo de Coleta em Campo Pendente
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white cursor-pointer transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="p-4 rounded-xl bg-blue-950/40 border border-blue-500/40 text-blue-200 text-xs space-y-2">
+            <p className="font-bold">
+              ⏳ A coleta presencial da amostra de água ainda não foi realizada pelo fiscal da VISA.
+            </p>
+            <p className="text-[11px] text-blue-300/90 leading-relaxed">
+              O Termo Oficial de Coleta timbrado somente é liberado para impressão após a visita presencial do fiscal sanitário com o registro do horário, ponto de coleta, temperatura e teores de cloro residual aferidos in loco.
+            </p>
+          </div>
+
+          <div className="p-3 bg-slate-800/80 rounded-xl border border-slate-700 text-xs space-y-1.5 font-mono">
+            <div><span className="text-slate-400">Protocolo:</span> <strong className="text-cyan-300">{protocolo}</strong></div>
+            <div><span className="text-slate-400">Interessado:</span> <span className="text-slate-200">{interessado}</span></div>
+            <div><span className="text-slate-400">Situação:</span> <span className="text-blue-400 font-bold">{solicitacao?.status_solicitacao || 'AGUARDANDO REALIZAÇÃO DA COLETA'}</span></div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold uppercase cursor-pointer transition"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Extrai dados unificados
   const protocolo = amostra?.protocolo || solicitacao?.protocolo_1doc || 'S/N';

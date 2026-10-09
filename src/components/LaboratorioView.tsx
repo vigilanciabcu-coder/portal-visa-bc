@@ -74,7 +74,9 @@ import {
   findAmostraBySolicitacao,
   findAmostrasBySolicitacao,
   findAmostrasByProcesso,
-  gerarAmostrasParaSolicitacao
+  gerarAmostrasParaSolicitacao,
+  isColetaRealizada,
+  isLaudoAssinado
 } from '../lib/potabilidadeService';
 import { SolicitacaoLaudoPotabilidadeItem, ProcessoItem } from '../types';
 import { syncAllLaboratorioToSupabase, isSupabaseConfigured } from '../lib/supabaseService';
@@ -1641,35 +1643,51 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
 
                                       {/* Ações individuais deste ponto */}
                                       <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-700/60">
-                                        {am ? (
-                                          <>
-                                            <button
-                                              type="button"
-                                              onClick={() => setRelatorioColetaModal({ amostra: am, solicitacao: sol })}
-                                              className="flex-1 py-1 px-1.5 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:hover:bg-blue-800 text-blue-800 dark:text-blue-200 rounded text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 cursor-pointer"
-                                              title={`Ver Termo de Coleta do Ponto ${pNumero}`}
-                                            >
-                                              <ClipboardCheck className="w-3 h-3" />
-                                              <span>Termo</span>
-                                            </button>
+                                        {am ? (() => {
+                                          const pontoColetado = isColetaRealizada(am, sol);
 
-                                            <button
-                                              type="button"
-                                              onClick={() => {
-                                                setSelectedAmostraForLaudo(am);
-                                              }}
-                                              className={`flex-1 py-1 px-1.5 rounded text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 cursor-pointer ${
-                                                isLaudoPronto
-                                                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
-                                                  : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200'
-                                              }`}
-                                              title={`Ver ou emitir Laudo Oficial do Ponto ${pNumero}`}
-                                            >
-                                              <CheckCircle2 className="w-3 h-3" />
-                                              <span>{isLaudoPronto ? 'Laudo' : 'Analisar'}</span>
-                                            </button>
-                                          </>
-                                        ) : (
+                                          return (
+                                            <>
+                                              <button
+                                                type="button"
+                                                disabled={!pontoColetado}
+                                                onClick={() => {
+                                                  if (!pontoColetado) return;
+                                                  setRelatorioColetaModal({ amostra: am, solicitacao: sol });
+                                                }}
+                                                className={`flex-1 py-1 px-1.5 rounded text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 ${
+                                                  pontoColetado
+                                                    ? 'bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/50 dark:hover:bg-blue-800 text-blue-800 dark:text-blue-200 cursor-pointer'
+                                                    : 'opacity-40 bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700 cursor-not-allowed select-none'
+                                                }`}
+                                                title={
+                                                  pontoColetado
+                                                    ? `Ver Termo de Coleta do Ponto ${pNumero}`
+                                                    : `Coleta do Ponto ${pNumero} ainda não realizada pelo fiscal da VISA`
+                                                }
+                                              >
+                                                <ClipboardCheck className="w-3 h-3" />
+                                                <span>{pontoColetado ? 'Termo' : 'Aguardando'}</span>
+                                              </button>
+
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setSelectedAmostraForLaudo(am);
+                                                }}
+                                                className={`flex-1 py-1 px-1.5 rounded text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 cursor-pointer ${
+                                                  isLaudoPronto
+                                                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
+                                                    : 'bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200'
+                                                }`}
+                                                title={`Ver ou emitir Laudo Oficial do Ponto ${pNumero}`}
+                                              >
+                                                <CheckCircle2 className="w-3 h-3" />
+                                                <span>{isLaudoPronto ? 'Laudo' : 'Analisar'}</span>
+                                              </button>
+                                            </>
+                                          );
+                                        })() : (
                                           <button
                                             type="button"
                                             onClick={() => {

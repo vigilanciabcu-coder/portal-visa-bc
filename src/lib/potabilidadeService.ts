@@ -706,3 +706,59 @@ export function gerarAmostrasParaSolicitacao(
   return novasAmostras;
 }
 
+/**
+ * Valida se a coleta de campo foi efetivamente realizada por fiscal sanitário.
+ */
+export function isColetaRealizada(
+  amostra?: AmostraLaboratorioItem | null,
+  solicitacao?: SolicitacaoLaudoPotabilidadeItem | null
+): boolean {
+  if (amostra) {
+    if (
+      Boolean(amostra.data_coleta) &&
+      amostra.status !== 'AGUARDANDO COLETA' &&
+      (amostra.status === 'COLETA REALIZADA' ||
+       amostra.status === 'EM ANÁLISE' ||
+       amostra.status === 'CONFORME' ||
+       amostra.status === 'NÃO CONFORME' ||
+       Boolean(amostra.laudo_numero))
+    ) {
+      return true;
+    }
+    return false;
+  }
+  if (solicitacao) {
+    const st = solicitacao.status_solicitacao;
+    if (st === 'COLETA REALIZADA' || st === 'LAUDO EMITIDO') {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Valida se a análise técnica laboratorial foi concluída e o laudo oficial assinado pelo farmacêutico/bioquímico.
+ */
+export function isLaudoAssinado(
+  amostra?: AmostraLaboratorioItem | null,
+  solicitacao?: SolicitacaoLaudoPotabilidadeItem | null
+): boolean {
+  if (amostra) {
+    const temAssinatura = Boolean(
+      amostra.assinatura_digital_validada ||
+      amostra.laudo_assinatura_validada ||
+      (amostra.laudo_numero && (amostra.laboratorialista || amostra.responsavel_analise))
+    );
+    const statusConcluido = amostra.status === 'CONFORME' || amostra.status === 'NÃO CONFORME';
+    if (temAssinatura && statusConcluido) {
+      return true;
+    }
+    return false;
+  }
+  if (solicitacao && solicitacao.status_solicitacao === 'LAUDO EMITIDO') {
+    return true;
+  }
+  return false;
+}
+
+

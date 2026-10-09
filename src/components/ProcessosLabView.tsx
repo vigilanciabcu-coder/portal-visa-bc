@@ -26,7 +26,9 @@ import {
   findAmostrasByProcesso,
   findAmostraBySolicitacao,
   findAmostrasBySolicitacao,
-  getAmostrasLaboratorio
+  getAmostrasLaboratorio,
+  isColetaRealizada,
+  isLaudoAssinado
 } from '../lib/potabilidadeService';
 import {
   fetchContabilidadesFromSupabase,
@@ -3409,9 +3411,10 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                     const matchingAmostras = findAmostrasByProcesso(proc);
                     const matchingAmostra = matchingAmostras[0] || findAmostraByProcesso(proc);
                     const totalPontosDesejados = Math.max(Number(matchingSolItem?.quantidade_pontos) || matchingAmostras.length || 1, 1);
-                    const laudosEmitidosCount = matchingAmostras.filter(a => a.status === 'CONFORME' || a.status === 'NÃO CONFORME' || Boolean(a.laudo_numero)).length;
-                    const isLaudoEmitido = matchingSolItem?.status_solicitacao === 'LAUDO EMITIDO' || matchingAmostra?.status === 'CONFORME' || matchingAmostra?.status === 'NÃO CONFORME' || proc.status === 'DEFERIDO' || (totalPontosDesejados > 1 && laudosEmitidosCount >= totalPontosDesejados);
-                    const isColetado = isLaudoEmitido || matchingSolItem?.status_solicitacao === 'COLETA REALIZADA' || matchingAmostra?.status === 'COLETA REALIZADA' || proc.situacao_fiscal?.includes('COLETA REALIZADA') || matchingAmostras.length > 0;
+                    const coletasRealizadasCount = matchingAmostras.filter(a => isColetaRealizada(a, matchingSolItem)).length;
+                    const laudosEmitidosCount = matchingAmostras.filter(a => isLaudoAssinado(a, matchingSolItem)).length;
+                    const isColetado = (totalPontosDesejados > 1 && coletasRealizadasCount > 0) || isColetaRealizada(matchingAmostra, matchingSolItem);
+                    const isLaudoEmitido = (totalPontosDesejados > 1 && laudosEmitidosCount >= totalPontosDesejados) || isLaudoAssinado(matchingAmostra, matchingSolItem);
 
                     return (
                       <div
@@ -3599,79 +3602,68 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                               </button>
 
                               {/* Para pedido de 1 ponto só, botões diretos */}
-                              {totalPontosDesejados === 1 && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setModalRelatorioColeta({
-                                        open: true,
-                                        amostra: matchingAmostra,
-                                        solicitacao: matchingSolItem || {
-                                          id: proc.id,
-                                          protocolo_1doc: proc.num_processo || proc.prot_1doc,
-                                          data_solicitacao: proc.data_protocolo,
-                                          cnpj_cpf: proc.cnpj_cpf,
-                                          razao_social: proc.razao_social,
-                                          nome_fantasia: proc.nome_fantasia,
-                                          categoria_estabelecimento: 'Estabelecimento Cadastrado',
-                                          quantidade_pontos: 1,
-                                          locais_coleta: ['Torneira da Manipulação'],
-                                          taxa_ufm_total: 0.40,
-                                          status_solicitacao: 'COLETA REALIZADA',
-                                          endereco: proc.endereco,
-                                          bairro: proc.bairro
-                                        }
-                                      });
-                                    }}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-1.5 transition cursor-pointer shadow-xs ${
-                                      isColetado || isLaudoEmitido
-                                        ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                                        : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
-                                    }`}
-                                    title="Visualizar Termo Oficial de Coleta de Amostra de Água em Campo assinado pelo fiscal"
-                                  >
-                                    <ClipboardCheck className="w-3.5 h-3.5" />
-                                    <span>📋 Termo de Coleta em Campo</span>
-                                  </button>
+                              {totalPontosDesejados === 1 && (() => {
+                                const singlePontoColetado = isColetaRealizada(matchingAmostra, matchingSolItem);
+                                const singlePontoAssinado = isLaudoAssinado(matchingAmostra, matchingSolItem);
 
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setModalLaudoOficial({
-                                        open: true,
-                                        amostra: matchingAmostra,
-                                        solicitacao: matchingSolItem || {
-                                          id: proc.id,
-                                          protocolo_1doc: proc.num_processo || proc.prot_1doc,
-                                          data_solicitacao: proc.data_protocolo,
-                                          cnpj_cpf: proc.cnpj_cpf,
-                                          razao_social: proc.razao_social,
-                                          nome_fantasia: proc.nome_fantasia,
-                                          categoria_estabelecimento: 'Estabelecimento Cadastrado',
-                                          quantidade_pontos: 1,
-                                          locais_coleta: ['Torneira da Manipulação'],
-                                          taxa_ufm_total: 0.40,
-                                          status_solicitacao: 'LAUDO EMITIDO',
-                                          endereco: proc.endereco,
-                                          bairro: proc.bairro
-                                        }
-                                      });
-                                    }}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-1.5 transition cursor-pointer shadow-xs ${
-                                      isLaudoEmitido
-                                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/40'
-                                        : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
-                                    }`}
-                                    title="Visualizar e imprimir Laudo Oficial de Análise de Potabilidade assinado digitalmente pelo responsável técnico"
-                                  >
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                    <span>🔬 Laudo Oficial de Potabilidade</span>
-                                  </button>
-                                </>
-                              )}
+                                return (
+                                  <>
+                                    <button
+                                      type="button"
+                                      disabled={!singlePontoColetado}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!singlePontoColetado) return;
+                                        setModalRelatorioColeta({
+                                          open: true,
+                                          amostra: matchingAmostra,
+                                          solicitacao: matchingSolItem
+                                        });
+                                      }}
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-1.5 transition shadow-xs ${
+                                        singlePontoColetado
+                                          ? 'bg-blue-600 hover:bg-blue-500 text-white cursor-pointer'
+                                          : 'opacity-40 bg-slate-800 text-slate-500 border border-slate-700/60 cursor-not-allowed select-none'
+                                      }`}
+                                      title={
+                                        singlePontoColetado
+                                          ? "Visualizar e imprimir Termo Oficial de Coleta de Amostra de Água em Campo assinado pelo fiscal"
+                                          : "Termo indisponível: o fiscal sanitário da VISA ainda não realizou a coleta de amostra no local"
+                                      }
+                                    >
+                                      <ClipboardCheck className="w-3.5 h-3.5" />
+                                      <span>{singlePontoColetado ? '📋 Termo de Coleta em Campo' : '⏳ Coleta Pendente'}</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      disabled={!singlePontoAssinado}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!singlePontoAssinado) return;
+                                        setModalLaudoOficial({
+                                          open: true,
+                                          amostra: matchingAmostra,
+                                          solicitacao: matchingSolItem
+                                        });
+                                      }}
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-1.5 transition shadow-xs ${
+                                        singlePontoAssinado
+                                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/40 cursor-pointer'
+                                          : 'opacity-40 bg-slate-800 text-slate-500 border border-slate-700/60 cursor-not-allowed select-none'
+                                      }`}
+                                      title={
+                                        singlePontoAssinado
+                                          ? "Visualizar e imprimir Laudo Oficial de Análise de Potabilidade assinado digitalmente pelo responsável técnico"
+                                          : "Laudo indisponível: aguarda conclusão dos ensaios microbiológicos e assinatura digital do Responsável Técnico (CRF)"
+                                      }
+                                    >
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      <span>{singlePontoAssinado ? '🔬 Laudo Oficial de Potabilidade' : '⏳ Laudo Pendente (CRF)'}</span>
+                                    </button>
+                                  </>
+                                );
+                              })()}
                             </div>
 
                             {/* PAINEL COMPLETO DAS N COLETAS & N LAUDOS PARA O SOLICITANTE */}
@@ -3680,10 +3672,10 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                                 <div className="flex items-center justify-between flex-wrap gap-2 text-xs">
                                   <span className="font-black uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
                                     <FlaskConical className="w-3.5 h-3.5 text-cyan-400" />
-                                    Laudos Oficiais por Ponto de Coleta ({laudosEmitidosCount || totalPontosDesejados} de {totalPontosDesejados} Laudos Emitidos):
+                                    Laudos Oficiais por Ponto de Coleta ({laudosEmitidosCount} de {totalPontosDesejados} Laudos Emitidos):
                                   </span>
                                   <span className="text-[10.5px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-700/60 px-2 py-0.5 rounded font-mono">
-                                    {laudosEmitidosCount >= totalPontosDesejados || isLaudoEmitido
+                                    {laudosEmitidosCount >= totalPontosDesejados
                                       ? `✓ ${totalPontosDesejados} Laudos Emitidos (100% Conforme)`
                                       : `${laudosEmitidosCount}/${totalPontosDesejados} Laudos Concluídos`}
                                   </span>
@@ -3698,28 +3690,33 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                                            (a.codigo_amostra && a.codigo_amostra.endsWith(`/${pNumero}`))
                                     ) || matchingAmostras[pIdx];
 
-                                    const isPronto = am && (am.status === 'CONFORME' || am.status === 'NÃO CONFORME' || Boolean(am.laudo_numero));
+                                    const pontoColetado = isColetaRealizada(am, matchingSolItem);
+                                    const pontoAssinado = isLaudoAssinado(am, matchingSolItem);
 
                                     return (
                                       <div
                                         key={pIdx}
                                         className={`p-2.5 rounded-xl border flex flex-col justify-between space-y-2 transition ${
-                                          isPronto
+                                          pontoAssinado
                                             ? 'bg-[#182836] border-emerald-500/50 text-white shadow-xs'
-                                            : 'bg-[#192130] border-slate-700 text-slate-300'
+                                            : pontoColetado
+                                            ? 'bg-[#172233] border-blue-600/40 text-slate-200'
+                                            : 'bg-[#192130] border-slate-700 text-slate-400'
                                         }`}
                                       >
                                         <div>
                                           <div className="flex items-center justify-between text-[11px] mb-1">
                                             <span className="font-mono font-black text-cyan-300">
-                                              {am ? `Amostra #${am.codigo_amostra}` : `Coleta ${pNumero}/${totalPontosDesejados}`}
+                                              {am?.codigo_amostra ? `Amostra #${am.codigo_amostra}` : `Coleta ${pNumero}/${totalPontosDesejados}`}
                                             </span>
                                             <span className={`text-[9px] font-black px-1.5 py-0.2 rounded uppercase border font-mono ${
-                                              isPronto
+                                              pontoAssinado
                                                 ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
-                                                : 'bg-amber-950 text-amber-300 border-amber-600'
+                                                : pontoColetado
+                                                ? 'bg-blue-950 text-blue-300 border-blue-600'
+                                                : 'bg-slate-800 text-slate-400 border-slate-700'
                                             }`}>
-                                              {isPronto ? `Laudo ${am?.laudo_numero || 'Emitido'}` : 'Em Análise'}
+                                              {pontoAssinado ? `Laudo #${am?.laudo_numero || pNumero}` : pontoColetado ? 'Em Análise' : 'Aguardando Coleta'}
                                             </span>
                                           </div>
                                           <p className="text-[11px] font-bold text-slate-200 line-clamp-2" title={localNome}>
@@ -3728,70 +3725,58 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
                                         </div>
 
                                         <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-700/60">
-                                          {am && (
-                                            <button
-                                              type="button"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setModalRelatorioColeta({
-                                                  open: true,
-                                                  amostra: am,
-                                                  solicitacao: matchingSolItem || {
-                                                    id: proc.id,
-                                                    protocolo_1doc: proc.num_processo || proc.prot_1doc,
-                                                    data_solicitacao: proc.data_protocolo,
-                                                    cnpj_cpf: proc.cnpj_cpf,
-                                                    razao_social: proc.razao_social,
-                                                    nome_fantasia: proc.nome_fantasia,
-                                                    quantidade_pontos: totalPontosDesejados,
-                                                    locais_coleta: matchingSolItem?.locais_coleta || [localNome],
-                                                    taxa_ufm_total: totalPontosDesejados * 0.40,
-                                                    status_solicitacao: 'COLETA REALIZADA',
-                                                    endereco: proc.endereco,
-                                                    bairro: proc.bairro
-                                                  }
-                                                });
-                                              }}
-                                              className="flex-1 py-1 px-1.5 bg-blue-950/80 hover:bg-blue-900 border border-blue-700/60 text-blue-200 rounded text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 cursor-pointer"
-                                              title={`Ver Termo de Coleta do Ponto ${pNumero}`}
-                                            >
-                                              <ClipboardCheck className="w-3 h-3" />
-                                              <span>Termo</span>
-                                            </button>
-                                          )}
+                                          <button
+                                            type="button"
+                                            disabled={!pontoColetado || !am}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (!pontoColetado || !am) return;
+                                              setModalRelatorioColeta({
+                                                open: true,
+                                                amostra: am,
+                                                solicitacao: matchingSolItem
+                                              });
+                                            }}
+                                            className={`flex-1 py-1 px-1.5 rounded text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 ${
+                                              pontoColetado && am
+                                                ? 'bg-blue-950/80 hover:bg-blue-900 border border-blue-700/60 text-blue-200 cursor-pointer'
+                                                : 'opacity-40 bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed select-none'
+                                            }`}
+                                            title={
+                                              pontoColetado
+                                                ? `Ver Termo de Coleta do Ponto ${pNumero}`
+                                                : `Coleta do Ponto ${pNumero} ainda não realizada pelo fiscal da VISA`
+                                            }
+                                          >
+                                            <ClipboardCheck className="w-3 h-3" />
+                                            <span>{pontoColetado ? 'Termo' : 'Aguardando'}</span>
+                                          </button>
 
                                           <button
                                             type="button"
+                                            disabled={!pontoAssinado || !am}
                                             onClick={(e) => {
                                               e.stopPropagation();
+                                              if (!pontoAssinado || !am) return;
                                               setModalLaudoOficial({
                                                 open: true,
-                                                amostra: am || matchingAmostra,
-                                                solicitacao: matchingSolItem || {
-                                                  id: proc.id,
-                                                  protocolo_1doc: proc.num_processo || proc.prot_1doc,
-                                                  data_solicitacao: proc.data_protocolo,
-                                                  cnpj_cpf: proc.cnpj_cpf,
-                                                  razao_social: proc.razao_social,
-                                                  nome_fantasia: proc.nome_fantasia,
-                                                  quantidade_pontos: totalPontosDesejados,
-                                                  locais_coleta: matchingSolItem?.locais_coleta || [localNome],
-                                                  taxa_ufm_total: totalPontosDesejados * 0.40,
-                                                  status_solicitacao: 'LAUDO EMITIDO',
-                                                  endereco: proc.endereco,
-                                                  bairro: proc.bairro
-                                                }
+                                                amostra: am,
+                                                solicitacao: matchingSolItem
                                               });
                                             }}
-                                            className={`flex-1 py-1 px-1.5 rounded text-[10px] font-black uppercase transition flex items-center justify-center gap-1 cursor-pointer shadow-xs ${
-                                              isPronto
-                                                ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                                                : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                                            className={`flex-1 py-1 px-1.5 rounded text-[10px] font-black uppercase transition flex items-center justify-center gap-1 ${
+                                              pontoAssinado && am
+                                                ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer shadow-xs'
+                                                : 'opacity-40 bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed select-none'
                                             }`}
-                                            title={`Visualizar Laudo Oficial emitido para o Ponto ${pNumero}`}
+                                            title={
+                                              pontoAssinado
+                                                ? `Visualizar Laudo Oficial emitido para o Ponto ${pNumero}`
+                                                : `Laudo do Ponto ${pNumero} aguarda análise microbiológica e assinatura do CRF`
+                                            }
                                           >
                                             <CheckCircle2 className="w-3 h-3" />
-                                            <span>Laudo {pNumero}</span>
+                                            <span>{pontoAssinado ? `Laudo ${pNumero}` : `Laudo ${pNumero} (Pendente)`}</span>
                                           </button>
                                         </div>
                                       </div>

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { X, Printer, Droplet, CheckCircle2, AlertTriangle, FileText } from 'lucide-react';
 import { AmostraLaboratorioItem, SolicitacaoLaudoPotabilidadeItem } from '../types';
+import { isLaudoAssinado } from '../lib/potabilidadeService';
 
 export interface LaudoOficialAguaModalProps {
   isOpen: boolean;
@@ -29,6 +30,59 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
   }, [isOpen, amostra, solicitacao]);
 
   if (!isOpen || (!amostra && !solicitacao)) return null;
+
+  const laudoLiberado = isLaudoAssinado(amostra, solicitacao);
+
+  if (!laudoLiberado) {
+    const protocolo = amostra?.protocolo || solicitacao?.protocolo_1doc || 'S/N';
+    const interessado = amostra?.interessado || amostra?.estabelecimento || solicitacao?.razao_social || 'Requerente';
+    return (
+      <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fadeIn">
+        <div className="bg-slate-900 text-white rounded-2xl max-w-lg w-full p-6 sm:p-7 shadow-2xl relative border border-slate-700 text-left space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center gap-2.5 text-amber-400">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <h3 className="font-black text-sm uppercase tracking-wide">
+                Laudo Oficial em Andamento
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white cursor-pointer transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs space-y-2">
+            <p className="font-bold">
+              ⏳ O Laudo Oficial ainda não possui emissão ou assinatura técnica concluída.
+            </p>
+            <p className="text-[11px] text-amber-300/90 leading-relaxed">
+              Conforme as normas sanitárias vigentes, os dados analíticos de potabilidade e o laudo oficial para impressão somente são liberados após a realização da coleta presencial em campo, incubação bacteriológica em bancada e a homologação com assinatura digital do responsável técnico farmacêutico/bioquímico (CRF).
+            </p>
+          </div>
+
+          <div className="p-3 bg-slate-800/80 rounded-xl border border-slate-700 text-xs space-y-1.5 font-mono">
+            <div><span className="text-slate-400">Protocolo:</span> <strong className="text-cyan-300">{protocolo}</strong></div>
+            <div><span className="text-slate-400">Interessado:</span> <span className="text-slate-200">{interessado}</span></div>
+            <div><span className="text-slate-400">Situação:</span> <span className="text-amber-400 font-bold">{solicitacao?.status_solicitacao || amostra?.status || 'AGUARDANDO COLETA / ANÁLISE'}</span></div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold uppercase cursor-pointer transition"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Objeto unificado com valores padrão oficiais
   const item: Partial<AmostraLaboratorioItem> = amostra || {

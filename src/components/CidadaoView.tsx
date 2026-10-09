@@ -27,7 +27,8 @@ import {
   KeyRound,
   Droplet,
   Droplets,
-  ClipboardCheck
+  ClipboardCheck,
+  FlaskConical
 } from 'lucide-react';
 import { INITIAL_CONTABILIDADES } from '../data/mockData';
 import { fetchContabilidadesFromSupabase, isSupabaseConfigured } from '../lib/supabaseService';
@@ -40,7 +41,10 @@ import { LaudoOficialAguaModal } from './LaudoOficialAguaModal';
 import {
   getSolicitacoesPotabilidade,
   findAmostraByProcesso,
-  findAmostraBySolicitacao
+  findAmostraBySolicitacao,
+  findAmostrasBySolicitacao,
+  isColetaRealizada,
+  isLaudoAssinado
 } from '../lib/potabilidadeService';
 import { SolicitacaoLaudoPotabilidadeItem } from '../types';
 
@@ -626,77 +630,243 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
                     </button>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {matchingPot.map(sol => {
-                      const isLaudo = sol.status_solicitacao === 'LAUDO EMITIDO' || matchingAmostra?.status === 'CONFORME' || matchingAmostra?.status === 'NÃO CONFORME';
-                      const isCol = isLaudo || sol.status_solicitacao === 'COLETA REALIZADA' || matchingAmostra?.status === 'COLETA REALIZADA';
+                      const matchingAmostras = findAmostrasBySolicitacao(sol);
+                      const totalPontos = Math.max(Number(sol.quantidade_pontos) || 1, 1);
+                      const coletasRealizadasCount = matchingAmostras.filter(a => isColetaRealizada(a, sol)).length;
+                      const laudosEmitidosCount = matchingAmostras.filter(a => isLaudoAssinado(a, sol)).length;
+
+                      const isConcluidoGeral = sol.status_solicitacao === 'LAUDO EMITIDO' || (totalPontos > 0 && laudosEmitidosCount >= totalPontos);
+                      const isColetadoGeral = sol.status_solicitacao === 'COLETA REALIZADA' || coletasRealizadasCount > 0;
 
                       return (
-                        <div key={sol.id} className="p-3 rounded-xl bg-black/40 border border-cyan-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-mono font-black text-cyan-300 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-800">
-                                Prot. {sol.protocolo_1doc || 'S/N'}
-                              </span>
-                              <span className={`px-2 py-0.5 rounded font-black text-[10px] uppercase border ${
-                                isLaudo
-                                  ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
-                                  : isCol
-                                  ? 'bg-blue-950 text-blue-300 border-blue-600'
-                                  : 'bg-amber-950 text-amber-300 border-amber-600'
-                              }`}>
-                                {sol.status_solicitacao}
-                              </span>
-                              <span className="text-slate-400 text-[11px]">
-                                {sol.quantidade_pontos} ponto(s) • Taxa: {sol.taxa_ufm_total.toFixed(2)} UFM
-                              </span>
+                        <div
+                          key={sol.id}
+                          className="p-3.5 sm:p-4 rounded-xl bg-black/50 border border-cyan-500/40 space-y-3 text-xs shadow-md"
+                        >
+                          {/* Topo do card: Identificação e Ficha 1Doc */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-cyan-900/50">
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono font-black text-cyan-300 bg-cyan-950 px-2.5 py-0.5 rounded border border-cyan-700">
+                                  Prot. 1Doc: {sol.protocolo_1doc || 'S/N'}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded font-black text-[10px] uppercase border ${
+                                    isConcluidoGeral
+                                      ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
+                                      : isColetadoGeral
+                                        ? 'bg-blue-950 text-blue-300 border-blue-600'
+                                        : 'bg-amber-950 text-amber-300 border-amber-600'
+                                  }`}
+                                >
+                                  {sol.status_solicitacao}
+                                </span>
+                                <span className="text-slate-300 text-[11px] font-semibold">
+                                  {totalPontos} ponto(s) solicitado(s) • Taxa: {sol.taxa_ufm_total.toFixed(2)} UFM
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-300 mt-1">
+                                Solicitado em: {new Date(sol.data_solicitacao).toLocaleDateString('pt-BR')} • {sol.locais_coleta.join(' • ')}
+                              </p>
                             </div>
-                            <p className="text-[11px] text-slate-300 mt-1">
-                              Locais: {sol.locais_coleta.join(', ')} • Solicitado em: {new Date(sol.data_solicitacao).toLocaleDateString('pt-BR')}
-                            </p>
+
+                            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={() => setModalFicha1Doc({ open: true, solicitacao: sol })}
+                                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-700/50 rounded-lg text-xs font-bold uppercase flex items-center gap-1.5 cursor-pointer shadow-xs transition"
+                                title="Visualizar a Ficha Oficial 1Doc da Solicitação de Potabilidade"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                <span>Ficha 1Doc</span>
+                              </button>
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                            <button
-                              type="button"
-                              onClick={() => setModalFicha1Doc({ open: true, solicitacao: sol })}
-                              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded-lg text-xs font-bold uppercase flex items-center gap-1 cursor-pointer"
-                            >
-                              <FileText className="w-3.5 h-3.5" /> Ficha 1Doc
-                            </button>
+                          {/* Se for pedido de 1 ponto só */}
+                          {totalPontos === 1 && (() => {
+                            const am = matchingAmostras[0] || matchingAmostra;
+                            const pontoColetado = isColetaRealizada(am, sol);
+                            const pontoAssinado = isLaudoAssinado(am, sol);
 
-                            <button
-                              type="button"
-                              onClick={() => setModalRelatorioColeta({
-                                open: true,
-                                amostra: matchingAmostra,
-                                solicitacao: sol
-                              })}
-                              className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-1 cursor-pointer ${
-                                isCol
-                                  ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                                  : 'bg-slate-800 text-slate-400 border border-slate-700'
-                              }`}
-                            >
-                              <ClipboardCheck className="w-3.5 h-3.5" /> Termo Coleta
-                            </button>
+                            return (
+                              <div className="flex items-center gap-2 pt-1 flex-wrap">
+                                <button
+                                  type="button"
+                                  disabled={!pontoColetado}
+                                  onClick={() => {
+                                    if (!pontoColetado) return;
+                                    setModalRelatorioColeta({
+                                      open: true,
+                                      amostra: am,
+                                      solicitacao: sol
+                                    });
+                                  }}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase flex items-center gap-1.5 transition ${
+                                    pontoColetado
+                                      ? 'bg-blue-600 hover:bg-blue-500 text-white cursor-pointer shadow-xs'
+                                      : 'opacity-40 bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed select-none'
+                                  }`}
+                                  title={
+                                    pontoColetado
+                                      ? 'Visualizar e imprimir Termo Oficial de Coleta em Campo'
+                                      : 'Coleta ainda não realizada pelo fiscal da VISA'
+                                  }
+                                >
+                                  <ClipboardCheck className="w-3.5 h-3.5" />
+                                  <span>{pontoColetado ? 'Termo de Coleta' : 'Coleta Pendente'}</span>
+                                </button>
 
-                            <button
-                              type="button"
-                              onClick={() => setModalLaudoOficial({
-                                open: true,
-                                amostra: matchingAmostra,
-                                solicitacao: sol
-                              })}
-                              className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-1 cursor-pointer ${
-                                isLaudo
-                                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                                  : 'bg-slate-800 text-slate-400 border border-slate-700'
-                              }`}
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Laudo Oficial
-                            </button>
-                          </div>
+                                <button
+                                  type="button"
+                                  disabled={!pontoAssinado}
+                                  onClick={() => {
+                                    if (!pontoAssinado) return;
+                                    setModalLaudoOficial({
+                                      open: true,
+                                      amostra: am,
+                                      solicitacao: sol
+                                    });
+                                  }}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-1.5 transition ${
+                                    pontoAssinado
+                                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer shadow-xs'
+                                      : 'opacity-40 bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed select-none'
+                                  }`}
+                                  title={
+                                    pontoAssinado
+                                      ? 'Visualizar e imprimir Laudo Oficial de Potabilidade assinado pelo responsável técnico (CRF)'
+                                      : 'Laudo aguarda análise microbiológica e assinatura do técnico'
+                                  }
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>{pontoAssinado ? 'Laudo Oficial' : 'Laudo Pendente (CRF)'}</span>
+                                </button>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Se for pedido de MÚLTIPLOS pontos (ex: 8 coletas do Processo 67020/2026) */}
+                          {totalPontos > 1 && (
+                            <div className="space-y-2.5 pt-1">
+                              <div className="flex items-center justify-between flex-wrap gap-2 text-xs">
+                                <span className="font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                                  <FlaskConical className="w-3.5 h-3.5 text-cyan-400" />
+                                  Coletas & Laudos por Ponto ({laudosEmitidosCount} de {totalPontos} Laudos Emitidos):
+                                </span>
+                                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-700/60 px-2 py-0.5 rounded font-mono">
+                                  {laudosEmitidosCount >= totalPontos
+                                    ? `✓ ${totalPontos} Laudos Emitidos e Disponíveis`
+                                    : `${coletasRealizadasCount}/${totalPontos} Coletas • ${laudosEmitidosCount}/${totalPontos} Laudos`}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1">
+                                {Array.from({ length: totalPontos }).map((_, pIdx) => {
+                                  const pNumero = pIdx + 1;
+                                  const localNome = (sol.locais_coleta && sol.locais_coleta[pIdx]) || `Ponto ${pNumero} - Torneira/Bebedouro`;
+                                  const am = matchingAmostras.find(
+                                    a => a.local_coleta.includes(`Ponto ${pNumero}`) ||
+                                         (a.codigo_amostra && a.codigo_amostra.endsWith(`/${pNumero}`))
+                                  ) || matchingAmostras[pIdx];
+
+                                  const pontoColetado = isColetaRealizada(am, sol);
+                                  const pontoAssinado = isLaudoAssinado(am, sol);
+
+                                  return (
+                                    <div
+                                      key={pIdx}
+                                      className={`p-2.5 rounded-xl border flex flex-col justify-between space-y-2 transition ${
+                                        pontoAssinado
+                                          ? 'bg-slate-900/90 border-emerald-500/50 text-white'
+                                          : pontoColetado
+                                            ? 'bg-slate-900/90 border-blue-600/40 text-slate-200'
+                                            : 'bg-slate-950/80 border-slate-800 text-slate-400'
+                                      }`}
+                                    >
+                                      <div>
+                                        <div className="flex items-center justify-between text-[11px] mb-1">
+                                          <span className="font-mono font-bold text-cyan-300">
+                                            {am?.codigo_amostra ? `Amostra #${am.codigo_amostra}` : `Ponto ${pNumero}/${totalPontos}`}
+                                          </span>
+                                          <span
+                                            className={`text-[9px] font-black px-1.5 py-0.2 rounded uppercase border font-mono ${
+                                              pontoAssinado
+                                                ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
+                                                : pontoColetado
+                                                  ? 'bg-blue-950 text-blue-300 border-blue-600'
+                                                  : 'bg-slate-800 text-slate-400 border-slate-700'
+                                            }`}
+                                          >
+                                            {pontoAssinado ? `Laudo #${am?.laudo_numero || pNumero}` : pontoColetado ? 'Em Análise' : 'Aguardando Coleta'}
+                                          </span>
+                                        </div>
+                                        <p className="text-[11px] font-semibold text-slate-200 line-clamp-2" title={localNome}>
+                                          {localNome}
+                                        </p>
+                                      </div>
+
+                                      <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-800">
+                                        <button
+                                          type="button"
+                                          disabled={!pontoColetado || !am}
+                                          onClick={() => {
+                                            if (!pontoColetado || !am) return;
+                                            setModalRelatorioColeta({
+                                              open: true,
+                                              amostra: am,
+                                              solicitacao: sol
+                                            });
+                                          }}
+                                          className={`flex-1 py-1 px-1.5 rounded text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 ${
+                                            pontoColetado && am
+                                              ? 'bg-blue-950/80 hover:bg-blue-900 border border-blue-700/60 text-blue-200 cursor-pointer'
+                                              : 'opacity-40 bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed select-none'
+                                          }`}
+                                          title={
+                                            pontoColetado
+                                              ? `Visualizar Termo de Coleta do Ponto ${pNumero}`
+                                              : `Coleta do Ponto ${pNumero} ainda não realizada pelo fiscal da VISA`
+                                          }
+                                        >
+                                          <ClipboardCheck className="w-3 h-3" />
+                                          <span>{pontoColetado ? 'Termo' : 'Aguardando'}</span>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          disabled={!pontoAssinado || !am}
+                                          onClick={() => {
+                                            if (!pontoAssinado || !am) return;
+                                            setModalLaudoOficial({
+                                              open: true,
+                                              amostra: am,
+                                              solicitacao: sol
+                                            });
+                                          }}
+                                          className={`flex-1 py-1 px-1.5 rounded text-[10px] font-black uppercase transition flex items-center justify-center gap-1 ${
+                                            pontoAssinado && am
+                                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer shadow-xs'
+                                              : 'opacity-40 bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed select-none'
+                                          }`}
+                                          title={
+                                            pontoAssinado
+                                              ? `Visualizar Laudo Oficial emitido para o Ponto ${pNumero}`
+                                              : `Laudo do Ponto ${pNumero} aguarda análise microbiológica e assinatura do CRF`
+                                          }
+                                        >
+                                          <CheckCircle2 className="w-3 h-3" />
+                                          <span>{pontoAssinado ? `Laudo ${pNumero}` : `Laudo ${pNumero} (Pendente)`}</span>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

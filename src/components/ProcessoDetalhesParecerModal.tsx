@@ -44,7 +44,9 @@ import {
   subscribeSolicitacoesPotabilidade,
   findAmostraByProcesso,
   findAmostraBySolicitacao,
-  findAmostrasBySolicitacao
+  findAmostrasBySolicitacao,
+  isColetaRealizada,
+  isLaudoAssinado
 } from '../lib/potabilidadeService';
 import { SolicitacaoLaudoPotabilidadeItem } from '../types';
 import { DocumentoOficialPdfModal, TipoDocumentoOficial } from './DocumentoOficialPdfModal';
