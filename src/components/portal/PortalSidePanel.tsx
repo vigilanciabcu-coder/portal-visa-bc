@@ -81,6 +81,123 @@ export const PortalSidePanel: React.FC<PortalSidePanelProps> = ({
     return parseInt(parts[1], 10) - 1 === todayMonth;
   });
 
+  // Helper para renderizar o Mural DVIS Oficial de forma padronizada e completa
+  const renderMural = () => {
+    const activeMural = mural && mural.length > 0 ? mural : [];
+    if (activeMural.length === 0) {
+      return (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm text-left">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-2 mb-2">
+            <span className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 flex items-center gap-1 tracking-wider">
+              <Info className="w-3.5 h-3.5" /> Mural DVIS
+            </span>
+          </div>
+          <p className="text-xs text-slate-400 py-3 text-center">Nenhum aviso no momento no mural.</p>
+        </div>
+      );
+    }
+
+    const safeIndex = muralIndex % activeMural.length;
+    const item = activeMural[safeIndex] || activeMural[0];
+    const itemTexto = item?.conteudo || (item as any)?.texto || (item as any)?.mensagem || '';
+    const itemTitulo = item?.titulo || 'Comunicado Oficial DVIS';
+    const isUrgente = item?.prioridade === 'URGENTE' || (item as any)?.prioridade === 'ALTA';
+    const isAlerta = item?.prioridade === 'ALERTA';
+
+    return (
+      <div
+        className={`rounded-2xl p-4 border shadow-sm text-left transition-all ${
+          isUrgente
+            ? 'bg-red-50/80 dark:bg-red-950/40 border-red-200 dark:border-red-900/60'
+            : isAlerta
+            ? 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/60'
+            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+        }`}
+      >
+        <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-2 mb-2.5">
+          <span
+            className={`text-[10px] font-black uppercase flex items-center gap-1 tracking-wider ${
+              isUrgente
+                ? 'text-red-600 dark:text-red-400'
+                : isAlerta
+                ? 'text-amber-600 dark:text-amber-400'
+                : 'text-amber-600 dark:text-amber-400'
+            }`}
+          >
+            <Info className="w-3.5 h-3.5" /> Mural DVIS
+          </span>
+          <div className="flex items-center gap-2">
+            {item?.prioridade && (
+              <span
+                className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${
+                  isUrgente
+                    ? 'bg-red-600 text-white animate-pulse'
+                    : isAlerta
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900'
+                }`}
+              >
+                {item.prioridade}
+              </span>
+            )}
+            {activeMural.length > 1 && (
+              <span className="text-[10px] font-bold text-slate-400">
+                {safeIndex + 1}/{activeMural.length}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          {itemTitulo && (
+            <h5 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-tight flex items-center gap-1.5 leading-snug">
+              <span>📢</span>
+              <span>{itemTitulo}</span>
+            </h5>
+          )}
+          <p className="text-[11px] font-medium text-slate-700 dark:text-slate-200 leading-relaxed break-words">
+            <AutoLinkText
+              text={itemTexto}
+              linkClassName="text-blue-600 dark:text-blue-400 hover:underline font-bold inline-flex items-center gap-0.5"
+            />
+          </p>
+        </div>
+
+        <div className="mt-3 pt-2 border-t border-black/5 dark:border-white/5 text-[10px] text-slate-400 flex items-center justify-between">
+          <span className="truncate max-w-[190px]">
+            Por: <strong className="text-slate-600 dark:text-slate-300">{item?.autor || 'Diretoria'}</strong> {item?.data ? `• ${item.data}` : ''}
+          </span>
+          {activeMural.length > 1 && (
+            <div className="flex gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMuralIndex((prev) => (prev - 1 + activeMural.length) % activeMural.length);
+                }}
+                className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded text-[9px] font-bold cursor-pointer transition"
+                title="Aviso Anterior"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMuralIndex((prev) => (prev + 1) % activeMural.length);
+                }}
+                className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded text-[9px] font-bold cursor-pointer transition"
+                title="Próximo Aviso"
+              >
+                ›
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="w-full lg:w-[320px] flex flex-col gap-4 text-left">
       {userType === 'CIDADAO' ? (
@@ -130,6 +247,9 @@ export const PortalSidePanel: React.FC<PortalSidePanelProps> = ({
               </li>
             </ul>
           </div>
+
+          {/* Mural DVIS Oficial para Cidadãos */}
+          {renderMural()}
         </div>
       ) : (
         /* Painel dos Servidores e Contabilidade */
@@ -167,66 +287,24 @@ export const PortalSidePanel: React.FC<PortalSidePanelProps> = ({
           )}
 
           {/* Mural de Recados Institucionais */}
-          {mural && mural.length > 0 && (
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm text-left">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-2 mb-2.5">
-                <span className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 flex items-center gap-1 tracking-wider">
-                  <Info className="w-3.5 h-3.5" /> Mural DVIS
-                </span>
-                {mural.length > 1 && (
-                  <span className="text-[10px] font-bold text-slate-400">
-                    {muralIndex + 1} de {mural.length}
-                  </span>
-                )}
-              </div>
-              <div className="min-h-[50px] flex flex-col justify-center">
-                <p className="text-xs font-medium text-slate-700 dark:text-slate-200 leading-relaxed">
-                  <AutoLinkText text={mural[muralIndex]?.texto || ''} />
-                </p>
-                <div className="mt-2 text-[10px] text-slate-400 flex items-center justify-between">
-                  <span>Por: {mural[muralIndex]?.autor || 'Diretoria'}</span>
-                  {mural.length > 1 && (
-                    <div className="flex gap-1">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMuralIndex((prev) => (prev - 1 + mural.length) % mural.length);
-                        }}
-                        className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-[9px] hover:bg-slate-200 font-bold"
-                      >
-                        ‹
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMuralIndex((prev) => (prev + 1) % mural.length);
-                        }}
-                        className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-[9px] hover:bg-slate-200 font-bold"
-                      >
-                        ›
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+          {renderMural()}
 
           {/* Chat Interno da Equipe VISA */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col h-[280px]">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col h-[300px]">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-2 mb-2">
               <span className="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 flex items-center gap-1.5 tracking-wider">
                 <MessageSquare className="w-3.5 h-3.5 text-blue-500" /> Chat Operacional
               </span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Conectado em tempo real" />
+              <div className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Conectado em tempo real" />
+                <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Ativo</span>
+              </div>
             </div>
 
             {/* Mensagens */}
             <div
               ref={chatScrollRef}
-              className="flex-1 overflow-y-auto space-y-2 pr-1 text-xs no-scrollbar"
+              className="flex-1 overflow-y-auto space-y-2 pr-1 text-xs no-scrollbar min-h-0"
             >
               {chat.length === 0 ? (
                 <div className="text-center text-slate-400 text-xs py-8">
@@ -234,27 +312,51 @@ export const PortalSidePanel: React.FC<PortalSidePanelProps> = ({
                 </div>
               ) : (
                 chat.map((m) => {
-                  const isMine = m.usuario_id === currentUser?.id;
+                  const senderName = m.sender || (m as any).autor || 'Operador';
+                  const messageText = m.text || (m as any).texto || (m as any).mensagem || '';
+                  const messageTime = m.time || (m as any).hora || '';
+                  const messageRole = m.role || (m as any).cargo;
+                  const isMine = Boolean(
+                    (currentUser && ((m.perfil_id && m.perfil_id === currentUser.id) || ((m as any).usuario_id && (m as any).usuario_id === currentUser.id))) ||
+                    (currentUser && senderName && senderName.toLowerCase().includes(currentUser.nome_completo.split(' ')[0].toLowerCase()))
+                  );
+                  const canDelete = Boolean(
+                    onDeleteMessage && (currentUser?.cargo?.includes('MASTER') || isMine)
+                  );
+
                   return (
                     <div
                       key={m.id}
-                      className={`p-2 rounded-xl text-left ${
+                      className={`p-2 rounded-xl text-left transition group ${
                         isMine
-                          ? 'bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 ml-4'
-                          : 'bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 mr-4'
+                          ? 'bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 ml-3'
+                          : 'bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 mr-3'
                       }`}
                     >
                       <div className="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
-                        <span className="font-bold text-slate-700 dark:text-slate-300">
-                          {m.autor}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <span>{m.hora || ''}</span>
-                          {onDeleteMessage && (currentUser?.cargo?.includes('MASTER') || isMine) && (
+                        <div className="flex items-center gap-1.5 truncate max-w-[170px]">
+                          <span className={`font-bold uppercase truncate ${
+                            isMine ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'
+                          }`}>
+                            {senderName}
+                          </span>
+                          {messageRole && (
+                            <span className={`text-[7px] font-extrabold px-1 rounded uppercase shrink-0 ${
+                              messageRole === 'MASTER' || messageRole === 'DIRETOR'
+                                ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                                : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                            }`}>
+                              {messageRole}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="font-mono text-[9px]">{messageTime}</span>
+                          {canDelete && (
                             <button
                               type="button"
-                              onClick={() => onDeleteMessage(m.id)}
-                              className="text-slate-400 hover:text-rose-500 ml-1"
+                              onClick={() => onDeleteMessage!(m.id)}
+                              className="opacity-60 group-hover:opacity-100 text-slate-400 hover:text-rose-500 ml-1 p-0.5 transition cursor-pointer"
                               title="Excluir mensagem"
                             >
                               <Trash2 className="w-2.5 h-2.5" />
@@ -263,7 +365,10 @@ export const PortalSidePanel: React.FC<PortalSidePanelProps> = ({
                         </div>
                       </div>
                       <p className="text-[11px] text-slate-800 dark:text-slate-200 break-words leading-snug">
-                        <AutoLinkText text={m.texto} />
+                        <AutoLinkText
+                          text={messageText}
+                          linkClassName="text-blue-600 dark:text-blue-400 hover:underline font-bold inline-flex items-center gap-0.5 break-all cursor-pointer"
+                        />
                       </p>
                     </div>
                   );
@@ -272,18 +377,18 @@ export const PortalSidePanel: React.FC<PortalSidePanelProps> = ({
             </div>
 
             {/* Form Envio */}
-            <form onSubmit={handleSendChat} className="mt-2 flex gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-700/60">
+            <form onSubmit={handleSendChat} className="mt-2 flex gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-700/60 shrink-0">
               <input
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Escreva para a equipe..."
+                placeholder={currentUser ? `Mensagem como ${currentUser.nome_completo.split(' ')[0]}...` : "Escreva para a equipe..."}
                 className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-blue-500 text-slate-800 dark:text-white"
               />
               <button
                 type="submit"
                 disabled={!chatInput.trim()}
-                className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl transition cursor-pointer shadow-xs shrink-0"
+                className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl transition cursor-pointer shadow-xs shrink-0 flex items-center justify-center"
               >
                 <Send className="w-3.5 h-3.5" />
               </button>

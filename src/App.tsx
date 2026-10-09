@@ -228,13 +228,25 @@ export default function App() {
   });
 
   const [mural, setMural] = useState<RecadoMural[]>(() => {
-    const saved = localStorage.getItem('visa_mural');
-    return saved ? JSON.parse(saved) : INITIAL_MURAL;
+    try {
+      const saved = localStorage.getItem('visa_mural');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_MURAL;
   });
 
   const [chat, setChat] = useState<ChatMessage[]>(() => {
-    const saved = localStorage.getItem('visa_chat');
-    return saved ? JSON.parse(saved) : INITIAL_CHAT;
+    try {
+      const saved = localStorage.getItem('visa_chat');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_CHAT;
   });
 
   // Sync com Supabase no carregamento
