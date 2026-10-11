@@ -316,19 +316,6 @@ export const PORTAL_BUTTONS_CONFIG: PortalButtonDef[] = [
 
   // 6. PROCESSOS LEGADOS (SOMENTE MASTER)
   {
-    id: 'tproc',
-    nome: 'Processos Legados (Sheets)',
-    descricao: 'Acesso legado aos dados de planilhas',
-    url: '',
-    img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/processos.avif',
-    acao: 'view',
-    view: 'processos',
-    badgetext: 'SHEETS',
-    somenteMaster: true,
-    perfisPermitidos: ['SERVIDOR'],
-    categoria_portal: 'GESTAO_ADM'
-  },
-  {
     id: 'setores',
     nome: 'Setores Legados (Sheets)',
     descricao: 'Visualização legada de setores',

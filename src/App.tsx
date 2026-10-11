@@ -119,7 +119,6 @@ const PORTAL_BUTTONS: PortalButton[] = [
   { id: 'regi', nome: 'Regin', url: 'http://200.19.203.151:8080/SiarcoWeb/loginAction.do', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/regin.avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE'] },
   { id: 'rhwb', nome: 'RH Web', url: 'https://folhaweb.bc.sc.gov.br/e-servidor/web/#/login', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/rhweb.avif', acao: 'link', perfisPermitidos: ['SERVIDOR'] },
   { id: 'telefone_btn', nome: 'Telefones & Ramais', url: '', img: 'phone-icon', acao: 'view', view: 'telefone', badgetext: 'RAMAIS', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
-  { id: 'tproc', nome: 'Teste Processo', url: '', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/processos.avif', acao: 'view', view: 'processos', badgetext: 'SHEETS', somenteMaster: true, perfisPermitidos: ['SERVIDOR'] },
   { id: 'setores', nome: 'SETORES', url: '', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/processos.avif', acao: 'view', view: 'processos', badgetext: 'SHEETS', somenteMaster: true, perfisPermitidos: ['SERVIDOR'] }
 ];
 
