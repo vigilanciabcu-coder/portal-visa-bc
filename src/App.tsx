@@ -17,6 +17,7 @@ import { ValidacaoAutenticidadeModal } from './components/ValidacaoAutenticidade
 import { GeoVisaMapView } from './components/GeoVisaMapView';
 import { PWAInstallModal } from './components/PWAInstallModal';
 import { BackupExportModal } from './components/BackupExportModal';
+import { PastaDossieView } from './components/PastaDossieView';
 
 import {
   PortalButton,
@@ -125,7 +126,7 @@ const PORTAL_BUTTONS: PortalButton[] = [
 
 export default function App() {
   // Navigation & View
-  const [currentView, setCurrentView] = useState<'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'teste_pasta'>('home');
   const [processoParaVistoria, setProcessoParaVistoria] = useState<ProcessoItem | null>(null);
 
   const handleIniciarVistoriaParaProcesso = (processo: ProcessoItem) => {
@@ -1122,6 +1123,18 @@ export default function App() {
                   currentUser={currentUser!}
                   processos={processos}
                   onBack={() => setCurrentView('home')}
+                  onOpenTestePasta={() => setCurrentView('teste_pasta')}
+                />
+              )}
+
+              {currentView === 'teste_pasta' && (
+                <PastaDossieView
+                  currentUser={currentUser}
+                  processos={processos}
+                  fiscalizacoes={fiscalizacoes}
+                  amostrasLaboratorio={amostrasLaboratorio}
+                  onBack={() => setCurrentView('home')}
+                  onNavigate={(v) => setCurrentView(v as any)}
                 />
               )}
 

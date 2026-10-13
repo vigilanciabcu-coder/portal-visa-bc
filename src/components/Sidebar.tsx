@@ -6,7 +6,7 @@ interface SidebarProps {
   buttons: PortalButton[];
   currentView: string;
   currentUser: UserProfile | null;
-  onNavigate: (view: 'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa') => void;
+  onNavigate: (view: 'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'teste_pasta') => void;
   onOpenExternal: (url: string) => void;
   onOpenPwaModal?: () => void;
   onOpenBackupModal?: () => void;
@@ -213,6 +213,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <Crown className="w-6 h-6 text-amber-400" />
               </div>
               <span className="sidebar-text font-black">PAINEL MASTER</span>
+            </button>
+          </div>
+        )}
+
+        {/* Botão Teste Pasta (Dossiê Sanitário 360° por CNPJ) */}
+        {(isMaster || userType === 'SERVIDOR') && (
+          <div className="mt-2 pt-2 border-t border-slate-800">
+            <button
+              onClick={() => onNavigate('teste_pasta')}
+              className={`w-full flex items-center py-1.5 px-2 rounded-lg transition cursor-pointer text-xs ${
+                currentView === 'teste_pasta'
+                  ? 'bg-purple-600 text-white font-black shadow-md'
+                  : 'hover:bg-purple-950/80 text-purple-300'
+              } group`}
+              title="Teste Pasta: Prontuário Sanitário 360° do CNPJ com Histórico Completo de Alvarás, Processos e Vistorias"
+            >
+              <div className="w-8 flex justify-center flex-shrink-0">
+                <FolderArchive className="w-6 h-6 text-purple-400 group-hover:scale-110 transition" />
+              </div>
+              <span className="sidebar-text font-black text-purple-300">TESTE PASTA</span>
             </button>
           </div>
         )}

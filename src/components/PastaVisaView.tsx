@@ -24,7 +24,8 @@ import {
   ExternalLink,
   Database,
   Lock,
-  KeyRound
+  KeyRound,
+  Sparkles
 } from 'lucide-react';
 import { PastaVisaItem, ProcessoItem, UserProfile } from '../types';
 import { fetchCnpj } from '../lib/cnpjService';
@@ -43,9 +44,10 @@ interface PastaVisaViewProps {
   onBack: () => void;
   currentUser: UserProfile;
   processos?: ProcessoItem[];
+  onOpenTestePasta?: () => void;
 }
 
-export function PastaVisaView({ onBack, currentUser, processos = [] }: PastaVisaViewProps) {
+export function PastaVisaView({ onBack, currentUser, processos = [], onOpenTestePasta }: PastaVisaViewProps) {
   // Lista de Pastas
   const [pastas, setPastas] = useState<PastaVisaItem[]>([]);
   const [loadingList, setLoadingList] = useState<boolean>(true);
@@ -751,6 +753,21 @@ CREATE POLICY "Permitir Acesso Completo Pastas Visa" ON public.pastas_visa FOR A
               </div>
               <span className="font-semibold">Exportar CSV</span>
             </button>
+
+            {onOpenTestePasta && (
+              <button
+                type="button"
+                onClick={onOpenTestePasta}
+                id="btn-teste-pasta-dossie"
+                className="inline-flex items-center gap-2 p-1.5 pr-3 text-sm font-black rounded-xl bg-purple-600 hover:bg-purple-700 text-white shadow transition-all active:scale-95 cursor-pointer"
+                title="Abrir o Dossiê Sanitário 360° da Pasta VISA com histórico completo do CNPJ"
+              >
+                <div className="w-8 h-8 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <span>🧪 Teste Pasta (Dossiê 360°)</span>
+              </button>
+            )}
           </div>
         </div>
 
