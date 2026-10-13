@@ -9,6 +9,7 @@ interface SidebarProps {
   onNavigate: (view: 'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa') => void;
   onOpenExternal: (url: string) => void;
   onOpenPwaModal?: () => void;
+  onOpenBackupModal?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -18,6 +19,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNavigate,
   onOpenExternal,
   onOpenPwaModal,
+  onOpenBackupModal,
 }) => {
   const isMaster = isUserMaster(currentUser);
 
@@ -227,6 +229,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <Download className="w-6 h-6 text-blue-400 group-hover:scale-110 transition" />
               </div>
               <span className="sidebar-text font-black text-blue-300">BAIXAR APP</span>
+            </button>
+          </div>
+        )}
+
+        {/* Botão de Backup e Exportação CSV (Servidores e Master) */}
+        {onOpenBackupModal && (isMaster || userType === 'SERVIDOR') && (
+          <div className="mt-1 pt-1">
+            <button
+              onClick={onOpenBackupModal}
+              className="w-full flex items-center py-1.5 px-2 rounded-lg transition cursor-pointer text-xs hover:bg-emerald-950/80 text-emerald-300 group"
+              title="Central de Backup Manual: Exportação em CSV de todas as tabelas"
+            >
+              <div className="w-8 flex justify-center flex-shrink-0">
+                <FileSpreadsheet className="w-6 h-6 text-emerald-400 group-hover:scale-110 transition" />
+              </div>
+              <span className="sidebar-text font-black text-emerald-300">BACKUP CSV</span>
             </button>
           </div>
         )}

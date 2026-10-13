@@ -40,8 +40,10 @@ import {
   ArrowLeft,
   ArrowRight,
   ClipboardCheck,
-  FileSignature
+  FileSignature,
+  Download
 } from 'lucide-react';
+import { exportFiscalizacoesToCSV, downloadCsvFile } from '../lib/csvExportService';
 
 interface FiscalizacaoViewProps {
   fiscalizacoes: FiscalizacaoItem[];
@@ -601,6 +603,17 @@ export const FiscalizacaoView: React.FC<FiscalizacaoViewProps> = ({
             <Printer className="w-4 h-4" /> Termo Oficial #{selectedItem.protocolo}
           </button>
         )}
+        <button
+          type="button"
+          onClick={() => {
+            const csv = exportFiscalizacoesToCSV(fiscalizacoes);
+            downloadCsvFile(`fiscalizacoes_sanitarias_bc_${new Date().toISOString().slice(0, 10)}`, csv);
+          }}
+          className="ml-auto px-4 py-2 rounded-xl font-black text-xs uppercase transition cursor-pointer flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 text-white shadow-sm active:scale-95 border border-emerald-500/50"
+          title="Exportar todas as fiscalizações em arquivo CSV compatível com Excel"
+        >
+          <Download className="w-3.5 h-3.5" /> Exportar CSV ({fiscalizacoes.length})
+        </button>
       </div>
 
       {/* TAB 1: LISTA DE VISTORIAS */}

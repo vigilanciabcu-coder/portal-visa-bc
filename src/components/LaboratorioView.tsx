@@ -63,6 +63,7 @@ import {
 } from './SolicitacaoLaudoPotabilidadeModule';
 import { RelatorioColetaAguaModal } from './RelatorioColetaAguaModal';
 import { LaudoOficialAguaModal } from './LaudoOficialAguaModal';
+import { exportLaboratorioToCSV, downloadCsvFile } from '../lib/csvExportService';
 import {
   getSolicitacoesPotabilidade,
   updateSolicitacaoPotabilidadeStatus,
@@ -1230,6 +1231,19 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
           >
             <Users className="w-3.5 h-3.5" />
             Servidores ({coletores.length + laboratorialistas.length})
+          </button>
+
+          <button
+            id="btn-export-csv-lab"
+            onClick={() => {
+              const csv = exportLaboratorioToCSV(amostras);
+              downloadCsvFile(`laboratorio_analises_amostras_bc_${new Date().toISOString().slice(0, 10)}`, csv);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition uppercase bg-cyan-700 hover:bg-cyan-600 text-white font-black text-xs shadow cursor-pointer ml-auto active:scale-95 border border-cyan-500/40"
+            title="Exportar todas as análises e amostras do laboratório em formato CSV (Excel/Sheets)"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Exportar CSV ({amostras.length})
           </button>
         </div>
       </div>
@@ -3086,6 +3100,18 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                 >
                   <Printer className="w-3.5 h-3.5" />
                   Imprimir Lista
+                </button>
+
+                <button
+                  onClick={() => {
+                    const csv = exportLaboratorioToCSV(amostras);
+                    downloadCsvFile(`laboratorio_analises_amostras_bc_${new Date().toISOString().slice(0, 10)}`, csv);
+                  }}
+                  className="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-black px-4 py-2 rounded-xl uppercase flex items-center gap-1.5 transition shrink-0 cursor-pointer shadow active:scale-95"
+                  title="Exportar dados das análises em CSV"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Exportar CSV
                 </button>
               </div>
             </div>

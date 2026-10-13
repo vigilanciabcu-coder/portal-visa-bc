@@ -48,8 +48,10 @@ import {
   Settings,
   FileSpreadsheet,
   Copy,
-  HelpCircle
+  HelpCircle,
+  Download
 } from 'lucide-react';
+import { exportProcessosToCSV, downloadCsvFile } from '../lib/csvExportService';
 
 const add180Days = (dateStr: string) => {
   if (!dateStr) return '';
@@ -750,6 +752,19 @@ export const ProcessosView: React.FC<ProcessosViewProps> = ({
             }`}
           >
             DASHBOARD
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const csv = exportProcessosToCSV(processos);
+              downloadCsvFile(`processos_administrativos_bc_${new Date().toISOString().slice(0, 10)}`, csv);
+            }}
+            className="text-xs font-black px-3 py-1.5 rounded tracking-wide uppercase transition cursor-pointer shadow bg-teal-700 hover:bg-teal-600 text-white border border-teal-500 flex items-center gap-1.5 active:scale-95"
+            title="Exportar todos os processos cadastrados em formato CSV (Excel/Sheets)"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>EXPORTAR CSV</span>
           </button>
         </div>
       </div>

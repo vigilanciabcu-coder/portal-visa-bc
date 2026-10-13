@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { ChevronDown, LogOut, Key, Sun, Moon, FileText, Download } from 'lucide-react';
+import { ChevronDown, LogOut, Key, Sun, Moon, FileText, Download, FileSpreadsheet } from 'lucide-react';
 import { ConferenciaCadastralModal } from './ConferenciaCadastralModal';
 
 interface HeaderProps {
@@ -12,6 +12,7 @@ interface HeaderProps {
   onToggleDarkMode: () => void;
   onGoHome: () => void;
   onOpenPwaModal?: () => void;
+  onOpenBackupModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -23,6 +24,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleDarkMode,
   onGoHome,
   onOpenPwaModal,
+  onOpenBackupModal,
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [conferenciaModalOpen, setConferenciaModalOpen] = useState(false);
@@ -78,6 +80,20 @@ export const Header: React.FC<HeaderProps> = ({
             <Download className="w-3.5 h-3.5" />
             <span className="hidden xs:inline">Baixar App</span>
             <span className="xs:hidden">App</span>
+          </button>
+        )}
+
+        {/* Botão de Backup e Exportação CSV (Servidores e Master) */}
+        {onOpenBackupModal && (!currentUser || currentUser.tipo_usuario === 'SERVIDOR') && (
+          <button
+            type="button"
+            onClick={onOpenBackupModal}
+            className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-[10px] sm:text-[11px] uppercase tracking-wider shadow-sm hover:shadow-md transition active:scale-95 cursor-pointer ring-1 ring-emerald-400/40"
+            title="Central de Backup Manual: Exportação em CSV de todas as tabelas (fiscalizações, processos, laboratório)"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span className="hidden xs:inline">Backup CSV</span>
+            <span className="xs:hidden">CSV</span>
           </button>
         )}
 
@@ -250,6 +266,22 @@ export const Header: React.FC<HeaderProps> = ({
                     <Download className="w-4 h-4" />
                   </div>
                   <span>Instalar Aplicativo (PWA)</span>
+                </button>
+              )}
+
+              {onOpenBackupModal && (!currentUser || currentUser.tipo_usuario === 'SERVIDOR') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    onOpenBackupModal();
+                  }}
+                  className="w-full p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs flex items-center gap-2.5 transition cursor-pointer"
+                >
+                  <div className="p-1.5 bg-emerald-600 text-white rounded-lg">
+                    <FileSpreadsheet className="w-4 h-4" />
+                  </div>
+                  <span>Backup & Exportação CSV</span>
                 </button>
               )}
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { Footer } from './components/Footer';
@@ -16,6 +16,7 @@ import { AniversarioModal } from './components/AniversarioModal';
 import { ValidacaoAutenticidadeModal } from './components/ValidacaoAutenticidadeModal';
 import { GeoVisaMapView } from './components/GeoVisaMapView';
 import { PWAInstallModal } from './components/PWAInstallModal';
+import { BackupExportModal } from './components/BackupExportModal';
 
 import {
   PortalButton,
@@ -153,6 +154,7 @@ export default function App() {
   const [trocaSenhaOpen, setTrocaSenhaOpen] = useState(false);
   const [cadastroContabilidadeOpen, setCadastroContabilidadeOpen] = useState(false);
   const [cadastroContribuinteOpen, setCadastroContribuinteOpen] = useState(false);
+  const [backupModalOpen, setBackupModalOpen] = useState(false);
 
   const handleOpenLoginModal = (tab: 'servidor' | 'contabilidade' | 'contribuinte' | 'cidadao' = 'servidor', cidadaoMode: 'login' | 'cadastro' = 'login') => {
     setLoginInitialTab(tab);
@@ -436,6 +438,32 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('visa_chat', JSON.stringify(chat));
   }, [chat]);
+
+  // Estrutura de dados unificada para backup e exportação CSV
+  const systemBackupData = useMemo(() => {
+    let pastasVisa = [];
+    try {
+      const raw = localStorage.getItem('pasta_visa_itens');
+      if (raw) pastasVisa = JSON.parse(raw);
+    } catch {}
+    let alvaras = [];
+    try {
+      const raw = localStorage.getItem('visa_alvaras');
+      if (raw) alvaras = JSON.parse(raw);
+    } catch {}
+
+    return {
+      fiscalizacoes,
+      processos,
+      amostrasLaboratorio,
+      pontosColeta,
+      pastasVisa,
+      alvaras,
+      feiras,
+      escala,
+      users
+    };
+  }, [fiscalizacoes, processos, amostrasLaboratorio, pontosColeta, feiras, escala, users]);
 
   // Validação pública de autenticidade via QR Code (?validar_token=... ou ?token=...)
   const [validacaoToken, setValidacaoToken] = useState<{
@@ -883,6 +911,7 @@ export default function App() {
           onToggleDarkMode={handleToggleDarkMode}
           onGoHome={() => setCurrentView('home')}
           onOpenPwaModal={() => setModalPwaOpen(true)}
+          onOpenBackupModal={() => setBackupModalOpen(true)}
         />
 
         {/* Main Workspace Layout */}
@@ -895,6 +924,7 @@ export default function App() {
             onNavigate={(v) => setCurrentView(v)}
             onOpenExternal={handleOpenExternal}
             onOpenPwaModal={() => setModalPwaOpen(true)}
+            onOpenBackupModal={() => setBackupModalOpen(true)}
           />
 
           {/* Main Display Area */}
@@ -1143,6 +1173,10 @@ export default function App() {
                     onDeleteRecado={handleDeleteRecado}
                     fiscalizacoes={fiscalizacoes}
                     feiras={feiras}
+                    processos={processos}
+                    amostrasLaboratorio={amostrasLaboratorio}
+                    pontosColeta={pontosColeta}
+                    onOpenBackupModal={() => setBackupModalOpen(true)}
                     onResetSystemData={handleResetSystemData}
                   />
                 ) : (
@@ -1264,6 +1298,13 @@ export default function App() {
       <PWAInstallModal
         isOpen={modalPwaOpen}
         onClose={() => setModalPwaOpen(false)}
+      />
+
+      {/* Central de Backup Manual e Exportação CSV de Todas as Tabelas */}
+      <BackupExportModal
+        isOpen={backupModalOpen}
+        onClose={() => setBackupModalOpen(false)}
+        data={systemBackupData}
       />
     </div>
   );

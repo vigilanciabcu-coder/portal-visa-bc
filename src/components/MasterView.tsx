@@ -13,12 +13,23 @@ import {
   isUserMaster,
   isUserDiretor,
   AuditoriaLogItem,
-  ModuloAuditoria
+  ModuloAuditoria,
+  ProcessoItem,
+  AmostraLaboratorioItem,
+  PontoColetaLaboratorio
 } from '../types';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { ConfirmModal } from './ConfirmModal';
 import { AutoLinkText } from './AutoLinkText';
 import { SupabaseTab } from './SupabaseTab';
+import {
+  exportFiscalizacoesToCSV,
+  exportProcessosToCSV,
+  exportLaboratorioToCSV,
+  downloadCsvFile,
+  generateBackupZip,
+  downloadBlobFile
+} from '../lib/csvExportService';
 import {
   getAuditoriaLogs,
   exportarAuditoriaCSV,
@@ -42,6 +53,7 @@ import {
   RotateCcw,
   Send,
   Users,
+  FileSpreadsheet,
   CheckCircle2,
   AlertTriangle,
   X,
@@ -71,6 +83,10 @@ interface MasterViewProps {
   onDeleteRecado: (recadoId: string) => void;
   fiscalizacoes: FiscalizacaoItem[];
   feiras: FeiranteItem[];
+  processos?: ProcessoItem[];
+  amostrasLaboratorio?: AmostraLaboratorioItem[];
+  pontosColeta?: PontoColetaLaboratorio[];
+  onOpenBackupModal?: () => void;
   onResetSystemData?: () => void;
 }
 
@@ -87,6 +103,10 @@ export const MasterView: React.FC<MasterViewProps> = ({
   onDeleteRecado,
   fiscalizacoes,
   feiras,
+  processos = [],
+  amostrasLaboratorio = [],
+  pontosColeta = [],
+  onOpenBackupModal,
   onResetSystemData
 }) => {
   const [activeTab, setActiveTab] = useState<'users' | 'escala' | 'mural' | 'birthdays' | 'system' | 'supabase' | 'auditoria'>('users');
@@ -474,7 +494,10 @@ export const MasterView: React.FC<MasterViewProps> = ({
       escalas: escala,
       mural,
       fiscalizacoes,
-      feiras
+      feiras,
+      processos,
+      laboratorio: amostrasLaboratorio,
+      pontos_coleta: pontosColeta
     };
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(fullBackup, null, 2));
     const downloadAnchor = document.createElement('a');
@@ -1812,16 +1835,85 @@ export const MasterView: React.FC<MasterViewProps> = ({
               <Settings className="w-5 h-5 text-blue-600" /> Ferramentas do Administrador Master
             </h3>
 
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              {onOpenBackupModal && (
+                <button
+                  type="button"
+                  onClick={onOpenBackupModal}
+                  className="bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black px-6 py-3.5 rounded-2xl text-xs uppercase shadow-lg shadow-emerald-600/30 transition cursor-pointer flex items-center gap-2 active:scale-95"
+                >
+                  <FileSpreadsheet className="w-4 h-4" /> Central de Backup & Exportação CSV (Todas as Tabelas)
+                </button>
+              )}
+
               <button
-                onClick={handleExportBackup}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-6 py-3.5 rounded-2xl text-xs uppercase shadow transition cursor-pointer flex items-center gap-2"
+                type="button"
+                onClick={async () => {
+                  const blob = await generateBackupZip({
+                    fiscalizacoes,
+                    processos,
+                    amostrasLaboratorio,
+                    pontosColeta,
+                    feiras,
+                    escala,
+                    users
+                  });
+                  downloadBlobFile(`backup_completo_visa_bc_${new Date().toISOString().slice(0, 10)}.zip`, blob);
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-5 py-3.5 rounded-2xl text-xs uppercase shadow transition cursor-pointer flex items-center gap-2 active:scale-95"
+                title="Download de arquivo ZIP com todas as tabelas em CSV"
               >
-                <Download className="w-4 h-4" /> Exportar Backup do Sistema (JSON)
+                <Download className="w-4 h-4" /> Baixar Pacote .ZIP (Todos os CSVs)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const csv = exportFiscalizacoesToCSV(fiscalizacoes);
+                  downloadCsvFile(`fiscalizacoes_sanitarias_bc_${new Date().toISOString().slice(0, 10)}`, csv);
+                }}
+                className="bg-emerald-700 hover:bg-emerald-600 text-white font-black px-4 py-3 rounded-2xl text-xs uppercase shadow transition cursor-pointer flex items-center gap-1.5"
+                title="Download individual do CSV de Fiscalizações"
+              >
+                <Download className="w-3.5 h-3.5" /> Fiscalizações ({fiscalizacoes.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const csv = exportProcessosToCSV(processos);
+                  downloadCsvFile(`processos_administrativos_bc_${new Date().toISOString().slice(0, 10)}`, csv);
+                }}
+                className="bg-blue-700 hover:bg-blue-600 text-white font-black px-4 py-3 rounded-2xl text-xs uppercase shadow transition cursor-pointer flex items-center gap-1.5"
+                title="Download individual do CSV de Processos"
+              >
+                <Download className="w-3.5 h-3.5" /> Processos ({processos.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const csv = exportLaboratorioToCSV(amostrasLaboratorio);
+                  downloadCsvFile(`laboratorio_analises_amostras_bc_${new Date().toISOString().slice(0, 10)}`, csv);
+                }}
+                className="bg-cyan-700 hover:bg-cyan-600 text-white font-black px-4 py-3 rounded-2xl text-xs uppercase shadow transition cursor-pointer flex items-center gap-1.5"
+                title="Download individual do CSV de Laboratório"
+              >
+                <Download className="w-3.5 h-3.5" /> Laboratório ({amostrasLaboratorio.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportBackup}
+                className="bg-slate-700 hover:bg-slate-800 text-slate-200 font-black px-4 py-3 rounded-2xl text-xs uppercase shadow transition cursor-pointer flex items-center gap-2"
+                title="Backup completo em formato JSON para restauração"
+              >
+                <Database className="w-4 h-4" /> Backup JSON
               </button>
 
               {onResetSystemData && (
                 <button
+                  type="button"
                   onClick={() => {
                     triggerConfirm({
                       title: 'Restaurar Dados Iniciais',
@@ -1830,9 +1922,9 @@ export const MasterView: React.FC<MasterViewProps> = ({
                       onConfirm: onResetSystemData
                     });
                   }}
-                  className="bg-slate-700 hover:bg-slate-800 text-white font-black px-6 py-3 rounded-2xl text-xs uppercase shadow transition cursor-pointer flex items-center gap-2"
+                  className="bg-rose-700 hover:bg-rose-800 text-white font-black px-5 py-3 rounded-2xl text-xs uppercase shadow transition cursor-pointer flex items-center gap-2"
                 >
-                  <RotateCcw className="w-4 h-4" /> Restaurar Dados Iniciais de Fábrica
+                  <RotateCcw className="w-4 h-4" /> Restaurar Dados de Fábrica
                 </button>
               )}
             </div>
