@@ -2387,6 +2387,39 @@ export async function savePastaVisaToSupabase(pasta: PastaVisaItem): Promise<{ s
   }
 }
 
+export async function saveManyPastasVisaToSupabase(items: PastaVisaItem[]): Promise<{ success: boolean; count: number; error?: string }> {
+  if (!isSupabaseConfigured || !supabase || items.length === 0) {
+    return { success: false, count: 0, error: 'Supabase não configurado ou lista vazia' };
+  }
+  try {
+    const payload = items.map((p) => ({
+      id: p.id,
+      cnpj_cpf: p.cnpj_cpf,
+      pasta: p.pasta,
+      razao_social: p.razao_social,
+      status_rf: p.status_rf || 'ATIVA',
+      alvara_atualizado: p.alvara_atualizado || 'SIM',
+      setor: p.setor || 'VIGILÂNCIA SANITÁRIA',
+      observacoes: p.observacoes || '',
+      criado_por: p.criado_por || '',
+      atualizado_em: new Date().toISOString()
+    }));
+
+    const { error } = await supabase
+      .from('pastas_visa')
+      .upsert(payload, { onConflict: 'id' });
+
+    if (error) {
+      console.warn('Erro ao salvar lote de pastas_visa no Supabase:', error.message);
+      return { success: false, count: 0, error: error.message };
+    }
+    return { success: true, count: items.length };
+  } catch (err: any) {
+    console.error('Exceção ao salvar lote de pastas_visa no Supabase:', err);
+    return { success: false, count: 0, error: err?.message || 'Erro inesperado' };
+  }
+}
+
 export async function deletePastaVisaFromSupabase(id: string): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) return false;
   try {

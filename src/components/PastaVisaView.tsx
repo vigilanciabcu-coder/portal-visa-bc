@@ -27,7 +27,7 @@ import {
   KeyRound,
   Sparkles
 } from 'lucide-react';
-import { PastaVisaItem, ProcessoItem, UserProfile } from '../types';
+import { PastaVisaItem, ProcessoItem, AlvaraSanitarioItem, UserProfile } from '../types';
 import { fetchCnpj } from '../lib/cnpjService';
 import {
   fetchPastasVisaFromSupabase,
@@ -39,15 +39,17 @@ import {
   savePastaVisaToSheets,
   GOOGLE_APPS_SCRIPT_PASTA_VISA_TEMPLATE
 } from '../lib/googleSheetsService';
+import { PastaImportModal } from './pasta/PastaImportModal';
 
 interface PastaVisaViewProps {
   onBack: () => void;
   currentUser: UserProfile;
   processos?: ProcessoItem[];
+  alvaras?: AlvaraSanitarioItem[];
   onOpenTestePasta?: () => void;
 }
 
-export function PastaVisaView({ onBack, currentUser, processos = [], onOpenTestePasta }: PastaVisaViewProps) {
+export function PastaVisaView({ onBack, currentUser, processos = [], alvaras = [], onOpenTestePasta }: PastaVisaViewProps) {
   // Lista de Pastas
   const [pastas, setPastas] = useState<PastaVisaItem[]>([]);
   const [loadingList, setLoadingList] = useState<boolean>(true);
@@ -91,11 +93,21 @@ export function PastaVisaView({ onBack, currentUser, processos = [], onOpenTeste
   const [syncingAllSupabase, setSyncingAllSupabase] = useState<boolean>(false);
   const [syncSupabaseStatus, setSyncSupabaseStatus] = useState<string | null>(null);
 
-  // Modal de Exclusão com Senha (Exclusivo Master e Direção)
-  const [itemParaExcluir, setItemParaExcluir] = useState<PastaVisaItem | null>(null);
-  const [senhaExclusao, setSenhaExclusao] = useState<string>('');
-  const [erroSenhaExclusao, setErroSenhaExclusao] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  // Modal de Importação e Carga das Pastas Existentes (3 Opções)
+  const [modalImportarOpen, setModalImportarOpen] = useState<boolean>(false);
+
+  const handleImportarPastas = (novasPastas: PastaVisaItem[]) => {
+    setPastas((prev) => {
+      const mapa = new Map<string, PastaVisaItem>();
+      prev.forEach((p) => mapa.set(p.id, p));
+      novasPastas.forEach((n) => mapa.set(n.id, n));
+      const atualizadas = Array.from(mapa.values());
+      try {
+        localStorage.setItem('visa_pastas_administrativo', JSON.stringify(atualizadas));
+      } catch {}
+      return atualizadas;
+    });
+  };
 
   // 1. Carregar pastas iniciais (Supabase com fallback localStorage)
   useEffect(() => {
@@ -752,6 +764,19 @@ CREATE POLICY "Permitir Acesso Completo Pastas Visa" ON public.pastas_visa FOR A
                 <Download className="w-4 h-4" />
               </div>
               <span className="font-semibold">Exportar CSV</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setModalImportarOpen(true)}
+              id="btn-importar-pastas-existentes"
+              className="inline-flex items-center gap-2 p-1.5 pr-3 text-sm font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow transition-all active:scale-95 cursor-pointer"
+              title="Cadastrar pastas existentes (via CSV, auto-captura de alvarás ou consulta CNPJ RFB)"
+            >
+              <div className="w-8 h-8 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
+                <FolderArchive className="w-4 h-4" />
+              </div>
+              <span>Carga de Pastas (3 Opções)</span>
             </button>
 
             {onOpenTestePasta && (
@@ -1709,6 +1734,16 @@ CREATE POLICY "Permitir Acesso Completo Pastas Visa" ON public.pastas_visa FOR A
           </div>
         </div>
       )}
+
+      {/* Modal de Importação e Carga das 3 Opções de Pastas */}
+      <PastaImportModal
+        isOpen={modalImportarOpen}
+        onClose={() => setModalImportarOpen(false)}
+        pastasExistentes={pastas}
+        alvaras={alvaras}
+        processos={processos}
+        onImportarPastas={handleImportarPastas}
+      />
     </div>
   );
 }

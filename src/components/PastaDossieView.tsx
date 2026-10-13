@@ -35,7 +35,8 @@ import {
   BadgeCheck,
   FilePlus,
   Lock,
-  Edit3
+  Edit3,
+  Upload
 } from 'lucide-react';
 import {
   PastaVisaItem,
@@ -46,6 +47,7 @@ import {
   UserProfile
 } from '../types';
 import { fetchCnpj } from '../lib/cnpjService';
+import { PastaImportModal } from './pasta/PastaImportModal';
 
 interface PastaDossieViewProps {
   onBack: () => void;
@@ -213,6 +215,7 @@ export function PastaDossieView({
 
   // Modal: Criar Nova Pasta com Gerador Sequencial
   const [modalNovaPastaOpen, setModalNovaPastaOpen] = useState(false);
+  const [modalImportarOpen, setModalImportarOpen] = useState(false);
   const [novoCnpj, setNovoCnpj] = useState('');
   const [novoNumeroPasta, setNovoNumeroPasta] = useState('');
   const [novaRazao, setNovaRazao] = useState('');
@@ -222,6 +225,22 @@ export function PastaDossieView({
   const [novasObs, setNovasObs] = useState('');
   const [buscandoCnpj, setBuscandoCnpj] = useState(false);
   const [avisoDuplicidade, setAvisoDuplicidade] = useState<string | null>(null);
+
+  const handleImportarPastas = (novasPastas: PastaVisaItem[]) => {
+    setPastas((prev) => {
+      const mapa = new Map<string, PastaVisaItem>();
+      prev.forEach((p) => mapa.set(p.id, p));
+      novasPastas.forEach((n) => mapa.set(n.id, n));
+      const atualizadas = Array.from(mapa.values());
+      try {
+        localStorage.setItem('visa_pastas_administrativo', JSON.stringify(atualizadas));
+      } catch {}
+      return atualizadas;
+    });
+    if (novasPastas.length > 0) {
+      setSelectedPastaId(novasPastas[novasPastas.length - 1].id);
+    }
+  };
 
   // Pasta ativa atual
   const activePasta = useMemo(() => {
@@ -499,6 +518,17 @@ export function PastaDossieView({
 
         {/* Botões de Ação Rápida no Topo */}
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => setModalImportarOpen(true)}
+            id="btn-importar-pastas-existentes"
+            className="bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-black text-xs uppercase px-4 py-2.5 rounded-xl shadow flex items-center gap-2 transition cursor-pointer"
+            title="Importar planilha de pastas legadas, auto-detectar de alvarás ou cadastrar via Receita Federal"
+          >
+            <FolderArchive className="w-4 h-4" />
+            Cadastrar Existentes / Importar
+          </button>
+
           <button
             type="button"
             onClick={() => {
@@ -1463,6 +1493,17 @@ export function PastaDossieView({
           </div>
         </div>
       )}
+
+      {/* Modal de Importação e Carga das 3 Opções de Pastas */}
+      <PastaImportModal
+        isOpen={modalImportarOpen}
+        onClose={() => setModalImportarOpen(false)}
+        pastasExistentes={pastas}
+        alvaras={alvaras}
+        processos={processos}
+        onImportarPastas={handleImportarPastas}
+        onSelectPasta={(p) => setSelectedPastaId(p.id)}
+      />
 
     </div>
   );
