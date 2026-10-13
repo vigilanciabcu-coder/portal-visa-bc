@@ -109,6 +109,12 @@ export function PastaVisaView({ onBack, currentUser, processos = [], alvaras = [
     });
   };
 
+  // Modal de Exclusão com Senha (Exclusivo Master e Direção)
+  const [itemParaExcluir, setItemParaExcluir] = useState<PastaVisaItem | null>(null);
+  const [senhaExclusao, setSenhaExclusao] = useState<string>('');
+  const [erroSenhaExclusao, setErroSenhaExclusao] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+
   // 1. Carregar pastas iniciais (Supabase com fallback localStorage)
   useEffect(() => {
     async function loadPastas() {
