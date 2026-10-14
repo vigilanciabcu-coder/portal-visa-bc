@@ -1318,10 +1318,10 @@ export function PastaDossieView({
                 </div>
                 <div>
                   <h3 className="font-black uppercase text-base text-white">
-                    Cadastrar Nova Pasta Sanitária
+                    Cadastrar Pasta Sanitária (Antiga ou Nova)
                   </h3>
                   <p className="text-xs text-slate-300">
-                    Gera a pasta física oficial vinculada a um CNPJ ou CPF
+                    Cadastre uma pasta física antiga do acervo ou gere uma nova numeração sequencial
                   </p>
                 </div>
               </div>
@@ -1394,7 +1394,7 @@ export function PastaDossieView({
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="font-black uppercase text-slate-700 dark:text-slate-300">
-                    3. Número da Pasta Física no Arquivo
+                    3. Número ou Código da Pasta Física
                   </label>
                   <button
                     type="button"
@@ -1407,11 +1407,14 @@ export function PastaDossieView({
                 </div>
                 <input
                   type="text"
-                  placeholder="Ex: PASTA 1043/2026 ou PASTA 85"
+                  placeholder="Ex: PASTA 45/98, PASTA 204/MILHO, ARQUIVO MORTO CX 02"
                   value={novoNumeroPasta}
                   onChange={(e) => setNovoNumeroPasta(e.target.value)}
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono font-black text-purple-600 dark:text-purple-400"
                 />
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                  💡 <strong>Para pasta antiga:</strong> digite exatamente o que está na etiqueta física. <strong>Para pasta nova:</strong> use o botão de gerar sequencial.
+                </p>
               </div>
 
               {/* Campo 4: Setor e Localização Física */}
