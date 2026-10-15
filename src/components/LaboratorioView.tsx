@@ -1878,12 +1878,6 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
               onClose={() => setModalNovaSolicitacaoLabOpen(false)}
               currentUser={currentUser}
             />
-
-            {/* Modal de Impressão da Ficha Oficial */}
-            <FichaSolicitacaoPotabilidadeModal
-              solicitacao={solicitacaoParaImprimirLab}
-              onClose={() => setSolicitacaoParaImprimirLab(null)}
-            />
           </div>
         )}
 
@@ -3390,10 +3384,12 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
         solicitacao={relatorioColetaModal?.solicitacao}
       />
 
-      <FichaSolicitacaoPotabilidadeModal
-        solicitacao={solicitacaoParaImprimirLab}
-        onClose={() => setSolicitacaoParaImprimirLab(null)}
-      />
+      {solicitacaoParaImprimirLab && (
+        <FichaSolicitacaoPotabilidadeModal
+          solicitacao={solicitacaoParaImprimirLab}
+          onClose={() => setSolicitacaoParaImprimirLab(null)}
+        />
+      )}
 
       {/* Modal de Autenticação / Inserção de Senha para Assinatura do Laudo */}
       {authModalOpen && pendingLaboratorialista && (

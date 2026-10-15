@@ -31,6 +31,9 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
   amostra,
   solicitacao
 }) => {
+  const printAreaRef = useRef<HTMLDivElement>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
   useEffect(() => {
     if (isOpen) {
       const prevTitle = document.title;
@@ -176,9 +179,6 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
 
   const colTot = String(item.coliformes_totais || 'AUSENTE').trim().toUpperCase();
   const colFec = String(item.escherichia_coli || 'AUSENTE').trim().toUpperCase();
-
-  const printAreaRef = useRef<HTMLDivElement>(null);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const handlePrint = () => {
     window.print();

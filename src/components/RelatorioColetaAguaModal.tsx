@@ -31,6 +31,9 @@ export const RelatorioColetaAguaModal: React.FC<RelatorioColetaAguaModalProps> =
   amostra,
   solicitacao
 }) => {
+  const printAreaRef = useRef<HTMLDivElement>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
   useEffect(() => {
     if (isOpen) {
       const prevTitle = document.title;
@@ -121,9 +124,6 @@ export const RelatorioColetaAguaModal: React.FC<RelatorioColetaAguaModalProps> =
 
   const timestampColeta = amostra?.coleta_assinatura_data || `${formatarDataSegura(dataColeta)} às ${horaColeta}`;
   const hashColeta = amostra?.coleta_assinatura_hash || `VISA-COL-${codigoAmostra}-BC`;
-
-  const printAreaRef = useRef<HTMLDivElement>(null);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const handlePrint = () => {
     window.print();

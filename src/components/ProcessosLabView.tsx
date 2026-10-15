@@ -5032,17 +5032,19 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
           />
 
           {/* 📋 Modal de Espelho Sanitário & Pareceres Oficiais (com assinatura digital por senha) */}
-          <ProcessoDetalhesParecerModal
-            isOpen={modalDetalhesParecer.open}
-            onClose={() => setModalDetalhesParecer({ open: false, processo: null })}
-            processo={modalDetalhesParecer.processo}
-            currentUser={currentUser}
-            users={users}
-            onSaveProcesso={(updatedProc) => {
-              onSaveProcesso(updatedProc);
-              setModalDetalhesParecer({ open: true, processo: updatedProc });
-            }}
-          />
+          {modalDetalhesParecer.open && modalDetalhesParecer.processo && (
+            <ProcessoDetalhesParecerModal
+              isOpen={modalDetalhesParecer.open}
+              onClose={() => setModalDetalhesParecer({ open: false, processo: null })}
+              processo={modalDetalhesParecer.processo}
+              currentUser={currentUser}
+              users={users}
+              onSaveProcesso={(updatedProc) => {
+                onSaveProcesso(updatedProc);
+                setModalDetalhesParecer({ open: true, processo: updatedProc });
+              }}
+            />
+          )}
 
           {/* 💧 Modal Oficial de Solicitação de Laudo de Análise de Potabilidade da Água */}
           <SolicitacaoLaudoPotabilidadeModal
@@ -5060,10 +5062,12 @@ export const ProcessosLabView: React.FC<ProcessosLabViewProps> = ({
           />
 
           {/* 📄 Ficha Oficial de Solicitação 1Doc */}
-          <FichaSolicitacaoPotabilidadeModal
-            solicitacao={modalFicha1Doc.solicitacao}
-            onClose={() => setModalFicha1Doc({ open: false, solicitacao: null })}
-          />
+          {modalFicha1Doc.open && modalFicha1Doc.solicitacao && (
+            <FichaSolicitacaoPotabilidadeModal
+              solicitacao={modalFicha1Doc.solicitacao}
+              onClose={() => setModalFicha1Doc({ open: false, solicitacao: null })}
+            />
+          )}
 
           {/* 📋 Termo e Relatório Oficial de Coleta de Água em Campo */}
           <RelatorioColetaAguaModal

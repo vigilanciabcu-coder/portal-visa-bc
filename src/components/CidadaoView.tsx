@@ -986,10 +986,12 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
       />
 
       {/* 📄 Ficha Oficial de Solicitação 1Doc */}
-      <FichaSolicitacaoPotabilidadeModal
-        solicitacao={modalFicha1Doc.solicitacao}
-        onClose={() => setModalFicha1Doc({ open: false, solicitacao: null })}
-      />
+      {modalFicha1Doc.open && modalFicha1Doc.solicitacao && (
+        <FichaSolicitacaoPotabilidadeModal
+          solicitacao={modalFicha1Doc.solicitacao}
+          onClose={() => setModalFicha1Doc({ open: false, solicitacao: null })}
+        />
+      )}
 
       {/* 📋 Termo e Relatório Oficial de Coleta de Campo */}
       <RelatorioColetaAguaModal

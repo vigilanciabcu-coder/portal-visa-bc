@@ -1236,43 +1236,47 @@ export const GeoVisaMapView: React.FC<GeoVisaMapViewProps> = ({
       </div>
 
       {/* 📜 MODAL COMPLETO DE DETALHES & PARECER COM ASSINATURA DIGITAL */}
-      <ProcessoDetalhesParecerModal
-        isOpen={!!modalDetalhesProc}
-        onClose={() => setModalDetalhesProc(null)}
-        processo={modalDetalhesProc}
-        currentUser={currentUser}
-        users={users || []}
-        onSaveProcesso={(atualizado) => {
-          onSaveProcesso(atualizado);
-          setModalDetalhesProc(atualizado);
-          setProcessoSelecionado(atualizado);
-        }}
-        onIniciarVistoria={(proc) => {
-          setModalDetalhesProc(null);
-          if (onIniciarVistoria) {
-            onIniciarVistoria(proc);
-          }
-        }}
-      />
+      {modalDetalhesProc && (
+        <ProcessoDetalhesParecerModal
+          isOpen={!!modalDetalhesProc}
+          onClose={() => setModalDetalhesProc(null)}
+          processo={modalDetalhesProc}
+          currentUser={currentUser}
+          users={users || []}
+          onSaveProcesso={(atualizado) => {
+            onSaveProcesso(atualizado);
+            setModalDetalhesProc(atualizado);
+            setProcessoSelecionado(atualizado);
+          }}
+          onIniciarVistoria={(proc) => {
+            setModalDetalhesProc(null);
+            if (onIniciarVistoria) {
+              onIniciarVistoria(proc);
+            }
+          }}
+        />
+      )}
 
       {/* ⏳ MODAL DE LINHA DO TEMPO (TIMELINE COMPLETA DE TRAMITAÇÕES) */}
-      <ProcessoTimelineModal
-        isOpen={!!modalTimelineProc}
-        onClose={() => setModalTimelineProc(null)}
-        processo={modalTimelineProc}
-        currentUser={currentUser}
-        onProcessoAtualizado={(atualizado) => {
-          onSaveProcesso(atualizado);
-          setModalTimelineProc(atualizado);
-          setProcessoSelecionado(atualizado);
-        }}
-        onIniciarVistoria={(proc) => {
-          setModalTimelineProc(null);
-          if (onIniciarVistoria) {
-            onIniciarVistoria(proc);
-          }
-        }}
-      />
+      {modalTimelineProc && (
+        <ProcessoTimelineModal
+          isOpen={!!modalTimelineProc}
+          onClose={() => setModalTimelineProc(null)}
+          processo={modalTimelineProc}
+          currentUser={currentUser}
+          onProcessoAtualizado={(atualizado) => {
+            onSaveProcesso(atualizado);
+            setModalTimelineProc(atualizado);
+            setProcessoSelecionado(atualizado);
+          }}
+          onIniciarVistoria={(proc) => {
+            setModalTimelineProc(null);
+            if (onIniciarVistoria) {
+              onIniciarVistoria(proc);
+            }
+          }}
+        />
+      )}
 
       {/* 📄 MODAL DE EMISSÃO DE DOCUMENTO OFICIAL TIMBRADO EM PDF COM QR CODE */}
       {modalPdfProc && (

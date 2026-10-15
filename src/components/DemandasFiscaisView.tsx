@@ -1279,23 +1279,25 @@ export const DemandasFiscaisView: React.FC<DemandasFiscaisViewProps> = ({
       {/* ======================================================== */}
       {/* 📜 MODAL COMPLETO DE DETALHES & PARECER COM ASSINATURA */}
       {/* ======================================================== */}
-      <ProcessoDetalhesParecerModal
-        isOpen={modalDetalhesOpen.open}
-        onClose={() => setModalDetalhesOpen({ open: false, processo: null })}
-        processo={modalDetalhesOpen.processo}
-        currentUser={currentUser}
-        users={users}
-        onSaveProcesso={(updated) => {
-          onSaveProcesso(updated);
-          setModalDetalhesOpen({ open: true, processo: updated });
-        }}
-        onIniciarVistoria={(proc) => {
-          setModalDetalhesOpen({ open: false, processo: null });
-          if (onIniciarVistoria) {
-            onIniciarVistoria(proc);
-          }
-        }}
-      />
+      {modalDetalhesOpen.open && modalDetalhesOpen.processo && (
+        <ProcessoDetalhesParecerModal
+          isOpen={modalDetalhesOpen.open}
+          onClose={() => setModalDetalhesOpen({ open: false, processo: null })}
+          processo={modalDetalhesOpen.processo}
+          currentUser={currentUser}
+          users={users}
+          onSaveProcesso={(updated) => {
+            onSaveProcesso(updated);
+            setModalDetalhesOpen({ open: true, processo: updated });
+          }}
+          onIniciarVistoria={(proc) => {
+            setModalDetalhesOpen({ open: false, processo: null });
+            if (onIniciarVistoria) {
+              onIniciarVistoria(proc);
+            }
+          }}
+        />
+      )}
 
       {/* ======================================================== */}
       {/* 📄 MODAL OFICIAL DE EMISSÃO DE PDF COM QR CODE           */}

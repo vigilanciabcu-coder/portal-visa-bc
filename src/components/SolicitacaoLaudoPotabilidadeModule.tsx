@@ -1012,13 +1012,11 @@ export const FichaSolicitacaoPotabilidadeModal: React.FC<FichaSolicitacaoPotabil
   solicitacao,
   onClose
 }) => {
-  if (!solicitacao) return null;
-
   const printAreaRef = useRef<HTMLDivElement>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const handleDownloadPdf = async () => {
-    if (!printAreaRef.current) return;
+    if (!printAreaRef.current || !solicitacao) return;
     try {
       setIsGeneratingPdf(true);
       const canvas = await html2canvas(printAreaRef.current, {
@@ -1059,6 +1057,8 @@ export const FichaSolicitacaoPotabilidadeModal: React.FC<FichaSolicitacaoPotabil
       setIsGeneratingPdf(false);
     }
   };
+
+  if (!solicitacao) return null;
 
   return (
     <div className="fixed inset-0 z-[10000] bg-black/70 flex items-center justify-center p-4 overflow-y-auto">
