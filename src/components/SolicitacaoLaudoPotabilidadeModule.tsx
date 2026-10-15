@@ -955,10 +955,10 @@ export const SolicitacaoLaudoPotabilidadeModule: React.FC<SolicitacaoLaudoPotabi
                         <button
                           type="button"
                           onClick={() => handleImprimirFicha(sol)}
-                          className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition cursor-pointer"
-                          title="Imprimir Ficha Oficial de Solicitação"
+                          className="p-1.5 rounded-lg bg-cyan-50 dark:bg-cyan-950/60 hover:bg-cyan-100 text-cyan-700 dark:text-cyan-300 transition cursor-pointer shadow-xs"
+                          title="Visualizar e Baixar Ficha Oficial em PDF (Zero Papel)"
                         >
-                          <Printer className="w-3.5 h-3.5 inline" />
+                          <FileText className="w-3.5 h-3.5 inline" />
                         </button>
 
                         {onEnviarParaColeta && (
@@ -1076,19 +1076,11 @@ export const FichaSolicitacaoPotabilidadeModal: React.FC<FichaSolicitacaoPotabil
               type="button"
               onClick={handleDownloadPdf}
               disabled={isGeneratingPdf}
-              className="px-3 py-1.5 bg-cyan-700 hover:bg-cyan-800 text-white rounded-lg text-xs font-bold uppercase flex items-center gap-1.5 cursor-pointer shadow disabled:opacity-60"
-              title="Baixar arquivo PDF oficial"
+              className="px-3.5 py-1.5 bg-cyan-700 hover:bg-cyan-800 text-white rounded-lg text-xs font-bold uppercase flex items-center gap-1.5 cursor-pointer shadow disabled:opacity-60 active:scale-95"
+              title="Baixar arquivo PDF oficial (Zero Papel)"
             >
               {isGeneratingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-              <span>{isGeneratingPdf ? 'Gerando...' : 'Baixar PDF'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold uppercase flex items-center gap-1.5 cursor-pointer shadow"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              Imprimir Ficha
+              <span>{isGeneratingPdf ? 'Gerando...' : 'Baixar Ficha (PDF)'}</span>
             </button>
             <button
               type="button"

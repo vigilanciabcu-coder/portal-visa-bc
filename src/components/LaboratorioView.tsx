@@ -3165,23 +3165,13 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => window.print()}
-                  className="bg-slate-800 hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 text-white text-xs font-black px-4 py-2 rounded-xl uppercase flex items-center gap-1.5 transition shrink-0 cursor-pointer shadow"
-                  title="Imprimir lista formatada de amostras em folha A4"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  Imprimir Lista
-                </button>
-
-                <button
-                  type="button"
                   onClick={handleExportListPdf}
                   disabled={isExportingListPdf}
                   className="bg-cyan-700 hover:bg-cyan-800 text-white text-xs font-black px-4 py-2 rounded-xl uppercase flex items-center gap-1.5 transition shrink-0 cursor-pointer shadow active:scale-95 disabled:opacity-60"
-                  title="Gerar e baixar o relatório de amostras em formato PDF"
+                  title="Gerar e baixar o relatório oficial em formato PDF (Zero Papel)"
                 >
                   {isExportingListPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
-                  <span>{isExportingListPdf ? 'Gerando...' : 'Baixar PDF'}</span>
+                  <span>{isExportingListPdf ? 'Gerando PDF...' : 'Gerar Relatório (PDF)'}</span>
                 </button>
 
                 <button
@@ -3311,7 +3301,7 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                             {/* Botão para Abrir Termo de Coleta em Campo */}
                             <button
                               onClick={() => setRelatorioColetaModal({ amostra: a })}
-                              title="Visualizar e imprimir Termo Oficial de Coleta em Campo"
+                              title="Visualizar e Gerar PDF do Termo Oficial de Coleta em Campo"
                               className="px-2 py-1 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 text-blue-800 dark:text-blue-300 font-bold rounded-lg transition text-xs flex items-center gap-1 cursor-pointer shadow-xs"
                             >
                               <ClipboardCheck className="w-3.5 h-3.5" />
@@ -3321,7 +3311,7 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                             {/* Botão para Abrir Laudo Oficial */}
                             <button
                               onClick={() => setSelectedAmostraForLaudo(a)}
-                              title="Visualizar Laudo Oficial"
+                              title="Visualizar e Gerar PDF do Laudo Oficial"
                               className="px-2.5 py-1 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-lg transition text-xs flex items-center gap-1 shadow-sm cursor-pointer"
                             >
                               <FileText className="w-3.5 h-3.5" />
@@ -3810,8 +3800,8 @@ export const LaboratorioView: React.FC<LaboratorioViewProps> = ({
                       }}
                       className="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-black uppercase shadow-md flex items-center gap-1.5 transition cursor-pointer"
                     >
-                      <Printer className="w-4 h-4" />
-                      Visualizar / Imprimir Laudo
+                      <FileText className="w-4 h-4" />
+                      Visualizar / Gerar PDF do Laudo
                     </button>
                   )}
                 </>

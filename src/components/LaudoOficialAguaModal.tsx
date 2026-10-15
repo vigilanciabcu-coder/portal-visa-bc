@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Printer, Droplet, CheckCircle2, AlertTriangle, FileText, Download, Loader2 } from 'lucide-react';
+import { X, Droplet, CheckCircle2, AlertTriangle, FileText, Download, Loader2 } from 'lucide-react';
 import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
 import { AmostraLaboratorioItem, SolicitacaoLaudoPotabilidadeItem } from '../types';
@@ -180,10 +180,6 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
   const colTot = String(item.coliformes_totais || 'AUSENTE').trim().toUpperCase();
   const colFec = String(item.escherichia_coli || 'AUSENTE').trim().toUpperCase();
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const handleDownloadPdf = async () => {
     if (!printAreaRef.current) return;
     try {
@@ -254,19 +250,11 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
               type="button"
               onClick={handleDownloadPdf}
               disabled={isGeneratingPdf}
-              className="bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs px-3.5 py-2 rounded-xl uppercase flex items-center gap-1.5 shadow cursor-pointer transition disabled:opacity-60"
-              title="Baixar arquivo .PDF em alta resolução"
+              className="bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs px-4 py-2 rounded-xl uppercase flex items-center gap-1.5 shadow cursor-pointer transition disabled:opacity-60 active:scale-95"
+              title="Baixar arquivo oficial em PDF (Zero Papel)"
             >
               {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              <span>{isGeneratingPdf ? 'Gerando...' : 'Baixar PDF'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="bg-black hover:bg-slate-800 text-white font-black text-xs px-3.5 py-2 rounded-xl uppercase flex items-center gap-1.5 shadow cursor-pointer transition"
-            >
-              <Printer className="w-4 h-4" />
-              Imprimir Laudo
+              <span>{isGeneratingPdf ? 'Gerando...' : 'Baixar Laudo (PDF)'}</span>
             </button>
             <button
               type="button"
@@ -634,18 +622,10 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
             type="button"
             onClick={handleDownloadPdf}
             disabled={isGeneratingPdf}
-            className="bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs px-5 py-2.5 rounded-xl uppercase flex items-center gap-1.5 shadow cursor-pointer transition disabled:opacity-60"
+            className="bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs px-5 py-2.5 rounded-xl uppercase flex items-center gap-1.5 shadow cursor-pointer transition disabled:opacity-60 active:scale-95"
           >
             {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            <span>{isGeneratingPdf ? 'Gerando PDF...' : 'Baixar Arquivo PDF'}</span>
-          </button>
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="bg-black hover:bg-slate-800 text-white font-black text-xs px-5 py-2.5 rounded-xl uppercase flex items-center gap-1.5 shadow cursor-pointer transition"
-          >
-            <Printer className="w-4 h-4" />
-            Imprimir Laudo Oficial
+            <span>{isGeneratingPdf ? 'Gerando PDF Oficial...' : 'Baixar Laudo Oficial (PDF)'}</span>
           </button>
           <button
             type="button"
