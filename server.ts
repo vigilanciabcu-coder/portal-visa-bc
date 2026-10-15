@@ -724,11 +724,10 @@ function loadHabiteSeSequence(): HabiteSeSequenceState {
     return state;
   }
 
-  // VIRADA DO ANO: Se o ano atual for maior que o ano registrado no arquivo,
-  // o ano é atualizado para o ano atual e o contador reinicia no primeiro número 1
-  // para os novos documentos emitidos a partir deste momento.
+  // VIRADA DO ANO: À 0 hora do ano novo (00:00:00), o final altera automaticamente
+  // na geração para o novo ano (ex: 01/2027), reiniciando o sequencial geral do setor em 01.
   if (anoAtual > state.ano) {
-    console.log(`[Habite-se Sanitário] Virada de ano detectada (${state.ano} -> ${anoAtual}). Reiniciando sequencial em 1 para novos documentos.`);
+    console.log(`[Habite-se Sanitário] Virada de ano detectada (${state.ano} -> ${anoAtual}). Reiniciando sequencial geral do setor em 01/${anoAtual} para novos documentos.`);
     state.ano = anoAtual;
     state.ultimoSequencial = 1;
     saveHabiteSeSequence(state);
@@ -749,13 +748,34 @@ function saveHabiteSeSequence(state: HabiteSeSequenceState) {
   }
 }
 
+// Formatação oficial do número de documento do setor:
+// À 0 hora do ano novo, reinicia em 1 formatado com dois dígitos: "01/2027"
+// Para números menores que 10: "01", "02", ..., "09"
+// Para números a partir de 10.000: formatação pt-BR (ex: 49.908/2026)
 function formatarNumeroHabiteSe(seq: number, ano: number): string {
-  return `${seq.toLocaleString('pt-BR')}/${ano}`;
+  const seqStr = seq < 10
+    ? String(seq).padStart(2, '0')
+    : (seq >= 10000 ? seq.toLocaleString('pt-BR') : String(seq));
+  return `${seqStr}/${ano}`;
 }
 
 // Retorna o próximo número disponível do servidor (para visualização no modal)
-app.get('/api/habite-se/proximo-numero', (_req, res) => {
+app.get('/api/habite-se/proximo-numero', (req, res) => {
   const state = loadHabiteSeSequence();
+  const anoReq = req.query.ano ? parseInt(req.query.ano as string, 10) : undefined;
+
+  // Permite simulação/conferência de virada de ano caso solicitado (ex: ?ano=2027)
+  if (anoReq && anoReq > state.ano) {
+    return res.json({
+      sucesso: true,
+      numeroDocumento: formatarNumeroHabiteSe(1, anoReq),
+      sequencial: 1,
+      ano: anoReq,
+      simulacaoAnoNovo: true,
+      origem: 'servidor'
+    });
+  }
+
   const seq = state.ultimoSequencial;
   res.json({
     sucesso: true,

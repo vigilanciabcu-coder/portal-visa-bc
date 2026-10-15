@@ -145,11 +145,21 @@ export const OPCOES_ATENDIMENTO_PRIORITARIO = [
   }
 ];
 
-// 🔢 GERADOR SEQUENCIAL OFICIAL PERSISTENTE (NUNCA GERA DOIS NÚMEROS IGUAIS)
-// NA VIRADA DO ANO, REINICIA COM O PRIMEIRO NÚMERO 1 E ATUALIZA O ANO PARA NOVOS DOCUMENTOS
+// 🔢 GERADOR SEQUENCIAL OFICIAL PERSISTENTE DO SETOR (ZERO DUPLICATAS)
+// À 0 HORA DO ANO NOVO, O FINAL ALTERA AUTOMATICAMENTE NA GERAÇÃO INDO PARA 01/2027 (REINÍCIO DO SEQUENCIAL GERAL DO SETOR)
 const SEQ_COUNTER_KEY = 'visa_habite_se_sequencial_counter';
 const SEQ_ANO_KEY = 'visa_habite_se_ano';
 const INITIAL_SEQ_2026 = 49906;
+
+export const formatarNumeroDocumentoOficial = (seq: number, ano: number): string => {
+  // Para sequenciais menores que 10: preenchimento com 2 dígitos ("01", "02", ..., "09") conforme solicitado: "01/2027"
+  // Para sequenciais a partir de 10.000: formatação pt-BR (ex: 49.908/2026)
+  // Para sequenciais entre 10 e 9.999: número normal (ex: 10/2027, 100/2027)
+  const seqStr = seq < 10
+    ? String(seq).padStart(2, '0')
+    : (seq >= 10000 ? seq.toLocaleString('pt-BR') : String(seq));
+  return `${seqStr}/${ano}`;
+};
 
 export const getNextNumeroHabiteSeSequencial = (): string => {
   const anoAtual = new Date().getFullYear();
@@ -161,12 +171,12 @@ export const getNextNumeroHabiteSeSequencial = (): string => {
     if (anoStr) {
       storedAno = parseInt(anoStr, 10);
     }
-    // Virada do ano: reinicia com o primeiro número 1 apenas para novos documentos
+    // Virada do ano: à 0 hora do ano novo, o final altera automaticamente na geração indo para 01/anoAtual
     if (anoAtual > storedAno) {
       currentSeq = 1;
       localStorage.setItem(SEQ_ANO_KEY, anoAtual.toString());
       localStorage.setItem(SEQ_COUNTER_KEY, '1');
-      return `1/${anoAtual}`;
+      return formatarNumeroDocumentoOficial(1, anoAtual);
     }
 
     const stored = localStorage.getItem(SEQ_COUNTER_KEY);
@@ -182,7 +192,7 @@ export const getNextNumeroHabiteSeSequencial = (): string => {
   } catch {
     currentSeq = anoAtual > 2026 ? 1 : INITIAL_SEQ_2026;
   }
-  return `${currentSeq.toLocaleString('pt-BR')}/${anoAtual}`;
+  return formatarNumeroDocumentoOficial(currentSeq, anoAtual);
 };
 
 export const commitAndAdvanceNumeroHabiteSe = (): string => {
@@ -198,10 +208,10 @@ export const commitAndAdvanceNumeroHabiteSe = (): string => {
     }
 
     if (anoAtual > storedAno) {
-      // Virada do ano: o documento atual é o 1, o próximo para novo documento será o 2
+      // Virada do ano: o documento atual é o 01/anoAtual, e o próximo para novo documento será o 2
       localStorage.setItem(SEQ_ANO_KEY, anoAtual.toString());
       localStorage.setItem(SEQ_COUNTER_KEY, '2');
-      return `1/${anoAtual}`;
+      return formatarNumeroDocumentoOficial(1, anoAtual);
     }
 
     const stored = localStorage.getItem(SEQ_COUNTER_KEY);
@@ -217,7 +227,7 @@ export const commitAndAdvanceNumeroHabiteSe = (): string => {
   } catch (err) {
     console.warn('Erro ao avançar sequencial de Habite-se:', err);
   }
-  return `${currentSeq.toLocaleString('pt-BR')}/${anoAtual}`;
+  return formatarNumeroDocumentoOficial(currentSeq, anoAtual);
 };
 
 export const HabiteSeSanitarioModal: React.FC<HabiteSeSanitarioModalProps> = ({
@@ -363,7 +373,7 @@ export const HabiteSeSanitarioModal: React.FC<HabiteSeSanitarioModalProps> = ({
       return;
     }
 
-    const protocoloFinal = protocoloGerado || formData.numeroDocumento || 'HAB-2026/PROCESSO';
+    const protocoloFinal = protocoloGerado || formData.numeroDocumento || `HAB-${new Date().getFullYear()}/PROCESSO`;
     const dataHoraFinal = dataHoraEnvio || new Date().toLocaleString('pt-BR');
     const enderecoCompleto = [
       formData.rua && `${formData.rua}, nº ${formData.numero || 'S/N'}`,
@@ -910,7 +920,7 @@ export const HabiteSeSanitarioModal: React.FC<HabiteSeSanitarioModalProps> = ({
                       Data do Protocolo
                     </span>
                     <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                      {dataHoraEnvio || '22/09/2026'}
+                      {dataHoraEnvio || new Date().toLocaleDateString('pt-BR')}
                     </p>
                   </div>
                 </div>
@@ -1037,17 +1047,22 @@ export const HabiteSeSanitarioModal: React.FC<HabiteSeSanitarioModalProps> = ({
               )}
 
               {/* BARRA: Número do Documento Gerado */}
-              <div className="p-3 bg-gradient-to-r from-indigo-50 via-blue-50 to-slate-50 dark:from-indigo-950/40 dark:via-blue-950/30 dark:to-slate-900/40 border border-indigo-200 dark:border-indigo-800/60 rounded-xl flex items-center justify-between gap-3">
+              <div className="p-3 bg-gradient-to-r from-indigo-50 via-blue-50 to-slate-50 dark:from-indigo-950/40 dark:via-blue-950/30 dark:to-slate-900/40 border border-indigo-200 dark:border-indigo-800/60 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 bg-indigo-600 text-white rounded-lg shadow-xs">
                     <Hash className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Número do Documento Gerado (Identificador Oficial):
-                  </span>
+                  <div>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                      Número do Documento Gerado (Identificador Oficial):
+                    </span>
+                    <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-medium">
+                      Sequência numérica geral do setor • Renovação automática à 0h no ano novo (ex: 01/{new Date().getFullYear() + 1})
+                    </span>
+                  </div>
                 </div>
 
-                <div className="bg-white dark:bg-[#151921] border-2 border-indigo-400 dark:border-indigo-600 rounded-xl px-4 py-1.5 shadow-xs flex items-center gap-2">
+                <div className="bg-white dark:bg-[#151921] border-2 border-indigo-400 dark:border-indigo-600 rounded-xl px-4 py-1.5 shadow-xs flex items-center gap-2 self-start sm:self-auto">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="text-sm font-mono font-black text-indigo-700 dark:text-indigo-300 tracking-wider">
                     {formData.numeroDocumento}
