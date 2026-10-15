@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Printer, Droplet, FileCheck2, MapPin, Calendar, Clock, UserCheck, ShieldCheck, Thermometer, AlertTriangle, Download, Loader2 } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
 import { AmostraLaboratorioItem, SolicitacaoLaudoPotabilidadeItem } from '../types';
 import { isColetaRealizada } from '../lib/potabilidadeService';

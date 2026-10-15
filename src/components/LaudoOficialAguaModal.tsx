@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Printer, Droplet, CheckCircle2, AlertTriangle, FileText, Download, Loader2 } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
 import { AmostraLaboratorioItem, SolicitacaoLaudoPotabilidadeItem } from '../types';
 import { isLaudoAssinado } from '../lib/potabilidadeService';

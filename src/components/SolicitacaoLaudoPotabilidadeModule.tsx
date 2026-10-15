@@ -22,7 +22,7 @@ import {
   X,
   Loader2
 } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
 import { SolicitacaoLaudoPotabilidadeItem, UserProfile } from '../types';
 import { BAIRROS_BC } from '../data/mockData';

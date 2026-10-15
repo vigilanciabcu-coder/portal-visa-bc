@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { ProcessoItem, UserProfile } from '../types';
 import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import QRCode from 'qrcode';
 
 interface PainelBiExecutivoViewProps {

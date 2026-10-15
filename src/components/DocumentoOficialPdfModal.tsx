@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { ProcessoItem, UserProfile } from '../types';
 
 export type TipoDocumentoOficial =
