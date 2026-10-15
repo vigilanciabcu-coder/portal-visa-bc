@@ -1,5 +1,7 @@
-import React, { useEffect } from 'react';
-import { X, Printer, Droplet, FileCheck2, MapPin, Calendar, Clock, UserCheck, ShieldCheck, Thermometer, AlertTriangle } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Printer, Droplet, FileCheck2, MapPin, Calendar, Clock, UserCheck, ShieldCheck, Thermometer, AlertTriangle, Download, Loader2 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { AmostraLaboratorioItem, SolicitacaoLaudoPotabilidadeItem } from '../types';
 import { isColetaRealizada } from '../lib/potabilidadeService';
 
@@ -10,6 +12,19 @@ export interface RelatorioColetaAguaModalProps {
   solicitacao?: SolicitacaoLaudoPotabilidadeItem | null;
 }
 
+const formatarDataSegura = (val?: any): string => {
+  if (!val) return new Date().toLocaleDateString('pt-BR');
+  const str = String(val).split('T')[0].trim();
+  if (str.includes('/')) return str;
+  if (str.includes('-')) {
+    const parts = str.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+  }
+  return str;
+};
+
 export const RelatorioColetaAguaModal: React.FC<RelatorioColetaAguaModalProps> = ({
   isOpen,
   onClose,
@@ -19,7 +34,7 @@ export const RelatorioColetaAguaModal: React.FC<RelatorioColetaAguaModalProps> =
   useEffect(() => {
     if (isOpen) {
       const prevTitle = document.title;
-      const cnpjOuCpf = (amostra?.cnpj_cpf || solicitacao?.cnpj_cpf || '').trim();
+      const cnpjOuCpf = String(amostra?.cnpj_cpf || solicitacao?.cnpj_cpf || '').trim();
       document.title = cnpjOuCpf
         ? `${cnpjOuCpf} - TERMO DE COLETA DE ÁGUA-VISA`
         : 'TERMO DE COLETA DE ÁGUA-VISA';
@@ -84,9 +99,9 @@ export const RelatorioColetaAguaModal: React.FC<RelatorioColetaAguaModalProps> =
     );
   }
 
-  // Extrai dados unificados
+  // Extrai dados unificados com segurança contra tipos indefinidos
   const protocolo = amostra?.protocolo || solicitacao?.protocolo_1doc || 'S/N';
-  const codigoAmostra = amostra?.codigo_amostra || (solicitacao?.id ? `SOL-${solicitacao.id.slice(-4)}` : '172');
+  const codigoAmostra = amostra?.codigo_amostra || (solicitacao?.id ? `SOL-${String(solicitacao.id).slice(-4)}` : '172');
   const mesAno = amostra?.mes_ano_referencia || 'JULHO / 2026';
   const interessado = amostra?.interessado || amostra?.estabelecimento || solicitacao?.razao_social || 'ESTABELECIMENTO';
   const nomeFantasia = solicitacao?.nome_fantasia || amostra?.estabelecimento || interessado;
@@ -104,11 +119,61 @@ export const RelatorioColetaAguaModal: React.FC<RelatorioColetaAguaModalProps> =
   const responsavelDistribuicao = amostra?.responsavel_distribuicao || 'EMASA (Rede Pública Municipal)';
   const observacoes = amostra?.observacoes || solicitacao?.observacoes || 'Coleta oficial realizada in loco para análise de potabilidade da água para consumo humano.';
 
-  const timestampColeta = amostra?.coleta_assinatura_data || `${dataColeta.split('-').reverse().join('/')} às ${horaColeta}`;
+  const timestampColeta = amostra?.coleta_assinatura_data || `${formatarDataSegura(dataColeta)} às ${horaColeta}`;
   const hashColeta = amostra?.coleta_assinatura_hash || `VISA-COL-${codigoAmostra}-BC`;
+
+  const printAreaRef = useRef<HTMLDivElement>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!printAreaRef.current) return;
+    try {
+      setIsGeneratingPdf(true);
+      const canvas = await html2canvas(printAreaRef.current, {
+        scale: 2.5,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pdfWidth = 210;
+      const pdfHeight = 297;
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      const ratio = canvasWidth / canvasHeight;
+
+      let renderWidth = pdfWidth;
+      let renderHeight = pdfWidth / ratio;
+      if (renderHeight > pdfHeight) {
+        renderHeight = pdfHeight;
+        renderWidth = pdfHeight * ratio;
+      }
+
+      const xOffset = (pdfWidth - renderWidth) / 2;
+      pdf.addImage(imgData, 'JPEG', xOffset, 0, renderWidth, renderHeight);
+
+      const cleanProtocolo = String(protocolo || 'TERMO_COLETA')
+        .replace(/[^a-zA-Z0-9]/g, '_')
+        .substring(0, 20);
+      const filename = `TERMO_COLETA_AGUA_${cleanProtocolo}_${codigoAmostra}.pdf`;
+      pdf.save(filename);
+    } catch (err) {
+      console.error('Erro ao gerar PDF da coleta:', err);
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   return (
@@ -132,8 +197,18 @@ export const RelatorioColetaAguaModal: React.FC<RelatorioColetaAguaModalProps> =
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={handleDownloadPdf}
+              disabled={isGeneratingPdf}
+              className="bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs px-3.5 py-2 rounded-xl uppercase flex items-center gap-1.5 shadow cursor-pointer transition disabled:opacity-60"
+              title="Baixar arquivo .PDF em alta resolução"
+            >
+              {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              <span>{isGeneratingPdf ? 'Gerando...' : 'Baixar PDF'}</span>
+            </button>
+            <button
+              type="button"
               onClick={handlePrint}
-              className="bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs px-4 py-2 rounded-xl uppercase flex items-center gap-1.5 shadow cursor-pointer transition"
+              className="bg-black hover:bg-slate-800 text-white font-black text-xs px-3.5 py-2 rounded-xl uppercase flex items-center gap-1.5 shadow cursor-pointer transition"
             >
               <Printer className="w-4 h-4" />
               Imprimir Termo
@@ -152,7 +227,7 @@ export const RelatorioColetaAguaModal: React.FC<RelatorioColetaAguaModalProps> =
         {/* ======================================================== */}
         {/* DOCUMENTO OFICIAL TIMBRADO (FORMATO A4 / IMPRESSÃO LIMPA) */}
         {/* ======================================================== */}
-        <div className="border-2 border-black p-4 sm:p-6 bg-white relative text-black print:border-black">
+        <div ref={printAreaRef} id="printable-relatorio-coleta" className="border-2 border-black p-4 sm:p-6 bg-white relative text-black print:border-black">
           {/* Cabeçalho Oficial */}
           <div className="flex items-center gap-3 sm:gap-4 border-b-2 border-black pb-2.5 mb-2.5">
             <img
@@ -239,7 +314,7 @@ export const RelatorioColetaAguaModal: React.FC<RelatorioColetaAguaModalProps> =
             <div className="grid grid-cols-12 divide-x divide-black p-1">
               <div className="col-span-4 px-1">
                 <span className="font-bold">Data da Coleta:</span>{' '}
-                <span className="font-mono font-bold">{dataColeta.split('-').reverse().join('/')}</span>
+                <span className="font-mono font-bold">{formatarDataSegura(dataColeta)}</span>
               </div>
               <div className="col-span-4 px-1">
                 <span className="font-bold">Hora da Coleta:</span>{' '}
@@ -357,7 +432,16 @@ export const RelatorioColetaAguaModal: React.FC<RelatorioColetaAguaModalProps> =
         </div>
 
         {/* Botão de Rodapé na Tela */}
-        <div className="mt-4 flex justify-end gap-3 print:hidden">
+        <div className="mt-4 flex flex-wrap justify-end gap-3 print:hidden">
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={isGeneratingPdf}
+            className="bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs px-5 py-2.5 rounded-xl uppercase flex items-center gap-1.5 shadow cursor-pointer transition disabled:opacity-60"
+          >
+            {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            <span>{isGeneratingPdf ? 'Gerando PDF...' : 'Baixar Arquivo PDF'}</span>
+          </button>
           <button
             type="button"
             onClick={handlePrint}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   FileText,
   CheckCircle2,
@@ -19,8 +19,11 @@ import {
   FileCheck,
   ShieldCheck,
   Receipt,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { SolicitacaoLaudoPotabilidadeItem, UserProfile } from '../types';
 import { BAIRROS_BC } from '../data/mockData';
 import { fetchCnpj } from '../lib/cnpjService';
@@ -1011,9 +1014,55 @@ export const FichaSolicitacaoPotabilidadeModal: React.FC<FichaSolicitacaoPotabil
 }) => {
   if (!solicitacao) return null;
 
+  const printAreaRef = useRef<HTMLDivElement>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    if (!printAreaRef.current) return;
+    try {
+      setIsGeneratingPdf(true);
+      const canvas = await html2canvas(printAreaRef.current, {
+        scale: 2.5,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      });
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      const pdfWidth = 210;
+      const pdfHeight = 297;
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      const ratio = canvasWidth / canvasHeight;
+
+      let renderWidth = pdfWidth;
+      let renderHeight = pdfWidth / ratio;
+      if (renderHeight > pdfHeight) {
+        renderHeight = pdfHeight;
+        renderWidth = pdfHeight * ratio;
+      }
+      const xOffset = (pdfWidth - renderWidth) / 2;
+      pdf.addImage(imgData, 'JPEG', xOffset, 0, renderWidth, renderHeight);
+
+      const cleanProt = String(solicitacao.protocolo_1doc || 'FICHA')
+        .replace(/[^a-zA-Z0-9]/g, '_')
+        .substring(0, 20);
+      pdf.save(`FICHA_SOLICITACAO_1DOC_${cleanProt}.pdf`);
+    } catch (err) {
+      console.error('Erro ao gerar PDF da ficha:', err);
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[10000] bg-black/70 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white text-slate-900 rounded-2xl max-w-3xl w-full p-8 shadow-2xl space-y-5 text-left border border-slate-300 relative print:p-0 print:border-none print:shadow-none">
+      <div ref={printAreaRef} id="printable-ficha-solicitacao" className="bg-white text-slate-900 rounded-2xl max-w-3xl w-full p-8 shadow-2xl space-y-5 text-left border border-slate-300 relative print:p-0 print:border-none print:shadow-none">
         {/* Botão Fechar (não impresso) */}
         <div className="flex justify-between items-center border-b pb-3 print:hidden">
           <div className="flex items-center gap-2">
@@ -1025,8 +1074,18 @@ export const FichaSolicitacaoPotabilidadeModal: React.FC<FichaSolicitacaoPotabil
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={handleDownloadPdf}
+              disabled={isGeneratingPdf}
+              className="px-3 py-1.5 bg-cyan-700 hover:bg-cyan-800 text-white rounded-lg text-xs font-bold uppercase flex items-center gap-1.5 cursor-pointer shadow disabled:opacity-60"
+              title="Baixar arquivo PDF oficial"
+            >
+              {isGeneratingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+              <span>{isGeneratingPdf ? 'Gerando...' : 'Baixar PDF'}</span>
+            </button>
+            <button
+              type="button"
               onClick={() => window.print()}
-              className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-xs font-bold uppercase flex items-center gap-1.5 cursor-pointer shadow"
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold uppercase flex items-center gap-1.5 cursor-pointer shadow"
             >
               <Printer className="w-3.5 h-3.5" />
               Imprimir Ficha
@@ -1070,12 +1129,16 @@ export const FichaSolicitacaoPotabilidadeModal: React.FC<FichaSolicitacaoPotabil
           <div>
             <span className="font-bold text-slate-600 block">Data da Solicitação:</span>
             <span className="font-mono text-slate-900">
-              {new Date(solicitacao.data_solicitacao).toLocaleDateString('pt-BR')}
+              {solicitacao.data_solicitacao
+                ? (String(solicitacao.data_solicitacao).includes('-')
+                    ? String(solicitacao.data_solicitacao).split('T')[0].split('-').reverse().join('/')
+                    : String(solicitacao.data_solicitacao))
+                : new Date().toLocaleDateString('pt-BR')}
             </span>
           </div>
           <div className="col-span-2">
             <span className="font-bold text-slate-600 block">Categoria do Estabelecimento:</span>
-            <span className="text-slate-900">{solicitacao.categoria_estabelecimento}</span>
+            <span className="text-slate-900">{solicitacao.categoria_estabelecimento || 'Comércio / Serviço de Alimentos'}</span>
           </div>
         </div>
 
@@ -1095,7 +1158,7 @@ export const FichaSolicitacaoPotabilidadeModal: React.FC<FichaSolicitacaoPotabil
             </div>
             <div className="col-span-2">
               <span className="font-bold text-slate-600 block">Endereço da Coleta:</span>
-              <span className="text-slate-900">{solicitacao.endereco} • Bairro: {solicitacao.bairro}</span>
+              <span className="text-slate-900">{solicitacao.endereco || 'Endereço não informado'} • Bairro: {solicitacao.bairro || 'Centro'}</span>
             </div>
             <div>
               <span className="font-bold text-slate-600 block">Telefone:</span>
@@ -1115,16 +1178,19 @@ export const FichaSolicitacaoPotabilidadeModal: React.FC<FichaSolicitacaoPotabil
           </h4>
           <div className="space-y-1">
             <p>
-              <strong>Quantidade de Pontos:</strong> {solicitacao.quantidade_pontos} ponto(s)
+              <strong>Quantidade de Pontos:</strong> {solicitacao.quantidade_pontos || 1} ponto(s)
             </p>
             <p>
-              <strong>Taxa Municipal:</strong> {solicitacao.taxa_ufm_total.toFixed(2)} UFM (0,40 UFM por ponto coletado)
+              <strong>Taxa Municipal:</strong> {(Number(solicitacao.taxa_ufm_total) || 0).toFixed(2)} UFM (0,40 UFM por ponto coletado)
             </p>
             <div className="pt-1">
               <strong>Locais Selecionados:</strong>
               <ul className="list-disc list-inside mt-0.5 space-y-0.5 text-slate-700">
-                {solicitacao.locais_coleta.map((loc) => (
-                  <li key={loc}>
+                {(Array.isArray(solicitacao.locais_coleta) && solicitacao.locais_coleta.length > 0
+                  ? solicitacao.locais_coleta
+                  : ['Torneira de Manipulação / Rede Predial']
+                ).map((loc, idx) => (
+                  <li key={idx}>
                     {loc}
                     {loc === 'Outro tipo de ponto não especificado anteriormente' && solicitacao.outro_local_especificado && (
                       <span className="italic"> ({solicitacao.outro_local_especificado})</span>

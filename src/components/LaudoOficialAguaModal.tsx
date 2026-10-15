@@ -1,5 +1,7 @@
-import React, { useEffect } from 'react';
-import { X, Printer, Droplet, CheckCircle2, AlertTriangle, FileText } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Printer, Droplet, CheckCircle2, AlertTriangle, FileText, Download, Loader2 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { AmostraLaboratorioItem, SolicitacaoLaudoPotabilidadeItem } from '../types';
 import { isLaudoAssinado } from '../lib/potabilidadeService';
 
@@ -10,6 +12,19 @@ export interface LaudoOficialAguaModalProps {
   solicitacao?: SolicitacaoLaudoPotabilidadeItem | null;
 }
 
+const formatarDataSegura = (val?: any): string => {
+  if (!val) return new Date().toLocaleDateString('pt-BR');
+  const str = String(val).split('T')[0].trim();
+  if (str.includes('/')) return str;
+  if (str.includes('-')) {
+    const parts = str.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+  }
+  return str;
+};
+
 export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
   isOpen,
   onClose,
@@ -19,7 +34,7 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       const prevTitle = document.title;
-      const cnpjOuCpf = (amostra?.cnpj_cpf || solicitacao?.cnpj_cpf || '').trim();
+      const cnpjOuCpf = String(amostra?.cnpj_cpf || solicitacao?.cnpj_cpf || '').trim();
       document.title = cnpjOuCpf
         ? `${cnpjOuCpf} - LAUDO DE ANÁLISE DE ÁGUA-VISA`
         : 'LAUDO DE ANÁLISE DE ÁGUA-VISA';
@@ -88,6 +103,7 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
   const item: Partial<AmostraLaboratorioItem> = amostra || {
     protocolo: solicitacao?.protocolo_1doc || '60.455/2026',
     codigo_amostra: solicitacao?.id ? `172` : '172',
+    laudo_numero: `172/${new Date().getFullYear()}`,
     mes_ano_referencia: 'JULHO / 2026',
     responsavel_distribuicao: 'EMASA',
     interessado: solicitacao?.razao_social || 'ESTABELECIMENTO',
@@ -119,49 +135,100 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
     observacoes: solicitacao?.observacoes || 'ANÁLISE SOLICITADA PARA VERIFICAR QUALIDADE DA ÁGUA PARA CONSUMO HUMANO'
   };
 
-  const getPhStatus = (val?: string) => {
-    if (!val) return 'conform';
-    const num = parseFloat(val.replace(',', '.'));
+  const getPhStatus = (val?: string | number | null) => {
+    if (val === undefined || val === null || val === '') return 'conform';
+    const num = parseFloat(String(val).replace(',', '.'));
     if (isNaN(num)) return 'conform';
     return (num >= 6.0 && num <= 9.5) ? 'conform' : 'not-conform';
   };
 
-  const getCloroStatus = (val?: string) => {
-    if (!val) return 'conform';
-    const num = parseFloat(val.replace(',', '.'));
+  const getCloroStatus = (val?: string | number | null) => {
+    if (val === undefined || val === null || val === '') return 'conform';
+    const num = parseFloat(String(val).replace(',', '.'));
     if (isNaN(num)) return 'conform';
     return (num >= 0.2 && num <= 2.0) ? 'conform' : 'not-conform';
   };
 
-  const getFluorStatus = (val?: string) => {
-    if (!val) return 'conform';
-    const num = parseFloat(val.replace(',', '.'));
+  const getFluorStatus = (val?: string | number | null) => {
+    if (val === undefined || val === null || val === '') return 'conform';
+    const num = parseFloat(String(val).replace(',', '.'));
     if (isNaN(num)) return 'conform';
     return (num >= 0.7 && num <= 1.0) ? 'conform' : 'not-conform';
   };
 
-  const getTurbidezStatus = (val?: string) => {
-    if (!val) return 'conform';
-    const num = parseFloat(val.replace(',', '.'));
+  const getTurbidezStatus = (val?: string | number | null) => {
+    if (val === undefined || val === null || val === '') return 'conform';
+    const num = parseFloat(String(val).replace(',', '.'));
     if (isNaN(num)) return 'conform';
     return num <= 5.0 ? 'conform' : 'not-conform';
   };
 
+  const conclusaoStr = String(item.conclusao_laudo || '').toLowerCase();
   const isNaoConforme =
     item.status === 'NÃO CONFORME' ||
     item.status === 'INTERDITADO' ||
     Boolean(
-      item.conclusao_laudo &&
-        (item.conclusao_laudo.toLowerCase().includes('não atende') ||
-          item.conclusao_laudo.toLowerCase().includes('desacordo') ||
-          item.conclusao_laudo.toLowerCase().includes('imprópria'))
+      conclusaoStr &&
+        (conclusaoStr.includes('não atende') ||
+          conclusaoStr.includes('desacordo') ||
+          conclusaoStr.includes('imprópria'))
     );
 
-  const colTot = (item.coliformes_totais || 'AUSENTE').trim().toUpperCase();
-  const colFec = (item.escherichia_coli || 'AUSENTE').trim().toUpperCase();
+  const colTot = String(item.coliformes_totais || 'AUSENTE').trim().toUpperCase();
+  const colFec = String(item.escherichia_coli || 'AUSENTE').trim().toUpperCase();
+
+  const printAreaRef = useRef<HTMLDivElement>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!printAreaRef.current) return;
+    try {
+      setIsGeneratingPdf(true);
+      const canvas = await html2canvas(printAreaRef.current, {
+        scale: 2.5,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pdfWidth = 210;
+      const pdfHeight = 297;
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      const ratio = canvasWidth / canvasHeight;
+
+      let renderWidth = pdfWidth;
+      let renderHeight = pdfWidth / ratio;
+      if (renderHeight > pdfHeight) {
+        renderHeight = pdfHeight;
+        renderWidth = pdfHeight * ratio;
+      }
+
+      const xOffset = (pdfWidth - renderWidth) / 2;
+      pdf.addImage(imgData, 'JPEG', xOffset, 0, renderWidth, renderHeight);
+
+      const cleanProtocolo = String(item.protocolo || 'LAUDO')
+        .replace(/[^a-zA-Z0-9]/g, '_')
+        .substring(0, 20);
+      const filename = `LAUDO_AGUA_${cleanProtocolo}_${item.codigo_amostra || '172'}.pdf`;
+      pdf.save(filename);
+    } catch (err) {
+      console.error('Erro ao gerar PDF do laudo:', err);
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   return (
@@ -185,8 +252,18 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={handleDownloadPdf}
+              disabled={isGeneratingPdf}
+              className="bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs px-3.5 py-2 rounded-xl uppercase flex items-center gap-1.5 shadow cursor-pointer transition disabled:opacity-60"
+              title="Baixar arquivo .PDF em alta resolução"
+            >
+              {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              <span>{isGeneratingPdf ? 'Gerando...' : 'Baixar PDF'}</span>
+            </button>
+            <button
+              type="button"
               onClick={handlePrint}
-              className="bg-black hover:bg-slate-800 text-white font-black text-xs px-4 py-2 rounded-xl uppercase flex items-center gap-1.5 shadow cursor-pointer transition"
+              className="bg-black hover:bg-slate-800 text-white font-black text-xs px-3.5 py-2 rounded-xl uppercase flex items-center gap-1.5 shadow cursor-pointer transition"
             >
               <Printer className="w-4 h-4" />
               Imprimir Laudo
@@ -205,7 +282,7 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
         {/* ======================================================== */}
         {/* DOCUMENTO OFICIAL TIMBRADO (FORMATO A4 / IMPRESSÃO LIMPA) */}
         {/* ======================================================== */}
-        <div className="border-2 border-black p-4 sm:p-6 bg-white relative text-black print:border-black font-sans leading-tight">
+        <div ref={printAreaRef} id="printable-laudo" className="border-2 border-black p-4 sm:p-6 bg-white relative text-black print:border-black font-sans leading-tight">
           {/* Cabeçalho Oficial */}
           <div className="flex items-center gap-3 sm:gap-4 border-b-2 border-black pb-2 mb-2">
             <img
@@ -243,11 +320,13 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
           {/* Tabela 1: Identificação da Coleta */}
           <div className="border border-black text-[10px] divide-y divide-black mb-1.5 leading-tight">
             <div className="grid grid-cols-12 divide-x divide-black bg-slate-50 font-bold p-0.5">
-              <div className="col-span-5 px-1">
+              <div className="col-span-4 px-1">
                 PROTOCOLO: <span className="font-mono">{item.protocolo || '60.455/2026'}</span>
               </div>
-              <div className="col-span-4 px-1">
-                Número da Amostra: <span className="font-mono">{item.codigo_amostra || '169'}</span>
+              <div className="col-span-5 px-1">
+                Amostra Nº <span className="font-mono">{item.codigo_amostra || '172'}</span> {item.laudo_numero && (
+                  <span className="text-cyan-900 font-black">• Laudo: {item.laudo_numero}</span>
+                )}
               </div>
               <div className="col-span-3 px-1 text-right uppercase">
                 {item.mes_ano_referencia || 'JULHO / 2026'}
@@ -280,7 +359,7 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
                 <span className="font-bold">Local de Coleta:</span> <span className="font-black uppercase">{item.local_coleta || 'TORNEIRA DA ÁREA DE MANIPULAÇÃO'}</span>
               </div>
               <div className="col-span-4 px-1">
-                <span className="font-bold">Data da Coleta:</span> {item.data_coleta}
+                <span className="font-bold">Data da Coleta:</span> {formatarDataSegura(item.data_coleta)}
               </div>
             </div>
 
@@ -550,7 +629,16 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
         </div>
 
         {/* Botões de Ação na Tela */}
-        <div className="mt-4 flex justify-end gap-3 print:hidden">
+        <div className="mt-4 flex flex-wrap justify-end gap-3 print:hidden">
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={isGeneratingPdf}
+            className="bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs px-5 py-2.5 rounded-xl uppercase flex items-center gap-1.5 shadow cursor-pointer transition disabled:opacity-60"
+          >
+            {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            <span>{isGeneratingPdf ? 'Gerando PDF...' : 'Baixar Arquivo PDF'}</span>
+          </button>
           <button
             type="button"
             onClick={handlePrint}

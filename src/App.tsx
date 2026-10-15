@@ -18,6 +18,7 @@ import { GeoVisaMapView } from './components/GeoVisaMapView';
 import { PWAInstallModal } from './components/PWAInstallModal';
 import { BackupExportModal } from './components/BackupExportModal';
 import { PastaDossieView } from './components/PastaDossieView';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 import {
   PortalButton,
@@ -1021,14 +1022,16 @@ export default function App() {
                  currentUser?.nivel_acesso?.toUpperCase().includes('MASTER') ||
                  currentUser?.nivel_acesso === 'MASTER (TUDO)' ||
                  currentUser?.cargo === 'MASTER ADM') ? (
-                  <ProcessosLabView
-                    processos={processos}
-                    currentUser={currentUser}
-                    users={users}
-                    onSaveProcesso={handleSaveProcesso}
-                    onDeleteProcesso={handleDeleteProcesso}
-                    onOpenExternal={handleOpenExternal}
-                  />
+                  <ErrorBoundary fallbackTitle="Carteira de Processos do Laboratório">
+                    <ProcessosLabView
+                      processos={processos}
+                      currentUser={currentUser}
+                      users={users}
+                      onSaveProcesso={handleSaveProcesso}
+                      onDeleteProcesso={handleDeleteProcesso}
+                      onOpenExternal={handleOpenExternal}
+                    />
+                  </ErrorBoundary>
                 ) : (
                   <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-xl mx-auto text-center border border-red-200 dark:border-red-900 shadow-xl space-y-4 my-12">
                     <div className="w-16 h-16 bg-red-100 dark:bg-red-950/80 text-red-600 rounded-2xl flex items-center justify-center mx-auto text-2xl font-black">
@@ -1055,24 +1058,26 @@ export default function App() {
                  currentUser?.cargo === 'MASTER ADM' ||
                  currentUser?.setor?.toUpperCase().includes('LAB') ||
                  currentUser?.cargo?.toUpperCase().includes('LAB')) ? (
-                  <LaboratorioView
-                    amostras={amostrasLaboratorio}
-                    pontos={pontosColeta}
-                    coletores={coletoresLaboratorio}
-                    laboratorialistas={laboratorialistas}
-                    currentUser={currentUser}
-                    users={users}
-                    processos={processos}
-                    onSaveProcesso={handleSaveProcesso}
-                    onSaveAmostra={handleSaveLaboratorio}
-                    onDeleteAmostra={handleDeleteLaboratorio}
-                    onSavePonto={handleSavePontoColeta}
-                    onDeletePonto={handleDeletePontoColeta}
-                    onSaveColetor={handleSaveColetor}
-                    onDeleteColetor={handleDeleteColetor}
-                    onSaveLaboratorialista={handleSaveLaboratorialista}
-                    onDeleteLaboratorialista={handleDeleteLaboratorialista}
-                  />
+                  <ErrorBoundary fallbackTitle="Laboratório Municipal de Análise de Água">
+                    <LaboratorioView
+                      amostras={amostrasLaboratorio}
+                      pontos={pontosColeta}
+                      coletores={coletoresLaboratorio}
+                      laboratorialistas={laboratorialistas}
+                      currentUser={currentUser}
+                      users={users}
+                      processos={processos}
+                      onSaveProcesso={handleSaveProcesso}
+                      onSaveAmostra={handleSaveLaboratorio}
+                      onDeleteAmostra={handleDeleteLaboratorio}
+                      onSavePonto={handleSavePontoColeta}
+                      onDeletePonto={handleDeletePontoColeta}
+                      onSaveColetor={handleSaveColetor}
+                      onDeleteColetor={handleDeleteColetor}
+                      onSaveLaboratorialista={handleSaveLaboratorialista}
+                      onDeleteLaboratorialista={handleDeleteLaboratorialista}
+                    />
+                  </ErrorBoundary>
                 ) : (
                   <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-xl mx-auto text-center border border-cyan-200 dark:border-cyan-900 shadow-xl space-y-4 my-12">
                     <div className="w-16 h-16 bg-cyan-100 dark:bg-cyan-950/80 text-cyan-600 rounded-2xl flex items-center justify-center mx-auto text-2xl font-black">
