@@ -146,18 +146,22 @@ export const OPCOES_ATENDIMENTO_PRIORITARIO = [
 ];
 
 // 🔢 GERADOR SEQUENCIAL OFICIAL PERSISTENTE DO SETOR (ZERO DUPLICATAS)
-// À 0 HORA DO ANO NOVO, O FINAL ALTERA AUTOMATICAMENTE NA GERAÇÃO INDO PARA 01/2027 (REINÍCIO DO SEQUENCIAL GERAL DO SETOR)
+// À 0 HORA DO DIA 1º DE JANEIRO DE QUALQUER NOVO ANO (2027, 2028, 2029...),
+// O SUFIXO É ATUALIZADO AUTOMATICAMENTE E O SEQUENCIAL É REINICIADO COM SEIS DÍGITOS (000001/2027, 000002/2027...),
+// MANTENDO OS NÚMEROS ATUAIS DE 2026 ÍNTEGROS.
 const SEQ_COUNTER_KEY = 'visa_habite_se_sequencial_counter';
 const SEQ_ANO_KEY = 'visa_habite_se_ano';
 const INITIAL_SEQ_2026 = 49906;
 
 export const formatarNumeroDocumentoOficial = (seq: number, ano: number): string => {
-  // Para sequenciais menores que 10: preenchimento com 2 dígitos ("01", "02", ..., "09") conforme solicitado: "01/2027"
-  // Para sequenciais a partir de 10.000: formatação pt-BR (ex: 49.908/2026)
-  // Para sequenciais entre 10 e 9.999: número normal (ex: 10/2027, 100/2027)
-  const seqStr = seq < 10
-    ? String(seq).padStart(2, '0')
-    : (seq >= 10000 ? seq.toLocaleString('pt-BR') : String(seq));
+  // Para 2026: mantém íntegra a numeração corrente (ex: 49.908/2026)
+  if (ano <= 2026) {
+    const seqStr = seq >= 10000 ? seq.toLocaleString('pt-BR') : String(seq).padStart(6, '0');
+    return `${seqStr}/${ano}`;
+  }
+  // A partir da 0 hora do ano novo (2027, 2028, 2029...), o formato é reiniciado com seis dígitos:
+  // 000001/2027, 000002/2027 e assim por diante
+  const seqStr = String(seq).padStart(6, '0');
   return `${seqStr}/${ano}`;
 };
 
@@ -171,7 +175,7 @@ export const getNextNumeroHabiteSeSequencial = (): string => {
     if (anoStr) {
       storedAno = parseInt(anoStr, 10);
     }
-    // Virada do ano: à 0 hora do ano novo, o final altera automaticamente na geração indo para 01/anoAtual
+    // Virada do ano: à 0 hora do dia 1º de janeiro, o final altera automaticamente na geração indo para 000001/anoAtual
     if (anoAtual > storedAno) {
       currentSeq = 1;
       localStorage.setItem(SEQ_ANO_KEY, anoAtual.toString());
@@ -208,7 +212,7 @@ export const commitAndAdvanceNumeroHabiteSe = (): string => {
     }
 
     if (anoAtual > storedAno) {
-      // Virada do ano: o documento atual é o 01/anoAtual, e o próximo para novo documento será o 2
+      // Virada do ano: o documento atual é o 000001/anoAtual, e o próximo para novo documento será o 2
       localStorage.setItem(SEQ_ANO_KEY, anoAtual.toString());
       localStorage.setItem(SEQ_COUNTER_KEY, '2');
       return formatarNumeroDocumentoOficial(1, anoAtual);
@@ -1057,7 +1061,7 @@ export const HabiteSeSanitarioModal: React.FC<HabiteSeSanitarioModalProps> = ({
                       Número do Documento Gerado (Identificador Oficial):
                     </span>
                     <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-medium">
-                      Sequência numérica geral do setor • Renovação automática à 0h no ano novo (ex: 01/{new Date().getFullYear() + 1})
+                      Sequência numérica geral do setor • Renovação automática com 6 dígitos à 0h no ano novo (ex: 000001/{new Date().getFullYear() + 1})
                     </span>
                   </div>
                 </div>

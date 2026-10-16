@@ -135,21 +135,31 @@ export default function App() {
     setCurrentView('fiscalizacao');
   };
 
-  // App State with Persistence
-  const [users, setUsers] = useState<UserProfile[]>(() => {
-    const saved = localStorage.getItem('visa_users');
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
-  });
+  // Helper resiliente para ler localStorage sem risco de quebrar o React ou causar tela branca
+  function safeLoadJSON<T>(key: string, fallback: T): T {
+    try {
+      const saved = localStorage.getItem(key);
+      if (!saved) return fallback;
+      const parsed = JSON.parse(saved);
+      return parsed !== null && parsed !== undefined ? parsed : fallback;
+    } catch (err) {
+      console.warn(`[SafeLocalStorage] Falha ao recuperar '${key}', utilizando dados padrão seguros:`, err);
+      return fallback;
+    }
+  }
 
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem('visa_current_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  // App State with Persistence
+  const [users, setUsers] = useState<UserProfile[]>(() => safeLoadJSON('visa_users', INITIAL_USERS));
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => safeLoadJSON('visa_current_user', null));
 
   // Modals
   const [loginOpen, setLoginOpen] = useState<boolean>(() => {
-    const saved = localStorage.getItem('visa_current_user');
-    return !saved;
+    try {
+      const saved = localStorage.getItem('visa_current_user');
+      return !saved;
+    } catch {
+      return true;
+    }
   });
   const [loginInitialTab, setLoginInitialTab] = useState<'servidor' | 'contabilidade' | 'contribuinte' | 'cidadao'>('servidor');
   const [loginInitialCidadaoMode, setLoginInitialCidadaoMode] = useState<'login' | 'cadastro'>('login');
@@ -164,25 +174,14 @@ export default function App() {
     setLoginOpen(true);
   };
 
-  const [escala, setEscala] = useState<EscalaItem[]>(() => {
-    const saved = localStorage.getItem('visa_escala');
-    return saved ? JSON.parse(saved) : INITIAL_ESCALA;
-  });
-
-  const [feiras, setFeiras] = useState<FeiranteItem[]>(() => {
-    const saved = localStorage.getItem('visa_feiras');
-    return saved ? JSON.parse(saved) : INITIAL_FEIRAS;
-  });
-
-  const [fiscalizacoes, setFiscalizacoes] = useState<FiscalizacaoItem[]>(() => {
-    const saved = localStorage.getItem('visa_fiscalizacoes');
-    return saved ? JSON.parse(saved) : INITIAL_FISCALIZACOES;
-  });
+  const [escala, setEscala] = useState<EscalaItem[]>(() => safeLoadJSON('visa_escala', INITIAL_ESCALA));
+  const [feiras, setFeiras] = useState<FeiranteItem[]>(() => safeLoadJSON('visa_feiras', INITIAL_FEIRAS));
+  const [fiscalizacoes, setFiscalizacoes] = useState<FiscalizacaoItem[]>(() => safeLoadJSON('visa_fiscalizacoes', INITIAL_FISCALIZACOES));
 
   const [processos, setProcessos] = useState<ProcessoItem[]>(() => {
-    const saved = localStorage.getItem('visa_processos');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('visa_processos');
+      if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const map = new Map<string, ProcessoItem>();
@@ -190,17 +189,17 @@ export default function App() {
           parsed.forEach((p: ProcessoItem) => map.set(p.id, p));
           return Array.from(map.values());
         }
-      } catch (e) {
-        console.error(e);
       }
+    } catch (e) {
+      console.warn('Erro ao restaurar processos:', e);
     }
     return INITIAL_PROCESSOS;
   });
 
   const [amostrasLaboratorio, setAmostrasLaboratorio] = useState<AmostraLaboratorioItem[]>(() => {
-    const saved = localStorage.getItem('visa_laboratorio');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('visa_laboratorio');
+      if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const map = new Map<string, AmostraLaboratorioItem>();
@@ -208,27 +207,16 @@ export default function App() {
           parsed.forEach((a: AmostraLaboratorioItem) => map.set(a.id, a));
           return Array.from(map.values());
         }
-      } catch (e) {
-        console.error(e);
       }
+    } catch (e) {
+      console.warn('Erro ao restaurar amostras de laboratório:', e);
     }
     return INITIAL_LABORATORIO;
   });
 
-  const [pontosColeta, setPontosColeta] = useState<PontoColetaLaboratorio[]>(() => {
-    const saved = localStorage.getItem('visa_pontos_coleta');
-    return saved ? JSON.parse(saved) : INITIAL_PONTOS_COLETA;
-  });
-
-  const [coletoresLaboratorio, setColetoresLaboratorio] = useState<ServidorColetaLaboratorio[]>(() => {
-    const saved = localStorage.getItem('visa_coletores_lab');
-    return saved ? JSON.parse(saved) : INITIAL_COLETORES_LABORATORIO;
-  });
-
-  const [laboratorialistas, setLaboratorialistas] = useState<LaboratorialistaResponsavel[]>(() => {
-    const saved = localStorage.getItem('visa_laboratorialistas');
-    return saved ? JSON.parse(saved) : INITIAL_LABORATORIALISTAS;
-  });
+  const [pontosColeta, setPontosColeta] = useState<PontoColetaLaboratorio[]>(() => safeLoadJSON('visa_pontos_coleta', INITIAL_PONTOS_COLETA));
+  const [coletoresLaboratorio, setColetoresLaboratorio] = useState<ServidorColetaLaboratorio[]>(() => safeLoadJSON('visa_coletores_lab', INITIAL_COLETORES_LABORATORIO));
+  const [laboratorialistas, setLaboratorialistas] = useState<LaboratorialistaResponsavel[]>(() => safeLoadJSON('visa_laboratorialistas', INITIAL_LABORATORIALISTAS));
 
   const [mural, setMural] = useState<RecadoMural[]>(() => {
     try {

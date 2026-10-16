@@ -724,10 +724,12 @@ function loadHabiteSeSequence(): HabiteSeSequenceState {
     return state;
   }
 
-  // VIRADA DO ANO: À 0 hora do ano novo (00:00:00), o final altera automaticamente
-  // na geração para o novo ano (ex: 01/2027), reiniciando o sequencial geral do setor em 01.
+  // VIRADA DO ANO: À 0 hora do dia 1º de janeiro de qualquer novo ano (2027, 2028, 2029...):
+  // O sufixo do ano é atualizado automaticamente e o sequencial é reiniciado a partir
+  // do formato com seis dígitos (000001/2027, 000002/2027 e assim por diante),
+  // mantendo os números atuais de 2026 íntegros.
   if (anoAtual > state.ano) {
-    console.log(`[Habite-se Sanitário] Virada de ano detectada (${state.ano} -> ${anoAtual}). Reiniciando sequencial geral do setor em 01/${anoAtual} para novos documentos.`);
+    console.log(`[Habite-se Sanitário] Virada de ano detectada (${state.ano} -> ${anoAtual}). Reiniciando sequencial geral do setor em formato de 6 dígitos: 000001/${anoAtual} para novos documentos.`);
     state.ano = anoAtual;
     state.ultimoSequencial = 1;
     saveHabiteSeSequence(state);
@@ -749,13 +751,16 @@ function saveHabiteSeSequence(state: HabiteSeSequenceState) {
 }
 
 // Formatação oficial do número de documento do setor:
-// À 0 hora do ano novo, reinicia em 1 formatado com dois dígitos: "01/2027"
-// Para números menores que 10: "01", "02", ..., "09"
-// Para números a partir de 10.000: formatação pt-BR (ex: 49.908/2026)
+// Para o ano de 2026: mantém íntegros os números atuais (ex: 49.908/2026)
+// A partir da 0 hora do dia 1º de janeiro de qualquer novo ano (2027, 2028, 2029...):
+// O sufixo do ano é atualizado automaticamente e o sequencial é reiniciado a partir
+// do formato com seis dígitos: 000001/2027, 000002/2027 e assim por diante.
 function formatarNumeroHabiteSe(seq: number, ano: number): string {
-  const seqStr = seq < 10
-    ? String(seq).padStart(2, '0')
-    : (seq >= 10000 ? seq.toLocaleString('pt-BR') : String(seq));
+  if (ano <= 2026) {
+    const seqStr = seq >= 10000 ? seq.toLocaleString('pt-BR') : String(seq).padStart(6, '0');
+    return `${seqStr}/${ano}`;
+  }
+  const seqStr = String(seq).padStart(6, '0');
   return `${seqStr}/${ano}`;
 }
 
