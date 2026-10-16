@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { Component, ReactNode, ErrorInfo } from 'react';
 import { AlertTriangle, RotateCcw, Home } from 'lucide-react';
 
 export interface ErrorBoundaryProps {
@@ -10,10 +10,10 @@ export interface ErrorBoundaryProps {
 export interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
-  errorInfo: any;
+  errorInfo: ErrorInfo | null;
 }
 
-export class ErrorBoundary extends (React.Component as any) {
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {

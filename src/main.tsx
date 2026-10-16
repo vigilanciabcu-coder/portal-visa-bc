@@ -5,20 +5,27 @@ import './index.css';
 import { registerSW } from 'virtual:pwa-register';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 
-// Limpeza preventiva de Service Workers ou caches obsoletos em desenvolvimento (evita tela branca no iframe)
-if (!import.meta.env.PROD && typeof window !== 'undefined') {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then((registrations) => {
+// Limpeza preventiva segura de Service Workers e caches obsoletos (ignora restrições de sandbox em iframes)
+try {
+  if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations?.().then((registrations) => {
       for (const reg of registrations) {
         reg.unregister().catch(() => {});
       }
     }).catch(() => {});
   }
-  if ('caches' in window) {
-    caches.keys().then((keys) => {
-      keys.forEach((key) => caches.delete(key));
+} catch {
+  // Ignora restrições de permissão de iframe cross-origin
+}
+
+try {
+  if (typeof window !== 'undefined' && 'caches' in window) {
+    caches.keys?.().then((keys) => {
+      keys.forEach((key) => caches.delete(key).catch(() => {}));
     }).catch(() => {});
   }
+} catch {
+  // Ignora restrições de permissão de iframe cross-origin
 }
 
 // Em produção, registra o Service Worker do PWA para suporte offline
@@ -26,7 +33,7 @@ if (import.meta.env.PROD) {
   try {
     registerSW({ immediate: true });
   } catch (err) {
-    console.warn('[PWA] Erro ao registrar Service Worker:', err);
+    console.warn('[PWA] Service Worker não registrado:', err);
   }
 }
 
