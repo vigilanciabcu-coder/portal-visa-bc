@@ -2,39 +2,29 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
-import { registerSW } from 'virtual:pwa-register';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 
-// Limpeza preventiva segura de Service Workers e caches obsoletos (ignora restrições de sandbox em iframes)
+// Limpeza preventiva de qualquer Service Worker residual para garantir carregamento limpo
 try {
-  if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations?.().then((registrations) => {
+  if (typeof window !== 'undefined' && 'serviceWorker' in navigator && navigator.serviceWorker.getRegistrations) {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
       for (const reg of registrations) {
         reg.unregister().catch(() => {});
       }
     }).catch(() => {});
   }
 } catch {
-  // Ignora restrições de permissão de iframe cross-origin
+  // Ignora restrições de permissão de sandbox
 }
 
 try {
-  if (typeof window !== 'undefined' && 'caches' in window) {
-    caches.keys?.().then((keys) => {
+  if (typeof window !== 'undefined' && 'caches' in window && caches.keys) {
+    caches.keys().then((keys) => {
       keys.forEach((key) => caches.delete(key).catch(() => {}));
     }).catch(() => {});
   }
 } catch {
-  // Ignora restrições de permissão de iframe cross-origin
-}
-
-// Em produção, registra o Service Worker do PWA para suporte offline
-if (import.meta.env.PROD) {
-  try {
-    registerSW({ immediate: true });
-  } catch (err) {
-    console.warn('[PWA] Service Worker não registrado:', err);
-  }
+  // Ignora restrições de permissão de sandbox
 }
 
 createRoot(document.getElementById('root')!).render(
