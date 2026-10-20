@@ -9,7 +9,19 @@ dotenv.config();
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 
-const PORT = 3000;
+function getPort(): number {
+  const portArgIdx = process.argv.indexOf('--port');
+  if (portArgIdx !== -1 && process.argv[portArgIdx + 1]) {
+    const parsed = parseInt(process.argv[portArgIdx + 1], 10);
+    if (!isNaN(parsed)) return parsed;
+  }
+  if (process.env.PORT) {
+    const parsed = parseInt(process.env.PORT, 10);
+    if (!isNaN(parsed)) return parsed;
+  }
+  return 3000;
+}
+const PORT = getPort();
 
 // Initialize Gemini client lazily
 let aiClient: GoogleGenAI | null = null;
@@ -892,25 +904,74 @@ app.post('/api/habite-se/tramitar', (req, res) => {
   });
 });
 
-async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
+// Rota dedicada para o Service Worker do PWA (seguro e com cabeçalho Service-Worker-Allowed)
+app.get('/sw.js', (_req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.setHeader('Cache-Control', 'no-cache');
+  const swPath = path.join(process.cwd(), 'public', 'sw.js');
+  if (fs.existsSync(swPath)) {
+    res.sendFile(swPath);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    res.status(404).send('Not found');
   }
+});
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+app.get('/manifest.webmanifest', (_req, res) => {
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.setHeader('Cache-Control', 'no-cache');
+  const manifestPath = path.join(process.cwd(), 'public', 'manifest.webmanifest');
+  if (fs.existsSync(manifestPath)) {
+    res.sendFile(manifestPath);
+  } else {
+    res.status(404).send('Not found');
+  }
+});
+
+let viteMiddleware: any = null;
+const viteReadyPromise = (async () => {
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true, hmr: false },
+        appType: 'spa',
+      });
+      viteMiddleware = vite.middlewares;
+    } catch (err) {
+      console.error('Erro ao inicializar middleware do Vite:', err);
+    }
+  }
+})();
+
+app.use(async (req, res, next) => {
+  if (viteMiddleware) {
+    return viteMiddleware(req, res, next);
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return next();
+  }
+  try {
+    await viteReadyPromise;
+    if (viteMiddleware) {
+      return viteMiddleware(req, res, next);
+    }
+  } catch (err) {
+    return next(err);
+  }
+  next();
+});
+
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.join(process.cwd(), 'dist');
+  app.use(express.static(distPath));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
   });
 }
 
-startServer();
+// Inicia a escuta na porta 3000 de forma imediata (< 50ms) para que o health-check do ambiente aprove instantaneamente
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n  ➜  Local:   http://localhost:${PORT}/`);
+  console.log(`  ➜  Network: http://0.0.0.0:${PORT}/\n`);
+});

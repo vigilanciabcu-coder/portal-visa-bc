@@ -19,6 +19,8 @@ import { PWAInstallModal } from './components/PWAInstallModal';
 import { BackupExportModal } from './components/BackupExportModal';
 import { PastaDossieView } from './components/PastaDossieView';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { AlertasPreventivosBanner } from './components/AlertasPreventivosBanner';
+import { RegistroDenunciaModal } from './components/RegistroDenunciaModal';
 
 import {
   PortalButton,
@@ -127,7 +129,7 @@ const PORTAL_BUTTONS: PortalButton[] = [
 
 export default function App() {
   // Navigation & View
-  const [currentView, setCurrentView] = useState<'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'teste_pasta'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'teste_pasta' | 'portal_contador'>('home');
   const [processoParaVistoria, setProcessoParaVistoria] = useState<ProcessoItem | null>(null);
 
   const handleIniciarVistoriaParaProcesso = (processo: ProcessoItem) => {
@@ -167,6 +169,7 @@ export default function App() {
   const [cadastroContabilidadeOpen, setCadastroContabilidadeOpen] = useState(false);
   const [cadastroContribuinteOpen, setCadastroContribuinteOpen] = useState(false);
   const [backupModalOpen, setBackupModalOpen] = useState(false);
+  const [modalDenunciaGeralOpen, setModalDenunciaGeralOpen] = useState(false);
 
   const handleOpenLoginModal = (tab: 'servidor' | 'contabilidade' | 'contribuinte' | 'cidadao' = 'servidor', cidadaoMode: 'login' | 'cadastro' = 'login') => {
     setLoginInitialTab(tab);
@@ -902,6 +905,7 @@ export default function App() {
           onGoHome={() => setCurrentView('home')}
           onOpenPwaModal={() => setModalPwaOpen(true)}
           onOpenBackupModal={() => setBackupModalOpen(true)}
+          onOpenDenunciaModal={() => setModalDenunciaGeralOpen(true)}
         />
 
         {/* Main Workspace Layout */}
@@ -919,6 +923,23 @@ export default function App() {
 
           {/* Main Display Area */}
           <main className="flex-1 flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-950 relative">
+            {/* 🚨 Painel de Alertas Preventivos Automáticos (Prazos de Notificação Expirados & Laudos com E. coli / Cloro) */}
+            {currentView !== 'geo_visa' && (
+              <div className="px-2 sm:px-3 pt-2">
+                <AlertasPreventivosBanner
+                  fiscalizacoes={fiscalizacoes}
+                  amostrasLaboratorio={amostrasLaboratorio}
+                  onSelectFiscalizacao={() => {
+                    setCurrentView('fiscalizacao');
+                  }}
+                  onSelectAmostra={() => {
+                    setCurrentView('laboratorio');
+                  }}
+                  onNavigate={(v) => setCurrentView(v as any)}
+                />
+              </div>
+            )}
+
             <div className={`flex-1 ${
               currentView === 'geo_visa'
                 ? 'p-0 pb-0 flex flex-col h-full overflow-hidden'
@@ -1094,6 +1115,7 @@ export default function App() {
                   onOpenCadastroContribuinte={() => setCadastroContribuinteOpen(true)}
                   onOpenCadastroContabilidade={() => setCadastroContabilidadeOpen(true)}
                   onOpenLogin={handleOpenLoginModal}
+                  onSaveProcesso={handleSaveProcesso}
                 />
               )}
 
@@ -1311,6 +1333,13 @@ export default function App() {
         isOpen={backupModalOpen}
         onClose={() => setBackupModalOpen(false)}
         data={systemBackupData}
+      />
+
+      {/* 🚨 Portal do Cidadão para Registro de Denúncias Sanitárias */}
+      <RegistroDenunciaModal
+        isOpen={modalDenunciaGeralOpen}
+        onClose={() => setModalDenunciaGeralOpen(false)}
+        onSaveProcesso={handleSaveProcesso}
       />
     </div>
   );

@@ -12,38 +12,39 @@ export function usePWAInstall() {
   const [isAndroid, setIsAndroid] = useState(false);
 
   useEffect(() => {
-    // Detecta se já está rodando em modo aplicativo independente (standalone)
-    const isStandalone =
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
-      document.referrer.includes('android-app://');
-    setIsInstalled(isStandalone);
+    try {
+      if (typeof window !== 'undefined') {
+        const isStandalone =
+          window.matchMedia('(display-mode: standalone)').matches ||
+          (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
+          document.referrer.includes('android-app://');
+        setIsInstalled(isStandalone);
 
-    // Detecta tipo de dispositivo móvel
-    const userAgent = window.navigator.userAgent.toLowerCase();
-    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
-    const isAndroidDevice = /android/.test(userAgent);
+        const userAgent = window.navigator.userAgent.toLowerCase();
+        setIsIOS(/iphone|ipad|ipod/.test(userAgent));
+        setIsAndroid(/android/.test(userAgent));
 
-    setIsIOS(isIOSDevice);
-    setIsAndroid(isAndroidDevice);
+        const handleBeforeInstallPrompt = (e: Event) => {
+          e.preventDefault();
+          setDeferredPrompt(e as BeforeInstallPromptEvent);
+        };
 
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    };
+        const handleAppInstalled = () => {
+          setIsInstalled(true);
+          setDeferredPrompt(null);
+        };
 
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
-      setDeferredPrompt(null);
-    };
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        window.addEventListener('appinstalled', handleAppInstalled);
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
+        return () => {
+          window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+          window.removeEventListener('appinstalled', handleAppInstalled);
+        };
+      }
+    } catch {
+      // Degradação graciosa em ambientes de iframe restrito
+    }
   }, []);
 
   const install = async (): Promise<boolean> => {
@@ -57,7 +58,7 @@ export function usePWAInstall() {
         return true;
       }
     } catch (err) {
-      console.warn('Erro ao disparar prompt de instalação PWA:', err);
+      console.warn('Erro ao disparar prompt de instalação:', err);
     }
     return false;
   };

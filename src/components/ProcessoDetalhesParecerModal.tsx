@@ -51,6 +51,7 @@ import {
 import { SolicitacaoLaudoPotabilidadeItem } from '../types';
 import { DocumentoOficialPdfModal, TipoDocumentoOficial } from './DocumentoOficialPdfModal';
 import { ProcessoTimelineModal } from './ProcessoTimelineModal';
+import { Despacho1DocModal } from './Despacho1DocModal';
 import { getEtapasPipelineProcesso, calcularDiasDecorridos } from '../lib/timelineService';
 
 interface ProcessoDetalhesParecerModalProps {
@@ -236,6 +237,7 @@ export const ProcessoDetalhesParecerModal: React.FC<ProcessoDetalhesParecerModal
   const [modalFicha1Doc, setModalFicha1Doc] = useState<{ open: boolean; solicitacao: any | null }>({ open: false, solicitacao: null });
   const [modalRelatorioColeta, setModalRelatorioColeta] = useState<{ open: boolean; amostra?: any | null; solicitacao?: any | null }>({ open: false, amostra: null, solicitacao: null });
   const [modalLaudoOficial, setModalLaudoOficial] = useState<{ open: boolean; amostra?: any | null; solicitacao?: any | null }>({ open: false, amostra: null, solicitacao: null });
+  const [modal1DocOpen, setModal1DocOpen] = useState(false);
   const [solicitacoesPotabilidadeProcesso, setSolicitacoesPotabilidadeProcesso] = useState<SolicitacaoLaudoPotabilidadeItem[]>(() => {
     const all = getSolicitacoesPotabilidade();
     const cleanDoc = (processo?.cnpj_cpf || '').replace(/\D/g, '');
@@ -1211,6 +1213,17 @@ export const ProcessoDetalhesParecerModal: React.FC<ProcessoDetalhesParecerModal
                       <span>Salvar Alterações (Sem Assinar)</span>
                     </button>
 
+                    {/* Botão de Despachar ao 1Doc */}
+                    <button
+                      type="button"
+                      onClick={() => setModal1DocOpen(true)}
+                      className="px-4 py-2.5 bg-gradient-to-r from-teal-700 via-emerald-700 to-teal-800 hover:from-teal-600 hover:to-emerald-600 text-white font-black text-xs uppercase tracking-wider rounded-xl transition flex items-center gap-2 cursor-pointer border border-emerald-400/50 shadow-md active:scale-95"
+                      title="Transmitir parecer e tramitar diretamente no sistema 1Doc da Prefeitura de Balneário Camboriú"
+                    >
+                      <Send className="w-4 h-4 text-emerald-300" />
+                      <span>Despachar ao 1Doc</span>
+                    </button>
+
                     {/* Botão de Assinar Digitalmente e Publicar Parecer */}
                     <button
                       type="submit"
@@ -1416,6 +1429,25 @@ export const ProcessoDetalhesParecerModal: React.FC<ProcessoDetalhesParecerModal
         amostra={modalLaudoOficial.amostra}
         solicitacao={modalLaudoOficial.solicitacao}
       />
+
+      {/* 📤 Modal de Despacho Direto ao 1Doc */}
+      {processo && (
+        <Despacho1DocModal
+          isOpen={modal1DocOpen}
+          onClose={() => setModal1DocOpen(false)}
+          processo={processo}
+          currentUser={currentUser}
+          onConfirmDespacho={(novaTramitacao, novoStatus) => {
+            const tramitacoesAtualizadas = [...(processo.tramitacoes || []), novaTramitacao];
+            const procAtualizado: ProcessoItem = {
+              ...processo,
+              status: (novoStatus as any) || processo.status,
+              tramitacoes: tramitacoesAtualizadas
+            };
+            onSaveProcesso(procAtualizado);
+          }}
+        />
+      )}
     </div>
   );
 };

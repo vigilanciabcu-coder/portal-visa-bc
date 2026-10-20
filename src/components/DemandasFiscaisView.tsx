@@ -67,7 +67,7 @@ interface DemandasFiscaisViewProps {
   users: UserProfile[];
   onSaveProcesso: (updated: ProcessoItem) => void;
   onNavigate?: (view: string) => void;
-  initialModo?: 'minhas_demandas' | 'painel_diretoria' | 'painel_bi';
+  initialModo?: 'minhas_demandas' | 'painel_diretoria' | 'painel_bi' | 'geo_visa';
   onIniciarVistoria?: (processo: ProcessoItem) => void;
 }
 

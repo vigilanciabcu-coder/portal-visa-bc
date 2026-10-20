@@ -7,12 +7,25 @@
     <meta name="description" content="Portal da Vigilância Sanitária de Balneário Camboriú com controle de perfis de acesso, fiscalizações, demandas de fiscais e diretores, feiras, agenda e processos." />
     <link rel="icon" type="image/avif" href="https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/DVIS.2.avif" />
     <meta name="theme-color" content="#0f172a" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="VISA-BC" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script>
+      // Registro seguro do Service Worker do PWA (apenas após o carregamento total e sem bloquear o DOM)
+      if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost')) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function(reg) {
+            reg.update().catch(function() {});
+          }).catch(function() {
+            // Em iframes restritos ou sandbox sem permissão, degrada graciosamente sem erro
+          });
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

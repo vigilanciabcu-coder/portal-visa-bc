@@ -1,0 +1,32 @@
+{
+  "id": "/",
+  "name": "VISA-BC - Vigilância Sanitária Balneário Camboriú",
+  "short_name": "VISA-BC",
+  "description": "Portal da Vigilância Sanitária de Balneário Camboriú com controle de perfis de acesso, fiscalizações, demandas de fiscais e diretores, feiras, agenda e processos.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

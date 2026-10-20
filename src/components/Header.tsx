@@ -13,6 +13,7 @@ interface HeaderProps {
   onGoHome: () => void;
   onOpenPwaModal?: () => void;
   onOpenBackupModal?: () => void;
+  onOpenDenunciaModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -25,6 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
   onGoHome,
   onOpenPwaModal,
   onOpenBackupModal,
+  onOpenDenunciaModal,
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [conferenciaModalOpen, setConferenciaModalOpen] = useState(false);
@@ -69,6 +71,20 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* User Info & Theme Right */}
       <div className="flex items-center justify-end gap-1.5 sm:gap-2.5 relative">
+        {/* Botão de Registro Público de Denúncias Sanitárias */}
+        {onOpenDenunciaModal && (
+          <button
+            type="button"
+            onClick={onOpenDenunciaModal}
+            className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-extrabold text-[10px] sm:text-[11px] uppercase tracking-wider shadow-sm hover:shadow-md transition active:scale-95 cursor-pointer ring-1 ring-red-400/40"
+            title="Registrar Denúncia Sanitária com fotos, localização no mapa e anonimato"
+          >
+            <span>🚨</span>
+            <span className="hidden xs:inline">Denúncia</span>
+            <span className="xs:hidden">Denúncia</span>
+          </button>
+        )}
+
         {/* Botão de Instalação do PWA (Mobile e Desktop) */}
         {onOpenPwaModal && (
           <button

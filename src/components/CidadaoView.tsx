@@ -47,6 +47,7 @@ import {
   isLaudoAssinado
 } from '../lib/potabilidadeService';
 import { SolicitacaoLaudoPotabilidadeItem } from '../types';
+import { RegistroDenunciaModal } from './RegistroDenunciaModal';
 
 interface CidadaoViewProps {
   processos?: ProcessoItem[];
@@ -57,6 +58,7 @@ interface CidadaoViewProps {
   onOpenCadastroContribuinte?: () => void;
   onOpenCadastroContabilidade?: () => void;
   onOpenLogin?: (tab?: 'servidor' | 'contabilidade' | 'contribuinte' | 'cidadao', cidadaoMode?: 'login' | 'cadastro') => void;
+  onSaveProcesso?: (processo: ProcessoItem) => void;
 }
 
 export const CidadaoView: React.FC<CidadaoViewProps> = ({
@@ -67,10 +69,12 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
   onNavigate,
   onOpenCadastroContribuinte,
   onOpenCadastroContabilidade,
-  onOpenLogin
+  onOpenLogin,
+  onSaveProcesso
 }) => {
   const [busca, setBusca] = useState('');
   const [resultadoSelecionado, setResultadoSelecionado] = useState<ProcessoItem | null>(null);
+  const [modalDenunciaOpen, setModalDenunciaOpen] = useState(false);
   const [modalPotabilidadeOpen, setModalPotabilidadeOpen] = useState(false);
   const [modalFicha1Doc, setModalFicha1Doc] = useState<{ open: boolean; solicitacao: any | null }>({ open: false, solicitacao: null });
   const [modalRelatorioColeta, setModalRelatorioColeta] = useState<{ open: boolean; amostra?: any | null; solicitacao?: any | null }>({ open: false, amostra: null, solicitacao: null });
@@ -211,17 +215,25 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
           <div className="flex flex-col sm:flex-row md:flex-col gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => onOpenExternal('https://bc.1doc.com.br/b.php?pg=o/login&n=3')}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition cursor-pointer"
+              onClick={() => setModalDenunciaOpen(true)}
+              className="px-4 py-2.5 bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition active:scale-95 cursor-pointer ring-2 ring-red-400/50"
+              title="Registrar denúncia de alimentos estragados, água contaminada ou falta de higiene"
             >
-              <span>📄</span> Abrir Requerimento (1Doc)
+              <span className="text-base">🚨</span> Registrar Denúncia Sanitária
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenExternal('https://bc.1doc.com.br/b.php?pg=o/login&n=3')}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow transition cursor-pointer"
+            >
+              <span>📄</span> Requerimento 1Doc
             </button>
             <button
               type="button"
               onClick={() => onOpenExternal('https://cidadao.bc.sc.gov.br/cidadao/balneario_camboriu/portal/servicos/debitos?params=NA%3D%3D')}
-              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer"
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer"
             >
-              <span>💳</span> Emitir 2ª Via de Taxas
+              <span>💳</span> 2ª Via de Taxas
             </button>
           </div>
         </div>
@@ -1007,6 +1019,13 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
         onClose={() => setModalLaudoOficial({ open: false, amostra: null, solicitacao: null })}
         amostra={modalLaudoOficial.amostra}
         solicitacao={modalLaudoOficial.solicitacao}
+      />
+
+      {/* 🚨 Modal Oficial de Registro de Denúncia Sanitária */}
+      <RegistroDenunciaModal
+        isOpen={modalDenunciaOpen}
+        onClose={() => setModalDenunciaOpen(false)}
+        onSaveProcesso={onSaveProcesso}
       />
     </div>
   );

@@ -401,6 +401,8 @@ export interface EscalaItem {
   tipo: 'PLANTAO' | 'EVENTO' | 'FERIADO' | 'FACULTATIVO';
   servidores: string;
   descricao?: string;
+  fiscal?: string;
+  periodo?: string;
 }
 
 export interface FeiranteItem {
@@ -615,9 +617,25 @@ export interface ProcessoItem {
   trocado_por_diretor?: string;
   trocado_em?: string;
   prioridade_demanda?: 'NORMAL' | 'URGENTE' | 'ALTA';
+  telefone?: string;
+  email?: string;
+  atividade_principal?: string;
+  processo_1doc?: string;
 }
 
-export type LaboratorioStatus = 'EM ANÁLISE' | 'CONFORME' | 'NÃO CONFORME' | 'INTERDITADO' | 'AGUARDANDO COLETA' | 'COLETA REALIZADA';
+export type LaboratorioStatus =
+  | 'EM ANÁLISE'
+  | 'CONFORME'
+  | 'NÃO CONFORME'
+  | 'NAO_CONFORME'
+  | 'INTERDITADO'
+  | 'AGUARDANDO COLETA'
+  | 'COLETA REALIZADA'
+  | 'CANCELADO'
+  | 'INDEFERIDO'
+  | 'LAUDO EMITIDO'
+  | 'AGUARDANDO PAGAMENTO'
+  | 'PAGO / AGUARDANDO COLETA';
 export type TipoMatrizAmostra = 'ÁGUA POTÁVEL' | 'ÁGUA BALNEABILIDADE' | 'ALIMENTO' | 'GELO' | 'SUPERFÍCIE / SWAB' | 'OUTROS';
 
 export interface PontoColetaLaboratorio {
@@ -754,7 +772,7 @@ export interface SolicitacaoLaudoPotabilidadeItem {
   outro_local_especificado?: string;
   declaracao_compromisso: boolean;
   taxa_ufm_total: number;
-  status_solicitacao: 'AGUARDANDO PAGAMENTO' | 'PAGO / AGUARDANDO COLETA' | 'COLETA REALIZADA' | 'LAUDO EMITIDO';
+  status_solicitacao: 'AGUARDANDO PAGAMENTO' | 'PAGO / AGUARDANDO COLETA' | 'COLETA REALIZADA' | 'EM ANÁLISE' | 'LAUDO EMITIDO' | 'CANCELADO' | 'INDEFERIDO';
   comprovante_pagamento_url?: string;
   observacoes?: string;
   endereco?: string;
