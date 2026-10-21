@@ -14,6 +14,7 @@ interface HeaderProps {
   onOpenPwaModal?: () => void;
   onOpenBackupModal?: () => void;
   onOpenDenunciaModal?: () => void;
+  onOpenServicosMunicipe?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -27,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPwaModal,
   onOpenBackupModal,
   onOpenDenunciaModal,
+  onOpenServicosMunicipe,
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [conferenciaModalOpen, setConferenciaModalOpen] = useState(false);
@@ -71,6 +73,20 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* User Info & Theme Right */}
       <div className="flex items-center justify-end gap-1.5 sm:gap-2.5 relative">
+        {/* Botão de Solicitação de Serviços & Ideias Sanitárias (Munícipe) */}
+        {onOpenServicosMunicipe && (
+          <button
+            type="button"
+            onClick={onOpenServicosMunicipe}
+            className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-[10px] sm:text-[11px] uppercase tracking-wider shadow-sm hover:shadow-md transition active:scale-95 cursor-pointer ring-1 ring-amber-300/60"
+            title="Solicitar Serviços Sanitários, Acompanhar Demandas e Ver Ideias Inovadoras da VISA"
+          >
+            <span>💡</span>
+            <span className="hidden sm:inline">Serviços & Ideias</span>
+            <span className="sm:hidden">Serviços</span>
+          </button>
+        )}
+
         {/* Botão de Registro Público de Denúncias Sanitárias */}
         {onOpenDenunciaModal && (
           <button

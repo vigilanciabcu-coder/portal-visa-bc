@@ -28,7 +28,8 @@ import {
   Droplet,
   Droplets,
   ClipboardCheck,
-  FlaskConical
+  FlaskConical,
+  Sparkles
 } from 'lucide-react';
 import { INITIAL_CONTABILIDADES } from '../data/mockData';
 import { fetchContabilidadesFromSupabase, isSupabaseConfigured } from '../lib/supabaseService';
@@ -48,6 +49,9 @@ import {
 } from '../lib/potabilidadeService';
 import { SolicitacaoLaudoPotabilidadeItem } from '../types';
 import { RegistroDenunciaModal } from './RegistroDenunciaModal';
+import { SolicitacaoMunicipeModal } from './SolicitacaoMunicipeModal';
+import { PainelAcompanhamentoMunicipe } from './PainelAcompanhamentoMunicipe';
+import { IdeiasInovacoesVisaModal } from './IdeiasInovacoesVisaModal';
 
 interface CidadaoViewProps {
   processos?: ProcessoItem[];
@@ -74,6 +78,13 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
 }) => {
   const [busca, setBusca] = useState('');
   const [resultadoSelecionado, setResultadoSelecionado] = useState<ProcessoItem | null>(null);
+
+  // Controle de Abas do Portal do Cidadão
+  const [abaAtiva, setAbaAtiva] = useState<'demandas_ideias' | 'consulta_empresas' | 'potabilidade'>('demandas_ideias');
+  const [modalSolicitacaoOpen, setModalSolicitacaoOpen] = useState(false);
+  const [servicoIdParaModal, setServicoIdParaModal] = useState<string | undefined>(undefined);
+  const [modalIdeiasOpen, setModalIdeiasOpen] = useState(false);
+
   const [modalDenunciaOpen, setModalDenunciaOpen] = useState(false);
   const [modalPotabilidadeOpen, setModalPotabilidadeOpen] = useState(false);
   const [modalFicha1Doc, setModalFicha1Doc] = useState<{ open: boolean; solicitacao: any | null }>({ open: false, solicitacao: null });
@@ -213,6 +224,18 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
           </div>
 
           <div className="flex flex-col sm:flex-row md:flex-col gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setServicoIdParaModal(undefined);
+                setModalSolicitacaoOpen(true);
+              }}
+              className="px-4 py-2.5 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition active:scale-95 cursor-pointer ring-2 ring-amber-300/60"
+              title="Solicitar alvarás, habite-se, laudos de água e conhecer inovações"
+            >
+              <Sparkles className="w-4 h-4 text-slate-950" />
+              <span>💡 Solicitar Serviços & Ideias</span>
+            </button>
             <button
               type="button"
               onClick={() => setModalDenunciaOpen(true)}
@@ -371,8 +394,78 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
         </div>
       )}
 
-      {/* Caixa de Pesquisa Principal de Alvarás */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-xl space-y-6">
+      {/* 🧭 SELETOR DE MÓDULOS DO CIDADÃO: SOLICITAÇÕES & DEMANDAS / CONSULTA DE ALVARÁS / POTABILIDADE */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <button
+          type="button"
+          onClick={() => setAbaAtiva('demandas_ideias')}
+          className={`px-4 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition cursor-pointer ${
+            abaAtiva === 'demandas_ideias'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md ring-2 ring-blue-400/40'
+              : 'bg-white dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-750'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-amber-400" />
+          <span>💡 Solicitações, Ideias & Acompanhamento</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setAbaAtiva('consulta_empresas')}
+          className={`px-4 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition cursor-pointer ${
+            abaAtiva === 'consulta_empresas'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md ring-2 ring-blue-400/40'
+              : 'bg-white dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-750'
+          }`}
+        >
+          <Search className="w-4 h-4" />
+          <span>🔎 Consulta de Alvarás & Empresas</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setAbaAtiva('potabilidade')}
+          className={`px-4 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition cursor-pointer ${
+            abaAtiva === 'potabilidade'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md ring-2 ring-blue-400/40'
+              : 'bg-white dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-750'
+          }`}
+        >
+          <FlaskConical className="w-4 h-4 text-cyan-400" />
+          <span>💧 Análise de Potabilidade de Água</span>
+        </button>
+
+        {/* Botão de Destaque para Banco de Ideias Sanitárias */}
+        <button
+          type="button"
+          onClick={() => setModalIdeiasOpen(true)}
+          className="ml-auto px-4 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition cursor-pointer bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-slate-950 shadow-md ring-1 ring-amber-300/60"
+        >
+          <span>💡</span>
+          <span>8 Ideias de Inovação VISA</span>
+        </button>
+      </div>
+
+      {/* Módulo 1: Solicitações, Ideias Inovadoras e Acompanhamento de Demandas */}
+      {abaAtiva === 'demandas_ideias' && (
+        <PainelAcompanhamentoMunicipe
+          processos={processos}
+          currentUser={currentUser}
+          onSaveProcesso={(p) => {
+            if (onSaveProcesso) onSaveProcesso(p);
+          }}
+          onOpenSolicitarServico={(sId) => {
+            setServicoIdParaModal(sId);
+            setModalSolicitacaoOpen(true);
+          }}
+          onOpenExternal={onOpenExternal}
+          onOpenIdeiasModal={() => setModalIdeiasOpen(true)}
+        />
+      )}
+
+      {/* Módulo 2: Caixa de Pesquisa Principal de Alvarás & Regularidade de Estabelecimentos */}
+      {abaAtiva === 'consulta_empresas' && (
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-xl space-y-6 animate-fadeIn">
         <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white uppercase flex items-center gap-2.5">
             <Search className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -906,6 +999,7 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
           </div>
         )}
       </div>
+      )}
 
       {/* Grid de Serviços de Utilidade Pública */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -1026,6 +1120,17 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
         isOpen={modalDenunciaOpen}
         onClose={() => setModalDenunciaOpen(false)}
         onSaveProcesso={onSaveProcesso}
+      />
+
+      {/* ✨ Banco de Ideias & Inovações Sanitárias para Balneário Camboriú */}
+      <IdeiasInovacoesVisaModal
+        isOpen={modalIdeiasOpen}
+        onClose={() => setModalIdeiasOpen(false)}
+        onSelectServico={(servicoId) => {
+          setServicoIdParaModal(servicoId);
+          setModalSolicitacaoOpen(true);
+        }}
+        onNavigate={onNavigate}
       />
     </div>
   );

@@ -9,7 +9,9 @@ import {
   Building2, 
   FileSpreadsheet, 
   PhoneCall, 
-  ExternalLink 
+  ExternalLink,
+  Sparkles,
+  Lightbulb
 } from 'lucide-react';
 
 interface PortalButtonCardProps {
@@ -24,6 +26,18 @@ export const PortalButtonCard: React.FC<PortalButtonCardProps> = ({
   todayDay = new Date().getDate()
 }) => {
   const renderCardGraphic = () => {
+    if (b.id === 'solicitar_servicos_municipe' || b.img === 'sparkles') {
+      return (
+        <div className="relative flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 via-amber-500 to-yellow-500 flex items-center justify-center text-slate-950 shadow-lg ring-2 ring-amber-300 animate-pulse">
+            <Sparkles className="w-6 h-6" />
+          </div>
+          <span className="absolute -bottom-1 -right-1 bg-amber-500 text-slate-950 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase shadow">
+            IDEIAS & SERVIÇOS
+          </span>
+        </div>
+      );
+    }
     if (b.view === 'demandas_fiscal' || b.id === 'demandas_fiscal' || b.img === 'demandas-fiscal') {
       return (
         <div className="relative flex items-center justify-center">

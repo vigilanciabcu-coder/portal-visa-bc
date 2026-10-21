@@ -24,10 +24,12 @@ import { DocumentoOficialPdfModal } from './DocumentoOficialPdfModal';
 import { ProcessoTimelineModal } from './ProcessoTimelineModal';
 import { PainelBiExecutivoView } from './PainelBiExecutivoView';
 import { GeoVisaMapView } from './GeoVisaMapView';
+import { IdeiasInovacoesVisaModal } from './IdeiasInovacoesVisaModal';
 import {
   Search,
   Users,
   UserCheck,
+  Lightbulb,
   Building2,
   Calendar,
   Clock,
@@ -137,6 +139,9 @@ export const DemandasFiscaisView: React.FC<DemandasFiscaisViewProps> = ({
   // Modal de Linha do Tempo (Timeline de Tramitação)
   const [modalTimelineProcesso, setModalTimelineProcesso] = useState<ProcessoItem | null>(null);
 
+  // 💡 Modal de Inovações & Ideias Sanitárias
+  const [modalIdeiasVisaOpen, setModalIdeiasVisaOpen] = useState(false);
+
   // Modal de Troca de Fiscal da Diretoria
   const [modalTrocaFiscal, setModalTrocaFiscal] = useState<{
     open: boolean;
@@ -198,9 +203,17 @@ export const DemandasFiscaisView: React.FC<DemandasFiscaisViewProps> = ({
       const isConcluido = sit.includes('DEFERIDO') || sit.includes('CONCLU');
       const isPendente = !isConcluido;
 
+      const isDoCidadao =
+        (p.assunto || '').includes('[SOLICITAÇÃO MUNÍCIPE]') ||
+        (p.num_processo || '').startsWith('SOL-') ||
+        (p.tramitacoes || []).some(
+          (t) => t.setor_origem === 'PORTAL DO CIDADÃO' || (t.descricao || '').includes('[MENSAGEM DO MUNÍCIPE]')
+        );
+
       if (filtroStatus === 'PENDENTES' && !isPendente) return false;
       if (filtroStatus === 'CONCLUIDOS' && !isConcluido) return false;
       if (filtroStatus === 'ALTO_RISCO' && p.grau_risco !== 'ALTO RISCO') return false;
+      if (filtroStatus === 'CIDADAO' && !isDoCidadao) return false;
 
       if (buscaTexto.trim()) {
         const q = buscaTexto.toLowerCase();
@@ -234,8 +247,16 @@ export const DemandasFiscaisView: React.FC<DemandasFiscaisViewProps> = ({
       const isConcluido = sit.includes('DEFERIDO') || sit.includes('CONCLU');
       const isPendente = !isConcluido;
 
+      const isDoCidadao =
+        (p.assunto || '').includes('[SOLICITAÇÃO MUNÍCIPE]') ||
+        (p.num_processo || '').startsWith('SOL-') ||
+        (p.tramitacoes || []).some(
+          (t) => t.setor_origem === 'PORTAL DO CIDADÃO' || (t.descricao || '').includes('[MENSAGEM DO MUNÍCIPE]')
+        );
+
       if (filtroStatus === 'PENDENTES' && !isPendente) return false;
       if (filtroStatus === 'CONCLUIDOS' && !isConcluido) return false;
+      if (filtroStatus === 'CIDADAO' && !isDoCidadao) return false;
       if (filtroStatus === 'SEM_FISCAL') {
         const pFiscal = (p.fiscal_responsavel || '').toUpperCase();
         if (pFiscal && !pFiscal.includes('A DISTRIBUIR') && !pFiscal.includes('NÃO ATRIBUÍDO')) return false;
@@ -418,6 +439,17 @@ export const DemandasFiscaisView: React.FC<DemandasFiscaisViewProps> = ({
             <Compass className="w-4 h-4 text-cyan-300" />
             <span>🗺️ GEO VISA & Rotas</span>
           </button>
+
+          {/* BOTÃO 5: BANCO DE IDEIAS SANITÁRIAS & INOVAÇÕES */}
+          <button
+            type="button"
+            onClick={() => setModalIdeiasVisaOpen(true)}
+            className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-md transition-all cursor-pointer bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 ring-2 ring-amber-300/60 active:scale-95"
+            title="Visualizar as 8 Ideias Inovadoras da Vigilância Sanitária de Balneário Camboriú"
+          >
+            <Lightbulb className="w-4 h-4 text-slate-950" />
+            <span>💡 Ideias Inovadoras VISA</span>
+          </button>
         </div>
 
         {/* LADO DIREITO: INFORMAÇÃO DO USUÁRIO & AÇÕES RÁPIDAS */}
@@ -558,6 +590,7 @@ export const DemandasFiscaisView: React.FC<DemandasFiscaisViewProps> = ({
                 className="bg-[#181818] border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-2 font-bold focus:outline-none focus:border-blue-500 cursor-pointer"
               >
                 <option value="TODOS">Todos os Status</option>
+                <option value="CIDADAO">💡 Demandas do Munícipe / Cidadão</option>
                 <option value="PENDENTES">Aguardando Vistoria / Análise</option>
                 <option value="ALTO_RISCO">Somente Alto Risco</option>
                 <option value="CONCLUIDOS">Concluídos / Deferidos</option>
@@ -611,11 +644,23 @@ export const DemandasFiscaisView: React.FC<DemandasFiscaisViewProps> = ({
                         >
                           {/* 1. Protocolo & Data (2 linhas) */}
                           <td className="p-3 font-mono font-bold text-blue-300 whitespace-nowrap">
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <span>{demanda.num_processo || demanda.prot_1doc || 'S/N'}</span>
                               {demanda.pasta && (
                                 <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded font-mono font-normal">
                                   Pasta {demanda.pasta}
+                                </span>
+                              )}
+                              {((demanda.assunto || '').includes('[SOLICITAÇÃO MUNÍCIPE]') || (demanda.num_processo || '').startsWith('SOL-')) && (
+                                <span className="text-[9px] font-black uppercase bg-amber-500/25 text-amber-300 border border-amber-400/40 px-1.5 py-0.2 rounded-full">
+                                  💡 CIDADÃO
+                                </span>
+                              )}
+                              {(demanda.tramitacoes || []).some(
+                                (t) => t.setor_origem === 'PORTAL DO CIDADÃO' || (t.descricao || '').includes('[MENSAGEM DO MUNÍCIPE]')
+                              ) && (
+                                <span className="text-[9px] font-bold text-cyan-300 bg-cyan-950/90 border border-cyan-700 px-1.5 py-0.2 rounded">
+                                  💬 Interação
                                 </span>
                               )}
                             </div>
@@ -902,6 +947,7 @@ export const DemandasFiscaisView: React.FC<DemandasFiscaisViewProps> = ({
                 className="bg-[#181818] border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-2 font-bold focus:outline-none focus:border-purple-500 cursor-pointer"
               >
                 <option value="TODOS">Todos os Status</option>
+                <option value="CIDADAO">💡 Demandas do Munícipe / Cidadão</option>
                 <option value="PENDENTES">Apenas Pendentes / Em Análise</option>
                 <option value="SEM_FISCAL">⚠️ Sem Fiscal Atribuído</option>
                 <option value="CONCLUIDOS">Apenas Concluídos</option>
@@ -956,8 +1002,22 @@ export const DemandasFiscaisView: React.FC<DemandasFiscaisViewProps> = ({
                         >
                           {/* Protocolo & Data */}
                           <td className="p-3 font-mono font-bold text-blue-300 whitespace-nowrap">
-                            <div>{demanda.num_processo || demanda.prot_1doc || 'S/N'}</div>
-                            <div className="text-[10px] text-slate-500 font-normal">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span>{demanda.num_processo || demanda.prot_1doc || 'S/N'}</span>
+                              {((demanda.assunto || '').includes('[SOLICITAÇÃO MUNÍCIPE]') || (demanda.num_processo || '').startsWith('SOL-')) && (
+                                <span className="text-[9px] font-black uppercase bg-amber-500/25 text-amber-300 border border-amber-400/40 px-1.5 py-0.2 rounded-full">
+                                  💡 CIDADÃO
+                                </span>
+                              )}
+                              {(demanda.tramitacoes || []).some(
+                                (t) => t.setor_origem === 'PORTAL DO CIDADÃO' || (t.descricao || '').includes('[MENSAGEM DO MUNÍCIPE]')
+                              ) && (
+                                <span className="text-[9px] font-bold text-cyan-300 bg-cyan-950/90 border border-cyan-700 px-1.5 py-0.2 rounded">
+                                  💬 Interação
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-slate-500 font-normal mt-0.5">
                               Entrada: {demanda.data_distribuicao || demanda.data_entrada || demanda.data_protocolo || '-'}
                             </div>
                           </td>
@@ -1350,6 +1410,12 @@ export const DemandasFiscaisView: React.FC<DemandasFiscaisViewProps> = ({
           }}
         />
       )}
+
+      {/* 💡 MODAL DE IDEIAS INOVADORAS DA VIGILÂNCIA SANITÁRIA (PARA SERVIDORES E DIRETORES) */}
+      <IdeiasInovacoesVisaModal
+        isOpen={modalIdeiasVisaOpen}
+        onClose={() => setModalIdeiasVisaOpen(false)}
+      />
     </div>
   );
 };

@@ -70,6 +70,7 @@ export interface UserProfile {
   matricula?: string;
   telefone?: string;
   cpf?: string;
+  cnpj?: string;
   bairro?: string;
   endereco?: string;
   senha?: string;
@@ -621,6 +622,9 @@ export interface ProcessoItem {
   email?: string;
   atividade_principal?: string;
   processo_1doc?: string;
+  origem_solicitacao?: string;
+  solicitante_nome?: string;
+  solicitante_contato?: string;
 }
 
 export type LaboratorioStatus =

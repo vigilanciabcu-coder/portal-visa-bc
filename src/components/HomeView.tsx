@@ -13,6 +13,9 @@ interface HomeViewProps {
   onOpenExternal: (url: string) => void;
   onSendMessage: (text: string) => void;
   onDeleteMessage?: (id: string) => void;
+  onOpenIdeiasModal?: () => void;
+  onOpenSolicitacaoMunicipe?: () => void;
+  onOpenAcompanhamentoMunicipe?: () => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -26,6 +29,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenExternal,
   onSendMessage,
   onDeleteMessage,
+  onOpenIdeiasModal,
+  onOpenSolicitacaoMunicipe,
+  onOpenAcompanhamentoMunicipe,
 }) => {
   const [chatInput, setChatInput] = useState('');
   const [muralIndex, setMuralIndex] = useState(0);
@@ -69,6 +75,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
       setMuralIndex={setMuralIndex}
       canAccessFiscalDemandas={canAccessFiscalDemandas}
       canAccessDiretorDemandas={canAccessDiretorDemandas}
+      onOpenIdeiasModal={onOpenIdeiasModal}
+      onOpenSolicitacaoMunicipe={onOpenSolicitacaoMunicipe}
+      onOpenAcompanhamentoMunicipe={onOpenAcompanhamentoMunicipe}
     />
   );
 };

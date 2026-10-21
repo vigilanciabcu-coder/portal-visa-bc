@@ -149,6 +149,19 @@ export const PORTAL_BUTTONS_CONFIG: PortalButtonDef[] = [
 
   // 3. MÓDULO CIDADÃO & CONSULTAS PÚBLICAS
   {
+    id: 'solicitar_servicos_municipe',
+    nome: 'Solicitar Serviços & Ideias (Munícipe)',
+    descricao: 'Portal interativo: solicite alvarás, vistorias e laudos, acompanhe demandas e interaja com os fiscais',
+    url: '',
+    img: 'sparkles',
+    acao: 'view',
+    view: 'cidadao',
+    badgetext: 'AUTOATENDIMENTO',
+    perfisPermitidos: ['CIDADAO', 'SERVIDOR', 'CONTRIBUINTE', 'CONTABILIDADE'],
+    categoria_portal: 'CIDADAO',
+    destaque: true
+  },
+  {
     id: 'cidadao_view',
     nome: 'Consulta Pública (Munícipe)',
     descricao: 'Verifique se um restaurante, mercado ou clínica possui alvará sanitário válido',

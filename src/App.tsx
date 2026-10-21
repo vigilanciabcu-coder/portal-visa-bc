@@ -21,6 +21,9 @@ import { PastaDossieView } from './components/PastaDossieView';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AlertasPreventivosBanner } from './components/AlertasPreventivosBanner';
 import { RegistroDenunciaModal } from './components/RegistroDenunciaModal';
+import { IdeiasInovacoesVisaModal } from './components/IdeiasInovacoesVisaModal';
+import { SolicitacaoMunicipeModal } from './components/SolicitacaoMunicipeModal';
+import { PainelAcompanhamentoMunicipe } from './components/PainelAcompanhamentoMunicipe';
 
 import {
   PortalButton,
@@ -170,6 +173,12 @@ export default function App() {
   const [cadastroContribuinteOpen, setCadastroContribuinteOpen] = useState(false);
   const [backupModalOpen, setBackupModalOpen] = useState(false);
   const [modalDenunciaGeralOpen, setModalDenunciaGeralOpen] = useState(false);
+  
+  // 💡 Modais Especiais do Munícipe & Ideias Inovadoras
+  const [modalIdeiasOpen, setModalIdeiasOpen] = useState(false);
+  const [modalSolicitacaoMunicipeOpen, setModalSolicitacaoMunicipeOpen] = useState(false);
+  const [modalAcompanhamentoMunicipeOpen, setModalAcompanhamentoMunicipeOpen] = useState(false);
+  const [servicoIdParaModal, setServicoIdParaModal] = useState<string | undefined>(undefined);
 
   const handleOpenLoginModal = (tab: 'servidor' | 'contabilidade' | 'contribuinte' | 'cidadao' = 'servidor', cidadaoMode: 'login' | 'cadastro' = 'login') => {
     setLoginInitialTab(tab);
@@ -906,6 +915,7 @@ export default function App() {
           onOpenPwaModal={() => setModalPwaOpen(true)}
           onOpenBackupModal={() => setBackupModalOpen(true)}
           onOpenDenunciaModal={() => setModalDenunciaGeralOpen(true)}
+          onOpenServicosMunicipe={() => setModalIdeiasOpen(true)}
         />
 
         {/* Main Workspace Layout */}
@@ -959,6 +969,12 @@ export default function App() {
                   onOpenExternal={handleOpenExternal}
                   onSendMessage={handleSendMessage}
                   onDeleteMessage={handleDeleteChatMessage}
+                  onOpenIdeiasModal={() => setModalIdeiasOpen(true)}
+                  onOpenSolicitacaoMunicipe={() => {
+                    setServicoIdParaModal(undefined);
+                    setModalSolicitacaoMunicipeOpen(true);
+                  }}
+                  onOpenAcompanhamentoMunicipe={() => setModalAcompanhamentoMunicipeOpen(true)}
                 />
               )}
 
@@ -1341,6 +1357,99 @@ export default function App() {
         onClose={() => setModalDenunciaGeralOpen(false)}
         onSaveProcesso={handleSaveProcesso}
       />
+
+      {/* 💡 BOTÃO FLUTUANTE ULTRA VISÍVEL: PORTAL DO MUNÍCIPE & IDEIAS VISA */}
+      <div className="fixed bottom-5 right-5 z-50">
+        <button
+          type="button"
+          onClick={() => setModalIdeiasOpen(true)}
+          className="flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider rounded-2xl shadow-2xl hover:shadow-amber-500/50 transition-all transform hover:-translate-y-1 active:scale-95 cursor-pointer ring-4 ring-amber-300/70 animate-bounce hover:animate-none"
+          title="Clique para abrir o Portal de Serviços, Ideias Inovadoras e Acompanhamento do Munícipe"
+        >
+          <div className="w-6 h-6 rounded-lg bg-slate-950 text-amber-400 flex items-center justify-center font-black text-sm">
+            💡
+          </div>
+          <span className="font-extrabold drop-shadow-xs">Serviços & Ideias (Munícipe)</span>
+          <span className="bg-slate-950 text-amber-300 text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">
+            NOVO
+          </span>
+        </button>
+      </div>
+
+      {/* 💡 MODAL DE IDEIAS INOVADORAS DA VIGILÂNCIA SANITÁRIA */}
+      <IdeiasInovacoesVisaModal
+        isOpen={modalIdeiasOpen}
+        onClose={() => setModalIdeiasOpen(false)}
+        onSelecionarServico={(servicoId) => {
+          setModalIdeiasOpen(false);
+          setServicoIdParaModal(servicoId);
+          setModalSolicitacaoMunicipeOpen(true);
+        }}
+        onAbrirAcompanhamento={() => {
+          setModalIdeiasOpen(false);
+          setModalAcompanhamentoMunicipeOpen(true);
+        }}
+        onVerComoServidor={() => {
+          setModalIdeiasOpen(false);
+          setCurrentView('demandas_fiscal');
+        }}
+      />
+
+      {/* 📝 MODAL DE SOLICITAÇÃO DIRETA DE SERVIÇOS DO MUNÍCIPE */}
+      <SolicitacaoMunicipeModal
+        isOpen={modalSolicitacaoMunicipeOpen}
+        onClose={() => {
+          setModalSolicitacaoMunicipeOpen(false);
+          setServicoIdParaModal(undefined);
+        }}
+        onSaveProcesso={handleSaveProcesso}
+        currentUser={currentUser}
+        servicoPreSelecionadoId={servicoIdParaModal}
+        onAbrirAcompanhamento={() => {
+          setModalSolicitacaoMunicipeOpen(false);
+          setModalAcompanhamentoMunicipeOpen(true);
+        }}
+      />
+
+      {/* 🔍 PAINEL MODAL DE ACOMPANHAMENTO DO MUNÍCIPE */}
+      {modalAcompanhamentoMunicipeOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-5xl max-h-[92vh] overflow-y-auto p-4 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 relative space-y-4 text-left">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center text-xl font-black">
+                  🔍
+                </div>
+                <div>
+                  <h3 className="text-lg font-black uppercase text-slate-900 dark:text-white">
+                    Acompanhamento Integrado do Munícipe
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Consulte pelo protocolo ou CPF/CNPJ, acompanhe a linha do tempo e converse diretamente com os fiscais
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalAcompanhamentoMunicipeOpen(false)}
+                className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer"
+              >
+                ✕ Fechar
+              </button>
+            </div>
+
+            <PainelAcompanhamentoMunicipe
+              processos={processos}
+              currentUser={currentUser}
+              onNovaSolicitacao={() => {
+                setModalAcompanhamentoMunicipeOpen(false);
+                setModalSolicitacaoMunicipeOpen(true);
+              }}
+              onSaveProcesso={handleSaveProcesso}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

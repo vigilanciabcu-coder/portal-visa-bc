@@ -7,7 +7,10 @@ import {
   ShieldCheck, 
   FileSignature, 
   Users, 
-  BarChart3 
+  BarChart3,
+  Sparkles,
+  Lightbulb,
+  ArrowRight
 } from 'lucide-react';
 
 interface PortalProfileBannerProps {
@@ -81,31 +84,47 @@ export const PortalProfileBanner: React.FC<PortalProfileBannerProps> = ({
         </div>
       )}
 
-      {/* 3. BANNER CIDADAO */}
+      {/* 3. BANNER CIDADAO & SERVIÇOS DO MUNÍCIPE */}
       {userType === 'CIDADAO' && (
-        <div
-          onClick={() => onNavigate('cidadao')}
-          className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 p-4 sm:p-5 rounded-2xl border-2 border-emerald-400 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xl cursor-pointer hover:scale-[1.01] transition"
-        >
-          <div className="flex items-center gap-3.5">
-            <div className="bg-emerald-500 text-white p-3 rounded-2xl shadow-lg">
-              <Search className="w-7 h-7" />
-            </div>
-            <div className="text-left">
-              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/30 border border-emerald-400/40 rounded-md text-[10px] font-black uppercase text-emerald-300 mb-1">
-                🏛️ Autoatendimento do Munícipe
+        <div className="bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 p-4 sm:p-5 rounded-2xl border-2 border-emerald-400 text-white shadow-xl space-y-4 animate-fadeIn">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3.5">
+              <div className="bg-emerald-500 text-slate-950 p-3 rounded-2xl shadow-lg font-black">
+                <Sparkles className="w-7 h-7" />
               </div>
-              <h3 className="font-black uppercase text-base sm:text-lg text-white">
-                Consulta de Alvarás & Regularidade Sanitária
-              </h3>
-              <p className="text-xs text-emerald-200">
-                Pesquise estabelecimentos por CNPJ, Razão Social ou Endereço para verificar a vigência do alvará.
-              </p>
+              <div className="text-left">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-500/30 border border-emerald-400/40 rounded-md text-[10px] font-black uppercase text-emerald-300 mb-1">
+                  🏛️ Portal do Munícipe & Ideias Inovadoras
+                </div>
+                <h3 className="font-black uppercase text-base sm:text-lg text-white">
+                  Solicitar Serviços, Inovações Sanitárias & Acompanhar Processos
+                </h3>
+                <p className="text-xs text-emerald-200/90 max-w-2xl">
+                  Abra novos chamados (alvarás, laudos de água potável, habite-se, defesas), acompanhe toda a tramitação em tempo real e interaja diretamente com os auditores fiscais da VISA.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 flex-wrap">
+              <button
+                type="button"
+                onClick={() => onNavigate('cidadao')}
+                className="flex-1 sm:flex-none bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl uppercase shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Lightbulb className="w-4 h-4" />
+                <span>Solicitar Serviços & Ideias</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigate('cidadao')}
+                className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs px-4 py-2.5 rounded-xl uppercase shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Search className="w-4 h-4" />
+                <span>Acompanhar Demandas</span>
+              </button>
             </div>
           </div>
-          <button className="bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl uppercase shadow-md transition cursor-pointer shrink-0">
-            Consultar Estabelecimentos →
-          </button>
         </div>
       )}
 

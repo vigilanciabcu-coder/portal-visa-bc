@@ -4,7 +4,7 @@ import { PORTAL_BUTTONS_CONFIG } from './portalButtonsData';
 import { PortalButtonsGrid } from './PortalButtonsGrid';
 import { PortalProfileBanner } from './PortalProfileBanner';
 import { PortalSidePanel } from './PortalSidePanel';
-import { Building2 } from 'lucide-react';
+import { Building2, Lightbulb, Sparkles, Search } from 'lucide-react';
 
 interface PortalCapaWrapperProps {
   currentUser: UserProfile | null;
@@ -22,6 +22,9 @@ interface PortalCapaWrapperProps {
   setMuralIndex: React.Dispatch<React.SetStateAction<number>>;
   canAccessFiscalDemandas: boolean;
   canAccessDiretorDemandas: boolean;
+  onOpenIdeiasModal?: () => void;
+  onOpenSolicitacaoMunicipe?: () => void;
+  onOpenAcompanhamentoMunicipe?: () => void;
 }
 
 export const PortalCapaWrapper: React.FC<PortalCapaWrapperProps> = ({
@@ -39,14 +42,66 @@ export const PortalCapaWrapper: React.FC<PortalCapaWrapperProps> = ({
   muralIndex,
   setMuralIndex,
   canAccessFiscalDemandas,
-  canAccessDiretorDemandas
+  canAccessDiretorDemandas,
+  onOpenIdeiasModal,
+  onOpenSolicitacaoMunicipe,
+  onOpenAcompanhamentoMunicipe
 }) => {
   const userType = currentUser?.tipo_usuario || 'SERVIDOR';
   const todayDay = new Date().getDate();
 
   return (
     <div className="flex flex-col gap-5 text-left">
-      {/* 🌟 MÓDULO CAPA SUPERIOR: BANNER INSTITUCIONAL & CONTEXTO */}
+      {/* 🌟 BANNER DE DESTAQUE SUPERIOR: PORTAL DO MUNÍCIPE & BANCO DE IDEIAS SANITÁRIAS */}
+      <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-slate-950 p-4 sm:p-6 rounded-3xl shadow-xl border-2 border-amber-300 relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 relative z-10">
+          <div className="space-y-1.5 max-w-2xl">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-950/20 text-slate-950 rounded-full text-xs font-black uppercase tracking-wider">
+              <span>💡</span> Inovação Pública • Balneário Camboriú
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-slate-950">
+              Portal do Munícipe: Solicitar Serviços & Ideias Inovadoras
+            </h2>
+            <p className="text-xs sm:text-sm font-semibold text-slate-900 leading-snug">
+              O munícipe solicita alvarás, vistorias, laudos de água e defesas online, acompanhando tudo em tempo real. Pelo outro lado, os servidores analisam, tramitam e interagem com acesso imediato ao histórico de vigilância (alvarás, fiscalizações e laudos).
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 w-full lg:w-auto">
+            <button
+              type="button"
+              onClick={onOpenIdeiasModal}
+              className="px-4 py-2.5 bg-slate-950 hover:bg-slate-900 text-amber-300 hover:text-amber-200 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition active:scale-95 cursor-pointer ring-2 ring-slate-900/40"
+              title="Visualizar as 8 Ideias Inovadoras Sanitárias"
+            >
+              <Lightbulb className="w-4 h-4 text-amber-400" />
+              <span>Ver 8 Ideias Inovadoras</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenSolicitacaoMunicipe}
+              className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition active:scale-95 cursor-pointer ring-2 ring-white/60"
+              title="Abrir formulário de solicitação de serviço"
+            >
+              <Sparkles className="w-4 h-4 text-amber-600" />
+              <span>Solicitar Serviço</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenAcompanhamentoMunicipe}
+              className="px-4 py-2.5 bg-amber-900/30 hover:bg-amber-900/50 text-slate-950 border border-slate-950/30 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+              title="Acompanhar demandas pelo protocolo ou CPF"
+            >
+              <Search className="w-4 h-4 text-slate-950" />
+              <span>Acompanhar Demanda</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 🌟 MÓDULO CAPA: BANNER INSTITUCIONAL & CONTEXTO */}
       <PortalProfileBanner
         currentUser={currentUser}
         canAccessFiscalDemandas={canAccessFiscalDemandas}

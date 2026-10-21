@@ -30,9 +30,12 @@ import {
   RefreshCw,
   ArrowRight,
   ClipboardCheck,
-  FlaskConical
+  FlaskConical,
+  MessageSquare,
+  MessageCircle,
+  Lightbulb
 } from 'lucide-react';
-import { ProcessoItem, ProcessoStatus, TipoParecerTecnico, ParecerTecnicoItem, UserProfile } from '../types';
+import { ProcessoItem, ProcessoStatus, TipoParecerTecnico, ParecerTecnicoItem, UserProfile, TramitacaoItem } from '../types';
 import {
   SolicitacaoLaudoPotabilidadeModal,
   FichaSolicitacaoPotabilidadeModal
@@ -99,6 +102,86 @@ export const ProcessoDetalhesParecerModal: React.FC<ProcessoDetalhesParecerModal
 
   // Estado para visualização da Linha do Tempo (Tramitação)
   const [modalTimelineOpen, setModalTimelineOpen] = useState(false);
+
+  // 💬 Estado para interação do servidor público com o cidadão / munícipe
+  const [respostaMunicipeTexto, setRespostaMunicipeTexto] = useState('');
+  const [respostaMunicipeTipo, setRespostaMunicipeTipo] = useState<'RESPOSTA' | 'EXIGENCIA' | 'AGENDAMENTO' | 'DEFERIDO'>('RESPOSTA');
+  const [enviandoRespostaMunicipe, setEnviandoRespostaMunicipe] = useState(false);
+  const [feedbackRespostaMunicipe, setFeedbackRespostaMunicipe] = useState<string | null>(null);
+
+  // 📊 Busca dados de Vigilância Sanitária integrados existentes nesta plataforma
+  const cleanDoc = (val?: string) => (val || '').replace(/\D/g, '');
+  const cnpjLimpo = cleanDoc(processo?.cnpj_cpf);
+
+  const alvarasRelacionados = React.useMemo(() => {
+    try {
+      const raw = localStorage.getItem('visa_alvaras');
+      const list = raw ? JSON.parse(raw) : [];
+      if (!cnpjLimpo || cnpjLimpo.length < 5) return [];
+      return list.filter((a: any) => cleanDoc(a.cnpj_cpf) === cnpjLimpo);
+    } catch {
+      return [];
+    }
+  }, [cnpjLimpo]);
+
+  const fiscalizacoesRelacionadas = React.useMemo(() => {
+    try {
+      const raw = localStorage.getItem('visa_fiscalizacoes');
+      const list = raw ? JSON.parse(raw) : [];
+      if (!cnpjLimpo || cnpjLimpo.length < 5) return [];
+      return list.filter((f: any) => cleanDoc(f.cnpj) === cnpjLimpo || (f.razaoSocial && processo?.razao_social && f.razaoSocial.toLowerCase().includes(processo.razao_social.toLowerCase())));
+    } catch {
+      return [];
+    }
+  }, [cnpjLimpo, processo?.razao_social]);
+
+  // Enviar resposta técnica ou solicitação de exigência diretamente ao munícipe
+  const handleEnviarRespostaAoMunicipe = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!processo || !respostaMunicipeTexto.trim()) return;
+
+    setEnviandoRespostaMunicipe(true);
+    const agora = new Date();
+    const dataHoraStr = agora.toISOString().replace('T', ' ').substring(0, 16);
+    const autorNome = currentUser?.nome_completo || 'Auditor Fiscal VISA';
+
+    const titulosMap = {
+      RESPOSTA: 'Esclarecimento Técnico do Fiscal • Portal do Cidadão',
+      EXIGENCIA: '⚠️ Notificação de Cumprimento de Exigência / Documentos',
+      AGENDAMENTO: '📅 Vistoria Sanitária In Loco Agendada',
+      DEFERIDO: '✅ Notificação de Deferimento & Concessão'
+    };
+
+    const isExigencia = respostaMunicipeTipo === 'EXIGENCIA';
+
+    const novaTramitacao: TramitacaoItem = {
+      id: `tram-serv-${Date.now()}`,
+      data_hora: dataHoraStr,
+      tipo: isExigencia ? 'NOTIFICACAO_LAVRADA' : 'DESPACHO_ADMINISTRATIVO',
+      titulo: titulosMap[respostaMunicipeTipo] || 'Despacho da Vigilância Sanitária',
+      descricao: `[DESPACHO DA VISA AO CIDADÃO]: "${respostaMunicipeTexto.trim()}"`,
+      responsavel_nome: autorNome,
+      responsavel_cargo: currentUser?.cargo || 'FISCAL SANITÁRIO',
+      setor_origem: 'DIRETORIA DE VIGILÂNCIA SANITÁRIA',
+      setor_destino: 'PORTAL DO CIDADÃO (MUNÍCIPE)',
+      status_processo_momento: isExigencia ? 'PENDENTE DOCS' : processo.status
+    };
+
+    const statusNovo = isExigencia ? 'PENDENTE DOCS' : processo.status;
+
+    const processoAtualizado: ProcessoItem = {
+      ...processo,
+      status: statusNovo,
+      observacoes: `${processo.observacoes || ''}\n[DESPACHO FISCAL AO MUNÍCIPE ${agora.toLocaleDateString('pt-BR')}]: ${respostaMunicipeTexto.trim()}`,
+      tramitacoes: [novaTramitacao, ...(processo.tramitacoes || [])]
+    };
+
+    onSaveProcesso(processoAtualizado);
+    setRespostaMunicipeTexto('');
+    setEnviandoRespostaMunicipe(false);
+    setFeedbackRespostaMunicipe('Mensagem registrada e notificação enviada ao cidadão!');
+    setTimeout(() => setFeedbackRespostaMunicipe(null), 4000);
+  };
 
   // Sincroniza campos quando o processo for aberto ou atualizado externamente
   React.useEffect(() => {
@@ -691,6 +774,273 @@ export const ProcessoDetalhesParecerModal: React.FC<ProcessoDetalhesParecerModal
                 </div>
               </div>
             )}
+          </div>
+
+          {/* 💬 SEÇÃO ESPECIAL: CENTRAL DE INTERAÇÃO COM O MUNÍCIPE & TRAMITAÇÃO DO CIDADÃO */}
+          <div className="bg-[#1b2333] border-2 border-blue-500/50 rounded-xl p-4 sm:p-5 space-y-4 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-blue-500/30 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-blue-600/30 text-blue-300 border border-blue-500/40">
+                  <MessageSquare className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-black uppercase text-white text-xs sm:text-sm flex items-center gap-1.5">
+                      Interação Direta com o Munícipe / Solicitante
+                    </h3>
+                    <span className="bg-blue-500/20 text-blue-300 border border-blue-400/40 text-[9px] font-black px-2 py-0.5 rounded-full font-mono uppercase">
+                      PORTAL DO CIDADÃO
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-blue-200/80">
+                    Leia mensagens, anexos e pedidos do requerente e responda formalmente com atualizações, esclarecimentos ou notificações de exigência.
+                  </p>
+                </div>
+              </div>
+
+              {processo.solicitante_nome && (
+                <div className="text-right text-[11px] text-slate-300 font-medium">
+                  <span className="text-slate-400 block text-[10px]">Requerente:</span>
+                  <span className="text-white font-bold">{processo.solicitante_nome}</span>
+                  {processo.solicitante_contato && <span className="block text-[10px] text-blue-300">{processo.solicitante_contato}</span>}
+                </div>
+              )}
+            </div>
+
+            {/* Mensagens e Interações Históricas do Processo */}
+            <div className="space-y-2">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">
+                Histórico de Mensagens & Cumprimento de Exigências:
+              </span>
+
+              {(() => {
+                const msgs = (processo.tramitacoes || []).filter(
+                  (t) =>
+                    t.setor_origem === 'PORTAL DO CIDADÃO' ||
+                    t.setor_destino === 'PORTAL DO CIDADÃO (MUNÍCIPE)' ||
+                    t.descricao?.includes('[MENSAGEM DO MUNÍCIPE]') ||
+                    t.descricao?.includes('[DESPACHO DA VISA AO CIDADÃO]') ||
+                    t.tipo === 'NOTIFICACAO_LAVRADA' ||
+                    t.tipo === 'PROTOCOLO_CRIADO'
+                );
+
+                if (msgs.length === 0) {
+                  return (
+                    <div className="p-3 rounded-lg bg-[#141b29] border border-slate-800 text-slate-400 text-xs italic text-center">
+                      Nenhuma mensagem enviada diretamente pelo munícipe até o momento neste protocolo.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {msgs.map((m, idx) => {
+                      const isDoCidadao = m.setor_origem === 'PORTAL DO CIDADÃO' || m.responsavel_cargo?.includes('CIDADÃO') || m.descricao?.includes('[MENSAGEM DO MUNÍCIPE]');
+
+                      return (
+                        <div
+                          key={m.id || idx}
+                          className={`p-3 rounded-xl border text-xs space-y-1 ${
+                            isDoCidadao
+                              ? 'bg-amber-950/30 border-amber-800/60 text-amber-100'
+                              : 'bg-blue-950/40 border-blue-800/60 text-blue-100'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="font-bold flex items-center gap-1.5 text-[11px]">
+                              <span>{isDoCidadao ? '👤 Munícipe' : '🛡️ Servidor VISA'}</span>
+                              <span className="opacity-70 font-normal">• {m.responsavel_nome}</span>
+                              <span className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${
+                                isDoCidadao ? 'bg-amber-500/20 text-amber-300' : 'bg-blue-500/20 text-blue-300'
+                              }`}>
+                                {m.titulo}
+                              </span>
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">{m.data_hora}</span>
+                          </div>
+                          <p className="leading-relaxed text-[11px] opacity-90 pl-1">{m.descricao}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Formulário do Servidor: Enviar Resposta ou Notificação ao Munícipe */}
+            {isServidor && (
+              <form onSubmit={handleEnviarRespostaAoMunicipe} className="pt-2 border-t border-blue-500/30 space-y-2.5">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-[11px] font-black uppercase text-blue-300 flex items-center gap-1.5">
+                    <Send className="w-3.5 h-3.5" /> Responder ou Notificar Munícipe:
+                  </span>
+                  
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setRespostaMunicipeTipo('RESPOSTA')}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition cursor-pointer ${
+                        respostaMunicipeTipo === 'RESPOSTA'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      Esclarecimento
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRespostaMunicipeTipo('EXIGENCIA')}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition cursor-pointer ${
+                        respostaMunicipeTipo === 'EXIGENCIA'
+                          ? 'bg-amber-600 text-white shadow-xs'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      ⚠️ Exigência / Docs
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRespostaMunicipeTipo('AGENDAMENTO')}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition cursor-pointer ${
+                        respostaMunicipeTipo === 'AGENDAMENTO'
+                          ? 'bg-teal-600 text-white shadow-xs'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      📅 Agendamento Vistoria
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRespostaMunicipeTipo('DEFERIDO')}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition cursor-pointer ${
+                        respostaMunicipeTipo === 'DEFERIDO'
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      ✅ Deferimento
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <textarea
+                    rows={2}
+                    required
+                    value={respostaMunicipeTexto}
+                    onChange={(e) => setRespostaMunicipeTexto(e.target.value)}
+                    placeholder={
+                      respostaMunicipeTipo === 'EXIGENCIA'
+                        ? 'Descreva a documentação faltante ou adequação sanitária exigida (ex: Apresentar comprovante de dedetização e AVCB em até 15 dias)...'
+                        : respostaMunicipeTipo === 'AGENDAMENTO'
+                        ? 'Informe a data provável da vistoria in loco pela equipe da VISA (ex: Vistoria agendada para 25/10/2026 no período vespertino)...'
+                        : 'Digite o despacho ou esclarecimento que será lido pelo cidadão no portal...'
+                    }
+                    className="w-full bg-[#121824] border border-blue-500/40 text-white rounded-xl p-2.5 text-xs focus:outline-none focus:border-blue-400 placeholder-slate-500 font-sans leading-relaxed"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-2">
+                  {feedbackRespostaMunicipe ? (
+                    <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5 animate-fadeIn">
+                      <Check className="w-4 h-4 text-emerald-400" /> {feedbackRespostaMunicipe}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-400">
+                      {respostaMunicipeTipo === 'EXIGENCIA'
+                        ? 'O status do processo será alterado para PENDENTE DOCS para cumprimento pelo munícipe.'
+                        : 'A mensagem ficará imediatamente visível no painel do cidadão.'}
+                    </span>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={enviandoRespostaMunicipe}
+                    className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition active:scale-95 shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{enviandoRespostaMunicipe ? 'Enviando...' : 'Transmitir ao Cidadão'}</span>
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+
+          {/* 📊 SEÇÃO ESPECIAL: HISTÓRICO SANITÁRIO INTEGRADO NESTE ESTABELECIMENTO */}
+          <div className="bg-[#202020] border border-[#383838] rounded-xl p-4 space-y-3 shadow-sm">
+            <div className="flex items-center justify-between border-b border-[#383838] pb-2">
+              <h3 className="font-black uppercase text-slate-200 text-xs flex items-center gap-2">
+                <Layers className="w-4 h-4 text-purple-400" />
+                Dados Integrados da Vigilância Sanitária neste Estabelecimento
+              </h3>
+              <span className="text-[10px] text-slate-400 font-mono">
+                CNPJ/CPF: {processo.cnpj_cpf}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              {/* Card 1: Alvarás Anteriores */}
+              <div className="p-3 rounded-xl bg-[#191919] border border-slate-800 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-[11px] text-slate-300 uppercase flex items-center gap-1.5">
+                    <FileCheck2 className="w-3.5 h-3.5 text-emerald-400" /> Licenças & Alvarás Sanitários
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono font-bold">
+                    {alvarasRelacionados.length} registro(s)
+                  </span>
+                </div>
+
+                {alvarasRelacionados.length === 0 ? (
+                  <p className="text-[11px] text-slate-500 italic">
+                    Nenhum alvará anterior localizado para este CNPJ na base. Pode se tratar de licenciamento inicial.
+                  </p>
+                ) : (
+                  <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                    {alvarasRelacionados.map((alv: any, idx: number) => (
+                      <div key={idx} className="p-1.5 rounded-lg bg-black/40 border border-slate-800 flex items-center justify-between text-[10px]">
+                        <span className="font-mono font-bold text-white">Alv. {alv.numero_alvara || alv.id}</span>
+                        <span className="text-slate-400">Exercício {alv.ano_exercicio || '2026'}</span>
+                        <span className={`px-1.5 py-0.2 rounded font-black ${
+                          alv.status === 'ATIVO' ? 'bg-emerald-950 text-emerald-300' : 'bg-amber-950 text-amber-300'
+                        }`}>
+                          {alv.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Card 2: Fiscalizações de Campo Anteriores */}
+              <div className="p-3 rounded-xl bg-[#191919] border border-slate-800 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-[11px] text-slate-300 uppercase flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-blue-400" /> Vistorias & Termos de Campo
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono font-bold">
+                    {fiscalizacoesRelacionadas.length} vistoria(s)
+                  </span>
+                </div>
+
+                {fiscalizacoesRelacionadas.length === 0 ? (
+                  <p className="text-[11px] text-slate-500 italic">
+                    Nenhuma vistoria anterior registrada para este estabelecimento no módulo de Fiscalização Sanitária.
+                  </p>
+                ) : (
+                  <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                    {fiscalizacoesRelacionadas.map((fisc: any, idx: number) => (
+                      <div key={idx} className="p-1.5 rounded-lg bg-black/40 border border-slate-800 flex items-center justify-between text-[10px]">
+                        <span className="font-mono text-slate-300">{fisc.data || fisc.dataVistoria || 'Recente'}</span>
+                        <span className="text-slate-400 truncate max-w-[120px]">{fisc.fiscal || 'Equipe DVIS'}</span>
+                        <span className="px-1.5 py-0.2 rounded font-black bg-blue-950 text-blue-300">
+                          {fisc.tipoVistoria || 'INSPEÇÃO'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* 💧 MÓDULO INTEGRADO: LAUDO DE ANÁLISE DE POTABILIDADE DA ÁGUA */}
