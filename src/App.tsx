@@ -24,6 +24,7 @@ import { RegistroDenunciaModal } from './components/RegistroDenunciaModal';
 import { IdeiasInovacoesVisaModal } from './components/IdeiasInovacoesVisaModal';
 import { SolicitacaoMunicipeModal } from './components/SolicitacaoMunicipeModal';
 import { PainelAcompanhamentoMunicipe } from './components/PainelAcompanhamentoMunicipe';
+import { normalizarProtocolo } from './lib/protocoloService';
 
 import {
   PortalButton,
@@ -197,15 +198,15 @@ export default function App() {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const map = new Map<string, ProcessoItem>();
-          INITIAL_PROCESSOS.forEach(p => map.set(p.id, p));
-          parsed.forEach((p: ProcessoItem) => map.set(p.id, p));
+          INITIAL_PROCESSOS.forEach(p => map.set(p.id, { ...p, num_processo: normalizarProtocolo(p.num_processo) }));
+          parsed.forEach((p: ProcessoItem) => map.set(p.id, { ...p, num_processo: normalizarProtocolo(p.num_processo) }));
           return Array.from(map.values());
         }
       }
     } catch (e) {
       console.warn('Erro ao restaurar processos:', e);
     }
-    return INITIAL_PROCESSOS;
+    return INITIAL_PROCESSOS.map(p => ({ ...p, num_processo: normalizarProtocolo(p.num_processo) }));
   });
 
   const [amostrasLaboratorio, setAmostrasLaboratorio] = useState<AmostraLaboratorioItem[]>(() => {
@@ -739,24 +740,30 @@ export default function App() {
   };
 
   const handleSaveProcesso = async (item: ProcessoItem) => {
+    const itemNormalizado: ProcessoItem = {
+      ...item,
+      num_processo: normalizarProtocolo(item.num_processo),
+      prot_1doc: item.prot_1doc ? normalizarProtocolo(item.prot_1doc) : normalizarProtocolo(item.num_processo)
+    };
+
     setProcessos((prev) => {
-      const idx = prev.findIndex((p) => p.id === item.id);
+      const idx = prev.findIndex((p) => p.id === itemNormalizado.id);
       let updated: ProcessoItem[];
       if (idx >= 0) {
         updated = [...prev];
-        updated[idx] = item;
+        updated[idx] = itemNormalizado;
       } else {
-        updated = [item, ...prev];
+        updated = [itemNormalizado, ...prev];
       }
       localStorage.setItem('visa_processos', JSON.stringify(updated));
       return updated;
     });
 
     // Salva na tabela processos do Supabase
-    await saveProcessoToSupabase(item);
+    await saveProcessoToSupabase(itemNormalizado);
 
     // Envia automaticamente para a Planilha do Google Sheets (Apps Script)
-    await saveProcessoToSheets(item);
+    await saveProcessoToSheets(itemNormalizado);
   };
 
   const handleDeleteProcesso = async (id: string) => {
@@ -1405,6 +1412,7 @@ export default function App() {
         onSaveProcesso={handleSaveProcesso}
         currentUser={currentUser}
         servicoPreSelecionadoId={servicoIdParaModal}
+        processosExistentes={processos}
         onAbrirAcompanhamento={() => {
           setModalSolicitacaoMunicipeOpen(false);
           setModalAcompanhamentoMunicipeOpen(true);
@@ -1414,7 +1422,7 @@ export default function App() {
       {/* 🔍 PAINEL MODAL DE ACOMPANHAMENTO DO MUNÍCIPE */}
       {modalAcompanhamentoMunicipeOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fadeIn">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-5xl max-h-[92vh] overflow-y-auto p-4 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 relative space-y-4 text-left">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-7xl 2xl:max-w-[96vw] xl:max-w-[95vw] h-[95vh] max-h-[96vh] overflow-y-auto p-4 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 relative space-y-4 text-left flex flex-col my-auto">
             <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
                 <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center text-xl font-black">

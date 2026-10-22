@@ -357,8 +357,8 @@ export const INITIAL_FISCALIZACOES: FiscalizacaoItem[] = [
 export const INITIAL_PROCESSOS: ProcessoItem[] = [
   {
     id: 'proc-67020',
-    num_processo: '67020/2026',
-    prot_1doc: '67020/2026',
+    num_processo: '067020/2026',
+    prot_1doc: '067020/2026',
     data_protocolo: '2026-10-08',
     data_entrada: '2026-10-08',
     data_1doc: '2026-10-08',
@@ -389,7 +389,7 @@ export const INITIAL_PROCESSOS: ProcessoItem[] = [
   },
   {
     id: 'proc-1',
-    num_processo: '2026/00101',
+    num_processo: '000101/2026',
     data_protocolo: '2026-04-25',
     data_entrada: '2026-04-25',
     data_1doc: '2026-04-25',
@@ -431,7 +431,7 @@ export const INITIAL_PROCESSOS: ProcessoItem[] = [
   },
   {
     id: 'proc-2',
-    num_processo: '2026/00142',
+    num_processo: '000142/2026',
     data_protocolo: '2026-03-10',
     data_entrada: '2026-03-10',
     data_1doc: '2026-03-10',
@@ -472,7 +472,7 @@ export const INITIAL_PROCESSOS: ProcessoItem[] = [
   },
   {
     id: 'proc-3',
-    num_processo: '2026/00205',
+    num_processo: '000205/2026',
     data_protocolo: '2026-05-02',
     data_entrada: '2026-05-02',
     data_1doc: '2026-05-02',

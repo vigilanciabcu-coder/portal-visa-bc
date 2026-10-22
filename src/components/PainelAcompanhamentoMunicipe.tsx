@@ -27,7 +27,7 @@ import {
   Image
 } from 'lucide-react';
 import { ProcessoItem, TramitacaoItem, UserProfile } from '../types';
-import { SERVICOS_IDEIAS_VISA } from './SolicitacaoMunicipeModal';
+import { SERVICOS_IDEIAS_VISA, ESTABELECIMENTOS_TESTE_LINKADOS } from './SolicitacaoMunicipeModal';
 
 export interface PainelAcompanhamentoMunicipeProps {
   processos: ProcessoItem[];
@@ -283,6 +283,26 @@ export const PainelAcompanhamentoMunicipe: React.FC<PainelAcompanhamentoMunicipe
               <X className="w-4 h-4" />
             </button>
           )}
+        </div>
+
+        {/* 🏢 CHIPS DE TESTE RÁPIDO COM DADOS INTEGRADOS */}
+        <div className="flex items-center gap-1.5 flex-wrap pt-1 text-xs">
+          <span className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1">
+            ⚡ Testar com Estabelecimento da Base:
+          </span>
+          {ESTABELECIMENTOS_TESTE_LINKADOS.map((est) => (
+            <button
+              key={est.cnpj_cpf}
+              type="button"
+              onClick={() => {
+                setTermoBusca(est.protocoloVinculado);
+              }}
+              className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-blue-100 dark:bg-slate-800 dark:hover:bg-blue-900/40 text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-300 font-bold text-[11px] border border-slate-200 dark:border-slate-700 transition cursor-pointer flex items-center gap-1 active:scale-95"
+            >
+              <span>{est.nome.split(' ')[0]}</span>
+              <span className="font-mono text-[10px] text-blue-500 font-bold">({est.protocoloVinculado})</span>
+            </button>
+          ))}
         </div>
 
         {/* Lista Rápida de Resultados Encontrados */}

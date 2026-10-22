@@ -250,7 +250,7 @@ export const IdeiasInovacoesVisaModal: React.FC<IdeiasInovacoesVisaModalProps> =
 
   return (
     <div className="fixed inset-0 z-[1250] bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fadeIn select-none text-left font-sans">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl max-w-5xl w-full max-h-[94vh] flex flex-col overflow-hidden text-slate-900 dark:text-slate-100">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-7xl 2xl:max-w-[96vw] xl:max-w-[95vw] h-[95vh] max-h-[96vh] flex flex-col overflow-hidden text-slate-900 dark:text-slate-100 my-auto">
         
         {/* CABEÇALHO DO PAINEL DE IDEIAS */}
         <div className="p-5 sm:p-6 bg-gradient-to-r from-blue-950 via-indigo-950 to-slate-900 text-white flex items-center justify-between shrink-0 border-b border-blue-800/60 relative overflow-hidden">

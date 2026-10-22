@@ -439,7 +439,7 @@ export const ProcessoDetalhesParecerModal: React.FC<ProcessoDetalhesParecerModal
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fadeIn">
-      <div className="bg-[#1e1e1e] border border-slate-700 text-slate-100 rounded-2xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh] my-auto">
+      <div className="bg-[#1e1e1e] border border-slate-700 text-slate-100 rounded-2xl w-full max-w-7xl 2xl:max-w-[96vw] xl:max-w-[95vw] h-[95vh] max-h-[96vh] shadow-2xl overflow-hidden flex flex-col my-auto">
         
         {/* 🌟 CABEÇALHO DO MODAL */}
         <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 via-[#1a202c] to-indigo-950 border-b border-slate-700/80 flex items-start justify-between gap-4 shrink-0">

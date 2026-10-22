@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { BAIRROS_BC } from '../data/mockData';
 import { ProcessoItem, TramitacaoItem, UserProfile } from '../types';
+import { gerarProximoProtocolo } from '../lib/protocoloService';
 
 export interface ServicoIdeiaItem {
   id: string;
@@ -170,13 +171,69 @@ export const SERVICOS_IDEIAS_VISA: ServicoIdeiaItem[] = [
   }
 ];
 
-interface SolicitacaoMunicipeModalProps {
+export const ESTABELECIMENTOS_TESTE_LINKADOS = [
+  {
+    nome: 'Restaurante Mar Azul Gourmet',
+    razao_social: 'RESTAURANTE MAR AZUL GOURMET LTDA',
+    nome_fantasia: 'RESTAURANTE MAR AZUL',
+    cnpj_cpf: '14.238.910/0001-55',
+    endereco: 'AVENIDA ATLÂNTICA',
+    numeroComplemento: '2500',
+    bairro: 'Centro',
+    telefone: '(47) 3367-8899',
+    email: 'contato@marazulgourmet.com.br',
+    protocoloVinculado: '067020/2026',
+    destaque: '💧 Laudo de Água Potável (8 pontos) + Vistorias Concluídas'
+  },
+  {
+    nome: 'Restaurante O Quintal BC',
+    razao_social: 'RESTAURANTE O QUINTAL BC LTDA',
+    nome_fantasia: 'O QUINTAL BC',
+    cnpj_cpf: '60.541.108/0001-13',
+    endereco: 'RUA 2700',
+    numeroComplemento: '708',
+    bairro: 'Centro',
+    telefone: '(47) 3360-1200',
+    email: 'financeiro@oquintalbc.com.br',
+    protocoloVinculado: '000101/2026',
+    destaque: '🍽️ Alvará Inicial + Alto Risco + Vistoria Técnica'
+  },
+  {
+    nome: 'Nossa Padaria BC',
+    razao_social: 'NOSSA PADARIA LTDA',
+    nome_fantasia: 'NOSSA PADARIA',
+    cnpj_cpf: '63.691.709/0001-09',
+    endereco: 'AVENIDA PALESTINA',
+    numeroComplemento: '870',
+    bairro: 'Nações',
+    telefone: '(47) 3363-4455',
+    email: 'atendimento@nossapadaria.com.br',
+    protocoloVinculado: '000142/2026',
+    destaque: '🍞 Renovação Deferida + Boas Práticas Sanitárias'
+  },
+  {
+    nome: 'Drogaria e Farmácia Central',
+    razao_social: 'DROGARIA E FARMÁCIA CENTRAL SC',
+    nome_fantasia: 'FARMÁCIA CENTRAL',
+    cnpj_cpf: '98.765.432/0001-10',
+    endereco: 'RUA 1500',
+    numeroComplemento: '420, SALA 01',
+    bairro: 'Pioneiros',
+    telefone: '(47) 3361-9000',
+    email: 'farmaceutico@farmaciacentralbc.com.br',
+    protocoloVinculado: '000205/2026',
+    destaque: '💊 Licença de Medicamentos + Setor Saúde'
+  }
+];
+
+export interface SolicitacaoMunicipeModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUser: UserProfile | null;
   onSaveProcesso: (novoProcesso: ProcessoItem) => void;
   servicoPreSelecionadoId?: string;
   onAbrirAcompanhamento?: () => void;
+  processosExistentes?: ProcessoItem[];
 }
 
 export const SolicitacaoMunicipeModal: React.FC<SolicitacaoMunicipeModalProps> = ({
@@ -185,7 +242,8 @@ export const SolicitacaoMunicipeModal: React.FC<SolicitacaoMunicipeModalProps> =
   currentUser,
   onSaveProcesso,
   servicoPreSelecionadoId,
-  onAbrirAcompanhamento
+  onAbrirAcompanhamento,
+  processosExistentes = []
 }) => {
   const [etapa, setEtapa] = useState<'ESCOLHA' | 'FORMULARIO' | 'SUCESSO'>('ESCOLHA');
   const [servicoSelecionado, setServicoSelecionado] = useState<ServicoIdeiaItem>(() => {
@@ -266,9 +324,15 @@ export const SolicitacaoMunicipeModal: React.FC<SolicitacaoMunicipeModalProps> =
     }
 
     const agora = new Date();
-    const anoAtual = agora.getFullYear();
-    const seqNum = Math.floor(1000 + Math.random() * 9000);
-    const novoProtocolo = `SOL-${anoAtual}/${seqNum}`;
+    // 🏛️ Regra Oficial VISA: Pelo menos 6 dígitos antes do ano (XXXXXX/AAAA) com reinício automático a cada novo ano
+    let procsLista: ProcessoItem[] = processosExistentes && processosExistentes.length > 0 ? processosExistentes : [];
+    if (!procsLista.length) {
+      try {
+        const salvos = localStorage.getItem('visa_processos');
+        if (salvos) procsLista = JSON.parse(salvos);
+      } catch {}
+    }
+    const novoProtocolo = gerarProximoProtocolo(procsLista);
     const dataHoraStr = agora.toLocaleDateString('pt-BR') + ' às ' + agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     const dataIso = agora.toISOString().split('T')[0];
 
@@ -288,6 +352,7 @@ export const SolicitacaoMunicipeModal: React.FC<SolicitacaoMunicipeModalProps> =
     const novoProcesso: ProcessoItem = {
       id: `proc-mun-${Date.now()}`,
       num_processo: novoProtocolo,
+      prot_1doc: novoProtocolo,
       data_protocolo: dataIso,
       data_entrada: dataIso,
       cnpj_cpf: cpfCnpj.trim(),
@@ -332,7 +397,7 @@ export const SolicitacaoMunicipeModal: React.FC<SolicitacaoMunicipeModalProps> =
 
   return (
     <div className="fixed inset-0 z-[1200] bg-black/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fadeIn select-none text-left font-sans">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden text-slate-900 dark:text-slate-100">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-7xl 2xl:max-w-[96vw] xl:max-w-[95vw] h-[95vh] max-h-[96vh] flex flex-col overflow-hidden text-slate-900 dark:text-slate-100 my-auto">
         
         {/* Cabeçalho do Modal */}
         <div className="p-4 sm:p-5 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white flex items-center justify-between shrink-0">
@@ -580,6 +645,54 @@ export const SolicitacaoMunicipeModal: React.FC<SolicitacaoMunicipeModalProps> =
                 >
                   Trocar Serviço
                 </button>
+              </div>
+
+              {/* 🏢 MÓDULO DE TESTE: LINKAR COM DADOS SANITÁRIOS EXISTENTES DA VISA */}
+              <div className="p-3.5 bg-gradient-to-r from-blue-50 via-indigo-50 to-slate-50 dark:from-blue-950/40 dark:via-indigo-950/40 dark:to-slate-900 border-2 border-dashed border-blue-300 dark:border-blue-700/60 rounded-2xl space-y-2.5">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1 rounded-lg bg-blue-600 text-white text-xs">⚡</span>
+                    <span className="text-xs font-black uppercase text-blue-950 dark:text-blue-200">
+                      Testar com Estabelecimento Cadastrado na VISA (Link Instantâneo):
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-black uppercase bg-blue-200/80 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 px-2.5 py-0.5 rounded-full border border-blue-300 dark:border-blue-700">
+                    Clique para preencher e ver o sistema reagir
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                  {ESTABELECIMENTOS_TESTE_LINKADOS.map((est) => (
+                    <button
+                      key={est.cnpj_cpf}
+                      type="button"
+                      onClick={() => {
+                        setNomeRequerente(est.razao_social);
+                        setCpfCnpj(est.cnpj_cpf);
+                        setRazaoSocial(est.razao_social);
+                        setNomeFantasia(est.nome_fantasia);
+                        setEndereco(est.endereco);
+                        setNumeroComplemento(est.numeroComplemento);
+                        setBairro(est.bairro);
+                        setTelefone(est.telefone);
+                        setEmail(est.email);
+                        setDescricaoDetalhada(`[TESTE INTEGRADO]: Solicitação vinculada aos dados prévios de ${est.nome}. Protocolo anterior registrado na base: ${est.protocoloVinculado}.`);
+                      }}
+                      className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-500 hover:bg-blue-50/60 dark:hover:bg-blue-950/60 text-left transition cursor-pointer space-y-1 shadow-2xs group active:scale-98"
+                    >
+                      <div className="font-extrabold text-xs text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate flex items-center justify-between">
+                        <span>{est.nome}</span>
+                        <span className="text-[10px] text-blue-500 font-bold">Usar →</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-mono">
+                        CNPJ: {est.cnpj_cpf}
+                      </div>
+                      <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold line-clamp-1">
+                        {est.destaque}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Dados do Requerente */}
