@@ -1365,19 +1365,19 @@ export default function App() {
         onSaveProcesso={handleSaveProcesso}
       />
 
-      {/* 💡 BOTÃO FLUTUANTE ULTRA VISÍVEL: PORTAL DO MUNÍCIPE & IDEIAS VISA */}
-      <div className="fixed bottom-5 right-5 z-50">
+      {/* 💡 BOTÃO FLUTUANTE: PORTAL DO MUNÍCIPE & IDEIAS VISA (Posicionado na esquerda, acima do rodapé e 100% livre do chat da equipe) */}
+      <div className="fixed bottom-12 left-4 sm:left-20 md:left-24 z-40">
         <button
           type="button"
           onClick={() => setModalIdeiasOpen(true)}
-          className="flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider rounded-2xl shadow-2xl hover:shadow-amber-500/50 transition-all transform hover:-translate-y-1 active:scale-95 cursor-pointer ring-4 ring-amber-300/70 animate-bounce hover:animate-none"
+          className="flex items-center gap-2.5 px-3.5 py-2.5 bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-xs uppercase tracking-wider rounded-2xl shadow-xl hover:shadow-amber-500/40 transition-all transform hover:-translate-y-0.5 active:scale-95 cursor-pointer ring-2 ring-amber-300/80 group"
           title="Clique para abrir o Portal de Serviços, Ideias Inovadoras e Acompanhamento do Munícipe"
         >
-          <div className="w-6 h-6 rounded-lg bg-slate-950 text-amber-400 flex items-center justify-center font-black text-sm">
+          <div className="w-6 h-6 rounded-lg bg-slate-950 text-amber-400 flex items-center justify-center font-black text-xs shadow-inner group-hover:rotate-12 transition-transform">
             💡
           </div>
           <span className="font-extrabold drop-shadow-xs">Serviços & Ideias (Munícipe)</span>
-          <span className="bg-slate-950 text-amber-300 text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">
+          <span className="bg-slate-950 text-amber-300 text-[9px] px-1.5 py-0.5 rounded-full font-black">
             NOVO
           </span>
         </button>
