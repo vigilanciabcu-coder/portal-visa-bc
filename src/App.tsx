@@ -40,6 +40,7 @@ import {
   ServidorColetaLaboratorio,
   LaboratorialistaResponsavel,
   isUserMaster,
+  isUserDiretor,
   userHasAccessToPage
 } from './types';
 
@@ -940,12 +941,13 @@ export default function App() {
 
           {/* Main Display Area */}
           <main className="flex-1 flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-950 relative">
-            {/* 🚨 Painel de Alertas Preventivos Automáticos (Prazos de Notificação Expirados & Laudos com E. coli / Cloro) */}
-            {currentView !== 'geo_visa' && (
+            {/* 🚨 Painel de Alertas Preventivos Automáticos (Exibido exclusivamente para Master e Diretores) */}
+            {currentView !== 'geo_visa' && (isUserMaster(currentUser) || isUserDiretor(currentUser)) && (
               <div className="px-2 sm:px-3 pt-2">
                 <AlertasPreventivosBanner
                   fiscalizacoes={fiscalizacoes}
                   amostrasLaboratorio={amostrasLaboratorio}
+                  currentUser={currentUser}
                   onSelectFiscalizacao={() => {
                     setCurrentView('fiscalizacao');
                   }}

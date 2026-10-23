@@ -14,11 +14,12 @@ import {
   Building2,
   ArrowRight
 } from 'lucide-react';
-import { FiscalizacaoItem, AmostraLaboratorioItem } from '../types';
+import { FiscalizacaoItem, AmostraLaboratorioItem, UserProfile, isUserMaster, isUserDiretor } from '../types';
 
 interface AlertasPreventivosBannerProps {
   fiscalizacoes?: FiscalizacaoItem[];
   amostrasLaboratorio?: AmostraLaboratorioItem[];
+  currentUser?: UserProfile | null;
   onSelectFiscalizacao?: (item: FiscalizacaoItem) => void;
   onSelectAmostra?: (amostra: AmostraLaboratorioItem) => void;
   onNavigate?: (view: string) => void;
@@ -41,12 +42,18 @@ export interface AlertaAguaItem {
 export const AlertasPreventivosBanner: React.FC<AlertasPreventivosBannerProps> = ({
   fiscalizacoes = [],
   amostrasLaboratorio = [],
+  currentUser,
   onSelectFiscalizacao,
   onSelectAmostra,
   onNavigate
 }) => {
   const [expandido, setExpandido] = useState(false);
   const [abaAlerta, setAbaAlerta] = useState<'prazos' | 'agua'>('prazos');
+
+  // Segurança adicional: exibição estritamente restrita a Master e Diretores
+  if (currentUser && !isUserMaster(currentUser) && !isUserDiretor(currentUser)) {
+    return null;
+  }
 
   // 1. Processa Notificações com Prazo de Adequação Vencido
   const alertasNotificacoes = useMemo<AlertaNotificacaoItem[]>(() => {

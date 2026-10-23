@@ -55,7 +55,7 @@ export const PortalCapaWrapper: React.FC<PortalCapaWrapperProps> = ({
       {/* 🌟 BANNER DE DESTAQUE SUPERIOR: PORTAL DO MUNÍCIPE & BANCO DE IDEIAS SANITÁRIAS */}
       <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-slate-950 p-4 sm:p-6 rounded-3xl shadow-xl border-2 border-amber-300 relative overflow-hidden">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 relative z-10">
-          <div className="space-y-1.5 max-w-4xl">
+          <div className="space-y-1.5 max-w-full">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-950/20 text-slate-950 rounded-full text-xs font-black uppercase tracking-wider">
               <span>💡</span> Inovação Pública • Balneário Camboriú
             </div>
@@ -66,7 +66,7 @@ export const PortalCapaWrapper: React.FC<PortalCapaWrapperProps> = ({
               Portal do Munícipe: Solicitar Serviços & Ideias Inovadoras
             </h2>
             <p
-              style={{ width: '800px' }}
+              style={{ width: '1544px' }}
               className="text-xs sm:text-sm font-semibold text-slate-900 leading-snug max-w-full"
             >
               O munícipe solicita alvarás, vistorias, laudos de água e defesas online, acompanhando tudo em tempo real. Pelo outro lado, os servidores analisam, tramitam e interagem com acesso imediato ao histórico de vigilância (alvarás, fiscalizações e laudos).
