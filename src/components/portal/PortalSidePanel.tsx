@@ -247,7 +247,7 @@ export const PortalSidePanel: React.FC<PortalSidePanelProps> = ({
               </li>
               <li
                 className="flex items-center gap-2 cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400 transition"
-                onClick={() => onOpenExternal('https://balneariocamboriu.atende.net/')}
+                onClick={() => onOpenExternal('https://www.bc.sc.gov.br/')}
               >
                 <ChevronRight className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Portal da Prefeitura Municipal</span>
