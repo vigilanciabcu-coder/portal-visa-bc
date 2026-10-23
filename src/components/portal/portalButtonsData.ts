@@ -209,9 +209,21 @@ export const PORTAL_BUTTONS_CONFIG: PortalButtonDef[] = [
     id: 'leis',
     nome: 'Legislação Municipal & Leis',
     descricao: 'Códigos sanitários, leis municipais e decretos em vigor de Balneário Camboriú',
-    url: 'https://leismunicipais.com.br/legislacao-municipal/4511/leis-de-balneario-camboriu',
+    url: 'https://leis.org/prefeitura/sc/balneario-camboriu',
     img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/leismunicipais.avif',
     acao: 'link',
+    perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'],
+    categoria_portal: 'CIDADAO'
+  },
+  {
+    id: 'repositorio_juridico',
+    nome: 'Repositório Jurídico & Regularidade',
+    descricao: 'Consulta de regularidade sanitária de empresas, certidões, leis de BC e modelos de defesa',
+    url: '',
+    img: 'scale',
+    acao: 'view',
+    view: 'repositorio_juridico',
+    badgetext: 'JURÍDICO',
     perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'],
     categoria_portal: 'CIDADAO'
   },

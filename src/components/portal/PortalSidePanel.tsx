@@ -226,17 +226,24 @@ export const PortalSidePanel: React.FC<PortalSidePanelProps> = ({
             <ul className="space-y-2 text-[11px] text-slate-600 dark:text-slate-300">
               <li
                 className="flex items-center gap-2 cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400 transition"
-                onClick={() => onNavigate('cidadao')}
+                onClick={() => onNavigate('repositorio_juridico')}
               >
                 <ChevronRight className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Consulta de Regularidade Sanitária</span>
               </li>
               <li
                 className="flex items-center gap-2 cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400 transition"
-                onClick={() => onOpenExternal('https://leismunicipais.com.br/legislacao-municipal/4710/leis-de-balneario-camboriu')}
+                onClick={() => onOpenExternal('https://leis.org/prefeitura/sc/balneario-camboriu')}
               >
                 <ChevronRight className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Legislação Sanitária Municipal</span>
+                <span>Legislação Sanitária Municipal (BC)</span>
+              </li>
+              <li
+                className="flex items-center gap-2 cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400 transition"
+                onClick={() => onNavigate('repositorio_juridico')}
+              >
+                <ChevronRight className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Depósito Jurídico & Modelos de Defesa</span>
               </li>
               <li
                 className="flex items-center gap-2 cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400 transition"

@@ -1034,7 +1034,7 @@ export const CidadaoView: React.FC<CidadaoViewProps> = ({
         </div>
 
         <div
-          onClick={() => onOpenExternal('https://leismunicipais.com.br/legislacao-municipal/4511/leis-de-balneario-camboriu')}
+          onClick={() => onOpenExternal('https://leis.org/prefeitura/sc/balneario-camboriu')}
           className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-purple-500 hover:shadow-lg transition cursor-pointer group space-y-2 text-left"
         >
           <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">

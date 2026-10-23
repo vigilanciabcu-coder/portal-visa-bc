@@ -9,7 +9,7 @@ interface HomeViewProps {
   mural: RecadoMural[];
   chat: ChatMessage[];
   currentUser: UserProfile | null;
-  onNavigate: (view: 'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa') => void;
+  onNavigate: (view: 'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'repositorio_juridico') => void;
   onOpenExternal: (url: string) => void;
   onSendMessage: (text: string) => void;
   onDeleteMessage?: (id: string) => void;

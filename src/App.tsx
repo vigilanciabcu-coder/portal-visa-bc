@@ -24,6 +24,7 @@ import { RegistroDenunciaModal } from './components/RegistroDenunciaModal';
 import { IdeiasInovacoesVisaModal } from './components/IdeiasInovacoesVisaModal';
 import { SolicitacaoMunicipeModal } from './components/SolicitacaoMunicipeModal';
 import { PainelAcompanhamentoMunicipe } from './components/PainelAcompanhamentoMunicipe';
+import { RepositorioJuridicoView } from './components/RepositorioJuridicoView';
 import { normalizarProtocolo } from './lib/protocoloService';
 
 import {
@@ -124,7 +125,8 @@ const PORTAL_BUTTONS: PortalButton[] = [
   { id: 'fisc', nome: 'FISCALIZAÇÃO', url: '', img: 'shield', acao: 'view', view: 'fiscalizacao', perfisPermitidos: ['SERVIDOR'] },
   { id: 'geoo', nome: 'GEO+', url: 'https://geo.bc.sc.gov.br/login', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/geoprocessamento.avif', acao: 'link', perfisPermitidos: ['SERVIDOR'] },
   { id: 'tlab', nome: 'Laboratório', url: '', img: 'lab-icon', acao: 'view', view: 'laboratorio', perfisPermitidos: ['SERVIDOR'] },
-  { id: 'leis', nome: 'Leis', url: 'https://leismunicipais.com.br/legislacao-municipal/4511/leis-de-balneario-camboriu', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/leismunicipais.avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
+  { id: 'leis', nome: 'Leis', url: 'https://leis.org/prefeitura/sc/balneario-camboriu', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/leismunicipais.avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
+  { id: 'repositorio_juridico', nome: 'Repositório Jurídico & Regularidade', url: '', img: 'scale', acao: 'view', view: 'repositorio_juridico', badgetext: 'JURÍDICO', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'mapa', nome: 'GEO VISA & Mapa', url: '', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/mapa.avif', acao: 'view', view: 'geo_visa', badgetext: 'ROTAS', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'regi', nome: 'Regin', url: 'http://200.19.203.151:8080/SiarcoWeb/loginAction.do', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/regin.avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE'] },
   { id: 'rhwb', nome: 'RH Web', url: 'https://folhaweb.bc.sc.gov.br/e-servidor/web/#/login', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/rhweb.avif', acao: 'link', perfisPermitidos: ['SERVIDOR'] },
@@ -134,7 +136,7 @@ const PORTAL_BUTTONS: PortalButton[] = [
 
 export default function App() {
   // Navigation & View
-  const [currentView, setCurrentView] = useState<'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'teste_pasta' | 'portal_contador'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'teste_pasta' | 'portal_contador' | 'repositorio_juridico'>('home');
   const [processoParaVistoria, setProcessoParaVistoria] = useState<ProcessoItem | null>(null);
 
   const handleIniciarVistoriaParaProcesso = (processo: ProcessoItem) => {
@@ -1183,6 +1185,16 @@ export default function App() {
                   currentUser={currentUser}
                   processos={processos}
                   onBack={() => setCurrentView('home')}
+                />
+              )}
+
+              {currentView === 'repositorio_juridico' && (
+                <RepositorioJuridicoView
+                  processos={processos}
+                  currentUser={currentUser}
+                  onBack={() => setCurrentView('home')}
+                  onOpenExternal={handleOpenExternal}
+                  onNavigate={(v) => setCurrentView(v as any)}
                 />
               )}
 

@@ -11,7 +11,8 @@ import {
   PhoneCall, 
   ExternalLink,
   Sparkles,
-  Lightbulb
+  Lightbulb,
+  Scale
 } from 'lucide-react';
 
 interface PortalButtonCardProps {
@@ -70,6 +71,18 @@ export const PortalButtonCard: React.FC<PortalButtonCardProps> = ({
           </div>
           <span className="absolute -bottom-1 -right-1 bg-amber-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase shadow">
             ADM
+          </span>
+        </div>
+      );
+    }
+    if (b.view === 'repositorio_juridico' || b.id === 'repositorio_juridico' || b.img === 'scale') {
+      return (
+        <div className="relative flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-700 via-indigo-800 to-purple-800 flex items-center justify-center text-white shadow-md">
+            <Scale className="w-6 h-6 text-indigo-200" />
+          </div>
+          <span className="absolute -bottom-1 -right-1 bg-indigo-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase shadow">
+            JURÍDICO
           </span>
         </div>
       );
