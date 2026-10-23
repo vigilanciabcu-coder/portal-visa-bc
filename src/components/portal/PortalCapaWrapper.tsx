@@ -66,7 +66,7 @@ export const PortalCapaWrapper: React.FC<PortalCapaWrapperProps> = ({
               Portal do Munícipe: Solicitar Serviços & Ideias Inovadoras
             </h2>
             <p
-              style={{ width: '1650px' }}
+              style={{ width: '950px' }}
               className="text-xs sm:text-sm font-semibold text-slate-900 leading-snug max-w-full"
             >
               O munícipe solicita alvarás, vistorias, laudos de água e defesas online, acompanhando tudo em tempo real. Pelo outro lado, os servidores analisam, tramitam e interagem com acesso imediato ao histórico de vigilância (alvarás, fiscalizações e laudos).
