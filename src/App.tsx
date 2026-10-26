@@ -1002,6 +1002,7 @@ export default function App() {
                     setCurrentView('demandas_fiscal');
                   }}
                   onSaveProcesso={handleSaveProcesso}
+                  onOpenExternal={handleOpenExternal}
                 />
               )}
 

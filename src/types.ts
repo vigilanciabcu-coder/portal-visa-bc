@@ -500,6 +500,52 @@ export interface FiscalizacaoItem {
   parecerIA?: string;
   processoId?: string;
   numProcesso?: string;
+
+  // Campos do Rito Processual Sanitário Oficial (Normativa Interna DVIS)
+  tipoAtoFiscal?: TipoAtoFiscalRito;
+  art61EstadualIncisos?: string[];
+  art158MunicipalIncisos?: string[];
+  irregularidadeImputada?: string;
+  autoIntimacaoAnterior?: string;
+  relatorioCircunstanciado?: RelatorioCircunstanciadoItem;
+  cautelarTipo?: 'INTERDICAO_TOTAL' | 'INTERDICAO_PARCIAL' | 'APREENSAO' | 'INUTILIZACAO';
+  cautelarItensQualificacao?: CautelarItemQualificado[];
+  cautelarFielDepositario?: { nome: string; cpf: string; cargo: string };
+  pasVinculado?: string;
+  penalidadeTipo?: 'ADVERTENCIA' | 'MULTA' | 'INUTILIZACAO' | 'INTERDICAO' | 'CANCELAMENTO_LICENCA';
+  penalidadeValorMulta?: string;
+  penalidadeFundamentacao?: string;
+  penalidadeAutoridadeNome?: string;
+  penalidadeAutoridadeCargo?: string;
+  entregaTipo?: 'PRESENCIAL_RECEBIDO' | 'RECUSA_TESTEMUNHAS' | 'POSTAL';
+  recebidoPorNome?: string;
+  recebidoPorCpf?: string;
+  recusaTestemunha1?: { nome: string; cpf: string };
+  recusaTestemunha2?: { nome: string; cpf: string };
+  protocolo1Doc?: string;
+}
+
+export type TipoAtoFiscalRito = 
+  | 'ORIENTACAO' 
+  | 'INTIMACAO' 
+  | 'INFRACAO' 
+  | 'MEDIDA_CAUTELAR' 
+  | 'IMPOSICAO_PENALIDADE';
+
+export interface CautelarItemQualificado {
+  descricao: string;
+  quantidade: string;
+  lote?: string;
+  validade?: string;
+  lacreNumero?: string;
+  localCustodia?: string;
+}
+
+export interface RelatorioCircunstanciadoItem {
+  fatosOcorridos: string;
+  comportamentoAutuado: 'COOPERATIVO' | 'DIFICULTOU' | 'NEUTRO';
+  comprometeuSanar: boolean;
+  detalhesAcao: string;
 }
 
 export type ProcessoStatus = 'DEFERIDO' | 'EM ANÁLISE' | 'INDEFERIDO' | 'PENDENTE DOCS' | 'VISTORIA AGENDADA' | 'NOTIFICADO';

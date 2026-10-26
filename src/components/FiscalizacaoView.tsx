@@ -9,11 +9,20 @@ import {
   ProcessoItem,
   ParecerTecnicoItem,
   TramitacaoItem,
-  TipoParecerTecnico
+  TipoParecerTecnico,
+  TipoAtoFiscalRito,
+  CautelarItemQualificado,
+  RelatorioCircunstanciadoItem
 } from '../types';
 import { BAIRROS_BC } from '../data/mockData';
 import { fetchCnpj } from '../lib/cnpjService';
 import { ConfirmModal } from './ConfirmModal';
+import {
+  INCISOS_ART_61_LEI_ESTADUAL_6320,
+  INCISOS_ART_158_LCM_40_2019,
+  DESCRICOES_ETAPAS_RITO
+} from '../data/normativaSanitariaData';
+import { RitoProcessualDocumentoModal } from './RitoProcessualDocumentoModal';
 import {
   ShieldCheck,
   PlusCircle,
@@ -44,7 +53,9 @@ import {
   Download,
   Wifi,
   WifiOff,
-  UploadCloud
+  UploadCloud,
+  Scale,
+  Lock
 } from 'lucide-react';
 import { exportFiscalizacoesToCSV, downloadCsvFile } from '../lib/csvExportService';
 
@@ -57,6 +68,7 @@ interface FiscalizacaoViewProps {
   onLimparProcessoVinculado?: () => void;
   onVoltarParaDemandas?: () => void;
   onSaveProcesso?: (processo: ProcessoItem) => void;
+  onOpenExternal?: (url: string) => void;
 }
 
 const CHECKLIST_DEFAULT: Omit<InspectionCheckitem, 'id'>[] = [
@@ -79,7 +91,8 @@ export const FiscalizacaoView: React.FC<FiscalizacaoViewProps> = ({
   processoVinculado,
   onLimparProcessoVinculado,
   onVoltarParaDemandas,
-  onSaveProcesso
+  onSaveProcesso,
+  onOpenExternal
 }) => {
   const [activeTab, setActiveTab] = useState<'lista' | 'nova' | 'mapa' | 'termo'>('lista');
   const [selectedItem, setSelectedItem] = useState<FiscalizacaoItem | null>(null);
@@ -140,6 +153,43 @@ export const FiscalizacaoView: React.FC<FiscalizacaoViewProps> = ({
   const [signatureOwner, setSignatureOwner] = useState<string>('');
   const [cnpjNotice, setCnpjNotice] = useState<string | null>(null);
   const [showHistoryDropdown, setShowHistoryDropdown] = useState(false);
+
+  // ⚖️ Rito Processual Sanitário (Normativa Interna DVIS - Sequência Lógica em 5 Etapas)
+  const [tipoAtoFiscal, setTipoAtoFiscal] = useState<TipoAtoFiscalRito>('INTIMACAO');
+  const [art61EstadualIncisos, setArt61EstadualIncisos] = useState<string[]>([]);
+  const [art158MunicipalIncisos, setArt158MunicipalIncisos] = useState<string[]>([]);
+  const [irregularidadeImputada, setIrregularidadeImputada] = useState<string>('');
+  const [autoIntimacaoAnterior, setAutoIntimacaoAnterior] = useState<string>('');
+
+  // 3.5 Relatório de Inspeção Sanitária Circunstanciado (Peça Técnica Obrigatória no PAS)
+  const [relCircFatos, setRelCircFatos] = useState<string>('');
+  const [relCircDificultacao, setRelCircDificultacao] = useState<boolean>(false);
+  const [relCircCompromisso, setRelCircCompromisso] = useState<boolean>(true);
+  const [relCircConduta, setRelCircConduta] = useState<string>('');
+
+  // 4. Medida Cautelar (Peça Exclusiva com Qualificação e Lacres)
+  const [cautelarTipo, setCautelarTipo] = useState<'INTERDICAO_TOTAL' | 'INTERDICAO_PARCIAL' | 'APREENSAO' | 'INUTILIZACAO'>('INTERDICAO_PARCIAL');
+  const [cautelarItens, setCautelarItens] = useState<CautelarItemQualificado[]>([
+    { descricao: 'Alimentos perecíveis sem comprovação de origem ou rotulagem', quantidade: '15 kg', lacreNumero: 'LACRE-DVIS-0941', lote: 'L-2026/01' }
+  ]);
+  const [cautelarFielDepositarioNome, setCautelarFielDepositarioNome] = useState<string>('');
+  const [cautelarFielDepositarioCpf, setCautelarFielDepositarioCpf] = useState<string>('');
+
+  // 5. Auto de Imposição de Penalidade (Julgamento do PAS - Autoridade Sanitária)
+  const [penalidadeTipo, setPenalidadeTipo] = useState<'ADVERTENCIA' | 'MULTA' | 'INUTILIZACAO' | 'INTERDICAO' | 'CANCELAMENTO_LICENCA'>('MULTA');
+  const [penalidadeValorMulta, setPenalidadeValorMulta] = useState<number>(1500);
+  const [penalidadeFundamentacao, setPenalidadeFundamentacao] = useState<string>('');
+
+  // Entrega Presencial / Ciência com Comprovação / Recusa por 2 Testemunhas
+  const [entregaPresencialTipo, setEntregaPresencialTipo] = useState<'PRESENCIAL_RECEBIDO' | 'RECUSA_TESTEMUNHAS' | 'POSTAL'>('PRESENCIAL_RECEBIDO');
+  const [recusaTestemunha1Nome, setRecusaTestemunha1Nome] = useState<string>('');
+  const [recusaTestemunha1Cpf, setRecusaTestemunha1Cpf] = useState<string>('');
+  const [recusaTestemunha2Nome, setRecusaTestemunha2Nome] = useState<string>('');
+  const [recusaTestemunha2Cpf, setRecusaTestemunha2Cpf] = useState<string>('');
+
+  // Modal do Documento Oficial do Rito
+  const [modalRitoOpen, setModalRitoOpen] = useState(false);
+  const [itemParaRitoModal, setItemParaRitoModal] = useState<FiscalizacaoItem | null>(null);
 
   // 📡 Modo Offline de Campo Robusto & Fila de Sincronização em Segundo Plano
   const [isOnline, setIsOnline] = useState<boolean>(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
@@ -522,7 +572,43 @@ export const FiscalizacaoView: React.FC<FiscalizacaoViewProps> = ({
       coordenadas: { lat: -26.9922 + (Math.random() - 0.5) * 0.03, lng: -48.6345 + (Math.random() - 0.5) * 0.03 },
       parecerIA: aiAnalysis,
       processoId: processoVinculado?.id,
-      numProcesso: processoVinculado ? (processoVinculado.num_processo || processoVinculado.prot_1doc) : undefined
+      numProcesso: processoVinculado ? (processoVinculado.num_processo || processoVinculado.prot_1doc) : undefined,
+      tipoAtoFiscal,
+      art61EstadualIncisos: art61EstadualIncisos.length > 0 ? art61EstadualIncisos : ['I'],
+      art158MunicipalIncisos: art158MunicipalIncisos.length > 0 ? art158MunicipalIncisos : ['I'],
+      irregularidadeImputada: irregularidadeImputada || (irregularidades.length > 0 ? irregularidades.join('; ') : 'Descumprimento de requisitos e normas sanitárias vigentes'),
+      autoIntimacaoAnterior: autoIntimacaoAnterior || undefined,
+      relatorioCircunstanciado: {
+        fatosOcorridos: relCircFatos || formData.observacoesFiscais || `Inspeção sanitária fiscal in loco realizada no estabelecimento ${formData.nomeFantasia}.`,
+        comportamentoAutuado: relCircDificultacao ? 'DIFICULTOU' : 'COOPERATIVO',
+        comprometeuSanar: relCircCompromisso,
+        detalhesAcao: relCircConduta || (relCircCompromisso ? 'Autuado cooperou com o ato fiscal e comprometeu-se a regularizar a situação.' : 'Autuado advertido formalmente quanto aos prazos e deveres legais.')
+      },
+      cautelarTipo: tipoAtoFiscal === 'MEDIDA_CAUTELAR' ? cautelarTipo : undefined,
+      cautelarItensQualificacao: tipoAtoFiscal === 'MEDIDA_CAUTELAR' ? cautelarItens.filter((it) => it.descricao.trim().length > 0) : undefined,
+      cautelarFielDepositario: tipoAtoFiscal === 'MEDIDA_CAUTELAR' && cautelarFielDepositarioNome ? {
+        nome: cautelarFielDepositarioNome,
+        cpf: cautelarFielDepositarioCpf,
+        cargo: 'Fiel Depositário'
+      } : undefined,
+      pasVinculado: (tipoAtoFiscal === 'INFRACAO' || tipoAtoFiscal === 'MEDIDA_CAUTELAR' || tipoAtoFiscal === 'IMPOSICAO_PENALIDADE') ? `PAS-2026/${Math.floor(100 + Math.random() * 900)}` : undefined,
+      penalidadeTipo: tipoAtoFiscal === 'IMPOSICAO_PENALIDADE' ? penalidadeTipo : undefined,
+      penalidadeValorMulta: tipoAtoFiscal === 'IMPOSICAO_PENALIDADE' ? String(penalidadeValorMulta) : undefined,
+      penalidadeFundamentacao: tipoAtoFiscal === 'IMPOSICAO_PENALIDADE' ? (penalidadeFundamentacao || 'Decisão proferida após julgamento do PAS pela Autoridade Sanitária com aplicação da dosimetria legal.') : undefined,
+      penalidadeAutoridadeNome: 'Dr. Roberto Santos • Autoridade Sanitária Municipal',
+      penalidadeAutoridadeCargo: 'Diretor de Vigilância Sanitária',
+      entregaTipo: entregaPresencialTipo,
+      recebidoPorNome: signatureOwner || formData.responsavel || undefined,
+      recebidoPorCpf: signatureOwner ? 'CPF informado no auto' : undefined,
+      recusaTestemunha1: entregaPresencialTipo === 'RECUSA_TESTEMUNHAS' ? {
+        nome: recusaTestemunha1Nome || 'Testemunha Presencial 1',
+        cpf: recusaTestemunha1Cpf || 'Identificação Física'
+      } : undefined,
+      recusaTestemunha2: entregaPresencialTipo === 'RECUSA_TESTEMUNHAS' ? {
+        nome: recusaTestemunha2Nome || 'Testemunha Presencial 2',
+        cpf: recusaTestemunha2Cpf || 'Identificação Física'
+      } : undefined,
+      protocolo1Doc: `1DOC-${Math.floor(100000 + Math.random() * 900000)}/2026`
     };
 
     // Se o dispositivo estiver offline (garagem, câmara fria, subsolo), adiciona à fila de sincronização
@@ -618,6 +704,29 @@ export const FiscalizacaoView: React.FC<FiscalizacaoViewProps> = ({
     setSignatureOwner('');
     setShowHistoryDropdown(false);
     setCnpjNotice(null);
+    setTipoAtoFiscal('INTIMACAO');
+    setArt61EstadualIncisos([]);
+    setArt158MunicipalIncisos([]);
+    setIrregularidadeImputada('');
+    setAutoIntimacaoAnterior('');
+    setRelCircFatos('');
+    setRelCircDificultacao(false);
+    setRelCircCompromisso(true);
+    setRelCircConduta('');
+    setCautelarTipo('INTERDICAO_PARCIAL');
+    setCautelarItens([
+      { descricao: 'Alimentos perecíveis sem comprovação de origem ou rotulagem', quantidade: '15 kg', lacreNumero: 'LACRE-DVIS-0941', lote: 'L-2026/01' }
+    ]);
+    setCautelarFielDepositarioNome('');
+    setCautelarFielDepositarioCpf('');
+    setPenalidadeTipo('MULTA');
+    setPenalidadeValorMulta(1500);
+    setPenalidadeFundamentacao('');
+    setEntregaPresencialTipo('PRESENCIAL_RECEBIDO');
+    setRecusaTestemunha1Nome('');
+    setRecusaTestemunha1Cpf('');
+    setRecusaTestemunha2Nome('');
+    setRecusaTestemunha2Cpf('');
   };
 
   // Filtered List
@@ -927,17 +1036,35 @@ export const FiscalizacaoView: React.FC<FiscalizacaoViewProps> = ({
                   )}
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center gap-2">
-                  <span className="text-[9px] font-bold text-slate-400">Risco: {f.risco}</span>
-                  <div className="flex items-center gap-1.5">
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-2">
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="font-bold text-slate-400">Risco: {f.risco}</span>
+                    <span className="font-bold text-amber-600 dark:text-amber-400 font-mono text-[9px] bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+                      <Scale className="w-2.5 h-2.5" />
+                      {f.tipoAtoFiscal ? DESCRICOES_ETAPAS_RITO[f.tipoAtoFiscal]?.titulo || f.tipoAtoFiscal : 'Rito Sanitário'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-1.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setItemParaRitoModal(f);
+                        setModalRitoOpen(true);
+                      }}
+                      className="bg-amber-600 hover:bg-amber-700 text-white font-black text-[10px] px-2.5 py-1.5 rounded-xl uppercase transition cursor-pointer flex items-center gap-1 shadow-sm active:scale-95 flex-1 justify-center"
+                      title="Visualizar e Imprimir Peça Formal do Rito Processual Sanitário"
+                    >
+                      <Scale className="w-3 h-3 text-amber-200" />
+                      <span>Auto Oficial (Rito)</span>
+                    </button>
                     <button
                       onClick={() => {
                         setSelectedItem(f);
                         setActiveTab('termo');
                       }}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] px-3 py-1.5 rounded-xl uppercase transition cursor-pointer flex items-center gap-1"
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] px-2.5 py-1.5 rounded-xl uppercase transition cursor-pointer flex items-center gap-1 active:scale-95"
                     >
-                      <Printer className="w-3 h-3" /> Ver Termo
+                      <Printer className="w-3 h-3" /> Termo
                     </button>
                     {onDeleteFiscalizacao && (
                       <button
@@ -1614,55 +1741,678 @@ export const FiscalizacaoView: React.FC<FiscalizacaoViewProps> = ({
             </div>
           </div>
 
-          {/* Secao 4: Medidas Adotadas e Assinatura */}
-          <div className="space-y-4 border-t border-slate-200 dark:border-slate-800 pt-6">
-            <h3 className="text-xs font-black uppercase text-slate-500 tracking-wider">
-              5. Decisão Fiscal & Assinatura do Termo
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Seção 5: Rito Processual Sanitário em 5 Etapas Oficiais */}
+          <div className="space-y-6 border-t border-slate-200 dark:border-slate-800 pt-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
               <div>
-                <label className="text-[10px] font-bold uppercase block mb-1">Medida Cautelar / Termo Emitido</label>
-                <select
-                  value={formData.medidasAdotadas}
-                  onChange={(e) => setFormData({ ...formData, medidasAdotadas: e.target.value })}
-                >
-                  <option value="Termo de Notificação Sanitária">Termo de Notificação - Conforme</option>
-                  <option value="Termo de Intimação com Prazo">Termo de Intimação - Adequação</option>
-                  <option value="Auto de Infração e Autuação">Auto de Infração - Penalidade</option>
-                  <option value="Termo de Interdição Cautelar Parcial">Termo de Interdição Parcial</option>
-                  <option value="Termo de Interdição Cautelar Total">Termo de Interdição Total</option>
-                </select>
+                <h3 className="text-sm font-black uppercase text-slate-800 dark:text-slate-100 tracking-wider flex items-center gap-2">
+                  <Scale className="w-5 h-5 text-amber-500" />
+                  5. Rito Processual Sanitário • Sequência Lógica em 5 Etapas (Normativa Interna DVIS)
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Observe estritamente o rito sequencial: Orientação ➔ Intimação ➔ Auto de Infração (PAS) ➔ Medida Cautelar ➔ Imposição de Penalidade.
+                </p>
               </div>
-
-              <div>
-                <label className="text-[10px] font-bold uppercase block mb-1">Prazo para Adequação</label>
-                <input
-                  type="number"
-                  value={formData.prazoAdequacaoDias}
-                  onChange={(e) => setFormData({ ...formData, prazoAdequacaoDias: parseInt(e.target.value, 10) || 0 })}
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold uppercase block mb-1">Assinatura Digital do Responsável</label>
-                <input
-                  type="text"
-                  placeholder="Nome por extenso do responsável legal"
-                  value={signatureOwner}
-                  onChange={(e) => setSignatureOwner(e.target.value)}
-                />
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-[11px] font-bold text-blue-700 dark:text-blue-300">
+                <span>Tramitação 1Doc Integrada</span>
               </div>
             </div>
 
-            <div>
-              <label className="text-[10px] font-bold uppercase block mb-1">Observações Fiscais do Auto</label>
-              <textarea
-                rows={3}
-                placeholder="Insira detalhes complementares da vistoria..."
-                value={formData.observacoesFiscais}
-                onChange={(e) => setFormData({ ...formData, observacoesFiscais: e.target.value })}
-              />
+            {/* Seletor Visual das 5 Etapas */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {(Object.keys(DESCRICOES_ETAPAS_RITO) as TipoAtoFiscalRito[]).map((etapaKey) => {
+                const etapa = DESCRICOES_ETAPAS_RITO[etapaKey];
+                const isSelected = tipoAtoFiscal === etapaKey;
+                return (
+                  <button
+                    key={etapaKey}
+                    type="button"
+                    onClick={() => {
+                      setTipoAtoFiscal(etapaKey);
+                      if (etapaKey === 'ORIENTACAO') {
+                        setFormData((p) => ({ ...p, medidasAdotadas: 'Orientação e Conscientização Sanitária' }));
+                      } else if (etapaKey === 'INTIMACAO') {
+                        setFormData((p) => ({ ...p, medidasAdotadas: 'Auto de Intimação com Prazo' }));
+                      } else if (etapaKey === 'INFRACAO') {
+                        setFormData((p) => ({ ...p, medidasAdotadas: 'Auto de Infração Sanitária (Instaura PAS)' }));
+                      } else if (etapaKey === 'MEDIDA_CAUTELAR') {
+                        setFormData((p) => ({ ...p, medidasAdotadas: 'Medida Cautelar (Peça Exclusiva com Lacres)' }));
+                      } else if (etapaKey === 'IMPOSICAO_PENALIDADE') {
+                        setFormData((p) => ({ ...p, medidasAdotadas: 'Auto de Imposição de Penalidade Sanitária' }));
+                      }
+                    }}
+                    className={`p-3.5 rounded-2xl border text-left transition flex flex-col justify-between cursor-pointer relative ${
+                      isSelected
+                        ? 'bg-amber-500/10 border-amber-500 shadow-md ring-2 ring-amber-500/30 dark:bg-amber-950/40'
+                        : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-400'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span
+                          className={`text-[10px] font-black px-2 py-0.5 rounded uppercase font-mono ${
+                            isSelected
+                              ? 'bg-amber-500 text-slate-950 font-black'
+                              : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                          }`}
+                        >
+                          Etapa {etapa.numero}
+                        </span>
+                        {isSelected && <CheckCircle2 className="w-4 h-4 text-amber-500" />}
+                      </div>
+                      <h4 className="font-black text-xs text-slate-900 dark:text-white leading-snug">
+                        {etapa.titulo}
+                      </h4>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-3">
+                        {etapa.descricao}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Painel Específico da Etapa 1: Orientação / Educação */}
+            {tipoAtoFiscal === 'ORIENTACAO' && (
+              <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-800/60 rounded-2xl space-y-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <h4 className="text-xs font-black uppercase text-emerald-900 dark:text-emerald-200">
+                    Etapa 1 • Abordagem Educativa Inicial & Conscientização Sanitária
+                  </h4>
+                </div>
+                <p className="text-xs text-emerald-800 dark:text-emerald-300">
+                  Procedimento fiscal com foco pedagógico. Registre orientações técnicas discricionárias para que o responsável tome ciência das boas práticas e legislações aplicáveis.
+                </p>
+                <div>
+                  <label className="text-[10px] font-bold uppercase block mb-1">Orientações e Recomendações Educativas Repassadas</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Descreva as orientações sanitárias repassadas ao estabelecimento..."
+                    value={formData.observacoesFiscais}
+                    onChange={(e) => setFormData({ ...formData, observacoesFiscais: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Painel Específico da Etapa 2: Auto de Intimação */}
+            {tipoAtoFiscal === 'INTIMACAO' && (
+              <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-300 dark:border-blue-800/60 rounded-2xl space-y-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <h4 className="text-xs font-black uppercase text-blue-900 dark:text-blue-200">
+                    Etapa 2 • Auto de Intimação (Formalização de Irregularidade com Prazo)
+                  </h4>
+                </div>
+                <p className="text-xs text-blue-800 dark:text-blue-300">
+                  Formalize a inconformidade sanitária constatada e determine a exigência necessária com prazo improrrogável de cumprimento.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase block mb-1">Prazo para Adequação (Dias)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={90}
+                      value={formData.prazoAdequacaoDias}
+                      onChange={(e) => setFormData({ ...formData, prazoAdequacaoDias: parseInt(e.target.value, 10) || 0 })}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-[10px] font-bold uppercase block mb-1">Exigência Formal Intimada</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Apresentar comprovante de desratização e reparar tela milimétrica em 5 dias úteis"
+                      value={formData.observacoesFiscais}
+                      onChange={(e) => setFormData({ ...formData, observacoesFiscais: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Painel Específico da Etapa 3: Auto de Infração (PAS - Nulidade Absoluta) */}
+            {tipoAtoFiscal === 'INFRACAO' && (
+              <div className="p-5 bg-rose-50 dark:bg-rose-950/30 border-2 border-rose-400 dark:border-rose-700 rounded-2xl space-y-4">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="w-6 h-6 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-rose-900 dark:text-rose-200 tracking-wide">
+                      Etapa 3 • Auto de Infração Sanitária • Instaura o PAS
+                    </h4>
+                    <p className="text-[11px] text-rose-800 dark:text-rose-300 font-bold mt-0.5">
+                      ⚠️ REQUISITOS OBRIGATÓRIOS SOB PENA DE NULIDADE PROCESSUAL (Itens 3.1, 3.2, 3.3, 3.4 e 3.5 da Normativa):
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3.1 Indicação do art. 61 da LE 6.320/1983 */}
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-rose-200 dark:border-rose-800/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-black uppercase text-slate-800 dark:text-slate-200">
+                      3.1 Enquadramento: Art. 61 da Lei Estadual nº 6.320/1983 (Selecione os Incisos Aplicáveis)
+                    </label>
+                    <span className="text-[10px] text-rose-600 dark:text-rose-400 font-mono font-bold">
+                      {art61EstadualIncisos.length} selecionado(s)
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                    {INCISOS_ART_61_LEI_ESTADUAL_6320.map((incDef) => {
+                      const checked = art61EstadualIncisos.includes(incDef.inciso);
+                      return (
+                        <label
+                          key={incDef.inciso}
+                          className={`flex items-start gap-2 p-2 rounded-lg border text-[11px] cursor-pointer transition ${
+                            checked
+                              ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-400 text-rose-950 dark:text-rose-100 font-bold'
+                              : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setArt61EstadualIncisos([...art61EstadualIncisos, incDef.inciso]);
+                              } else {
+                                setArt61EstadualIncisos(art61EstadualIncisos.filter((x) => x !== incDef.inciso));
+                              }
+                            }}
+                            className="mt-0.5 text-rose-600 rounded"
+                          />
+                          <span className="leading-tight">{incDef.rotulo}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 3.2 Indicação do art. 158 da LCM 40/2019 */}
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-rose-200 dark:border-rose-800/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-black uppercase text-slate-800 dark:text-slate-200">
+                      3.2 Enquadramento: Art. 158 da Lei Complementar Municipal nº 40/2019 - BC (Selecione os Incisos)
+                    </label>
+                    <span className="text-[10px] text-rose-600 dark:text-rose-400 font-mono font-bold">
+                      {art158MunicipalIncisos.length} selecionado(s)
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                    {INCISOS_ART_158_LCM_40_2019.map((incDef) => {
+                      const checked = art158MunicipalIncisos.includes(incDef.inciso);
+                      return (
+                        <label
+                          key={incDef.inciso}
+                          className={`flex items-start gap-2 p-2 rounded-lg border text-[11px] cursor-pointer transition ${
+                            checked
+                              ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-400 text-rose-950 dark:text-rose-100 font-bold'
+                              : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setArt158MunicipalIncisos([...art158MunicipalIncisos, incDef.inciso]);
+                              } else {
+                                setArt158MunicipalIncisos(art158MunicipalIncisos.filter((x) => x !== incDef.inciso));
+                              }
+                            }}
+                            className="mt-0.5 text-rose-600 rounded"
+                          />
+                          <span className="leading-tight">{incDef.rotulo}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 3.3 Irregularidade Imputada (Apenas a irregularidade em si) */}
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-rose-200 dark:border-rose-800/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-black uppercase text-rose-700 dark:text-rose-300 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      3.3 Irregularidade Imputada ao Infrator
+                    </label>
+                    <span className="text-[10px] font-bold text-rose-600 uppercase">
+                      ⚠️ Não relatar nada aqui, apenas a irregularidade em si
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    required={tipoAtoFiscal === 'INFRACAO'}
+                    placeholder="Ex: Comercialização de alimentos sem rotulagem e com prazo de validade expirado"
+                    value={irregularidadeImputada}
+                    onChange={(e) => setIrregularidadeImputada(e.target.value)}
+                    className="w-full font-bold text-xs"
+                  />
+                  <p className="text-[10px] text-slate-500 italic">
+                    Determinação expressa da diretriz: insira de forma estritamente concisa e objetiva a infração imputada. O detalhamento dos fatos pertence ao item 3.5 (Relatório Circunstanciado).
+                  </p>
+                </div>
+
+                {/* 3.4 Auto de Intimação Anterior Vinculado */}
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-rose-200 dark:border-rose-800/80 space-y-2">
+                  <label className="text-[11px] font-black uppercase text-slate-800 dark:text-slate-200 block">
+                    3.4 Auto de Intimação Anterior (Para Obrigação Subsistente / Reincidência)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Auto de Intimação nº INTIM-2026/0412 lavrado em 12/03/2026 (descumprido)"
+                    value={autoIntimacaoAnterior}
+                    onChange={(e) => setAutoIntimacaoAnterior(e.target.value)}
+                    className="w-full text-xs font-mono"
+                  />
+                </div>
+
+                {/* 3.5 Relatório de Inspeção Sanitária Circunstanciado */}
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border-2 border-indigo-400 dark:border-indigo-600 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <FileSignature className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <h5 className="text-[11px] font-black uppercase text-indigo-900 dark:text-indigo-200">
+                      3.5 Peça Técnica Anexa: Relatório de Inspeção Sanitária Circunstanciado
+                    </h5>
+                  </div>
+                  <p className="text-[10px] text-indigo-800 dark:text-indigo-300">
+                    Relatório circunstanciado que descreve todo o fato ocorrido, levanta informações cadastrais e detalha a ação fiscal.
+                  </p>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase block mb-1">Descrição Circunstanciada dos Fatos Ocorridos</label>
+                    <textarea
+                      rows={3}
+                      placeholder="Descreva de forma pormenorizada a diligência fiscal no local, o que foi inspecionado, materiais encontrados e ambiente..."
+                      value={relCircFatos}
+                      onChange={(e) => setRelCircFatos(e.target.value)}
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200">Houve Dificultação do Ato Fiscal?</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setRelCircDificultacao(false)}
+                          className={`px-3 py-1 rounded-lg text-xs font-black uppercase ${
+                            !relCircDificultacao ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
+                          }`}
+                        >
+                          Não
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRelCircDificultacao(true)}
+                          className={`px-3 py-1 rounded-lg text-xs font-black uppercase ${
+                            relCircDificultacao ? 'bg-rose-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
+                          }`}
+                        >
+                          Sim
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200">Autuado Prontamente se Comprometeu a Sanar?</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setRelCircCompromisso(true)}
+                          className={`px-3 py-1 rounded-lg text-xs font-black uppercase ${
+                            relCircCompromisso ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
+                          }`}
+                        >
+                          Sim
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRelCircCompromisso(false)}
+                          className={`px-3 py-1 rounded-lg text-xs font-black uppercase ${
+                            !relCircCompromisso ? 'bg-amber-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
+                          }`}
+                        >
+                          Não
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase block mb-1">Detalhamento da Conduta e Postura do Autuado</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: O autuado acompanhou todo o ato fiscal sem resistência e comprometeu-se a inutilizar os lotes"
+                      value={relCircConduta}
+                      onChange={(e) => setRelCircConduta(e.target.value)}
+                      className="text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Painel Específico da Etapa 4: Medida Cautelar (Peça Exclusiva com Lacres) */}
+            {tipoAtoFiscal === 'MEDIDA_CAUTELAR' && (
+              <div className="p-5 bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-400 dark:border-amber-600 rounded-2xl space-y-4">
+                <div className="flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                  <h4 className="text-xs font-black uppercase text-amber-950 dark:text-amber-200">
+                    Etapa 4 • Medida Cautelar Sanitária (Auto de Intimação Próprio / Peça Exclusiva)
+                  </h4>
+                </div>
+                <p className="text-xs text-amber-800 dark:text-amber-300">
+                  Lavratura em peça exclusiva. Exige qualificação expressa dos produtos, equipamentos e materiais, com número de lacres e nomeação de fiel depositário. Haverá instauração compulsória de PAS para garantir ampla defesa e contraditório.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase block mb-1">Modalidade da Medida Cautelar</label>
+                    <select
+                      value={cautelarTipo}
+                      onChange={(e) => setCautelarTipo(e.target.value as any)}
+                    >
+                      <option value="INTERDICAO_PARCIAL">Interdição Cautelar Parcial do Estabelecimento / Setor</option>
+                      <option value="INTERDICAO_TOTAL">Interdição Cautelar Total do Estabelecimento</option>
+                      <option value="APREENSAO_PRODUTOS">Apreensão Cautelar de Produtos / Alimentos / Insumos</option>
+                      <option value="INTERDICAO_EQUIPAMENTOS">Interdição Cautelar de Máquinas e Equipamentos</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase block mb-1">Fiel Depositário (Nome Completo e CPF)</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Nome do depositário"
+                        value={cautelarFielDepositarioNome}
+                        onChange={(e) => setCautelarFielDepositarioNome(e.target.value)}
+                        className="text-xs"
+                      />
+                      <input
+                        type="text"
+                        placeholder="CPF do depositário"
+                        value={cautelarFielDepositarioCpf}
+                        onChange={(e) => setCautelarFielDepositarioCpf(e.target.value)}
+                        className="text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tabela de Bens Cautelados e Lacrados */}
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-amber-300 dark:border-amber-800 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[11px] font-black uppercase text-slate-800 dark:text-slate-200">
+                      Qualificação dos Produtos, Equipamentos e Materiais Cautelados
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCautelarItens([
+                          ...cautelarItens,
+                          {
+                            descricao: '',
+                            quantidade: '1',
+                            lacreNumero: `LACRE-DVIS-${Math.floor(1000 + Math.random() * 9000)}`,
+                            lote: ''
+                          }
+                        ]);
+                      }}
+                      className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-lg text-[10px] uppercase transition cursor-pointer flex items-center gap-1"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" /> Adicionar Item Cautelado
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {cautelarItens.map((item, idx) => (
+                      <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-2 p-2 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700 items-center text-xs">
+                        <div className="md:col-span-5">
+                          <input
+                            type="text"
+                            placeholder="Descrição do produto/equipamento..."
+                            value={item.descricao}
+                            onChange={(e) => {
+                              const updated = [...cautelarItens];
+                              updated[idx].descricao = e.target.value;
+                              setCautelarItens(updated);
+                            }}
+                            className="w-full text-xs"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <input
+                            type="text"
+                            placeholder="Qtd (ex: 10 kg)"
+                            value={item.quantidade}
+                            onChange={(e) => {
+                              const updated = [...cautelarItens];
+                              updated[idx].quantidade = e.target.value;
+                              setCautelarItens(updated);
+                            }}
+                            className="w-full text-xs"
+                          />
+                        </div>
+                        <div className="md:col-span-4">
+                          <input
+                            type="text"
+                            placeholder="Nº Lacre Aposto (ex: LACRE-0891)"
+                            value={item.lacreNumero}
+                            onChange={(e) => {
+                              const updated = [...cautelarItens];
+                              updated[idx].lacreNumero = e.target.value;
+                              setCautelarItens(updated);
+                            }}
+                            className="w-full text-xs font-mono font-bold text-amber-600 dark:text-amber-400"
+                          />
+                        </div>
+                        <div className="md:col-span-1 flex justify-center">
+                          {cautelarItens.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setCautelarItens(cautelarItens.filter((_, i) => i !== idx))}
+                              className="text-rose-500 hover:text-rose-700 p-1"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Painel Específico da Etapa 5: Auto de Imposição de Penalidade */}
+            {tipoAtoFiscal === 'IMPOSICAO_PENALIDADE' && (
+              <div className="p-5 bg-purple-50 dark:bg-purple-950/30 border-2 border-purple-400 dark:border-purple-600 rounded-2xl space-y-4">
+                <div className="flex items-center gap-2">
+                  <Scale className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  <h4 className="text-xs font-black uppercase text-purple-950 dark:text-purple-200">
+                    Etapa 5 • Auto de Imposição de Penalidade (Decisão do Julgamento do PAS)
+                  </h4>
+                </div>
+                <p className="text-xs text-purple-800 dark:text-purple-300">
+                  Documento lavrado pela Autoridade de Vigilância Sanitária com a decisão do julgamento do PAS e as penas aplicadas após o direito de defesa, com cópia ao infrator para ciência.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase block mb-1">Penalidade Decidida no Julgamento</label>
+                    <select
+                      value={penalidadeTipo}
+                      onChange={(e) => setPenalidadeTipo(e.target.value as any)}
+                    >
+                      <option value="MULTA">Multa Pecuniária</option>
+                      <option value="ADVERTENCIA">Pena de Advertência Formal</option>
+                      <option value="INUTILIZACAO_PRODUTOS">Inutilização de Produtos e Mercadorias</option>
+                      <option value="INTERDICAO_DEFINITIVA">Interdição Definitiva de Atividade</option>
+                      <option value="CANCELAMENTO_ALVARA">Cancelamento do Alvará de Licença Sanitária</option>
+                    </select>
+                  </div>
+
+                  {penalidadeTipo === 'MULTA' && (
+                    <div>
+                      <label className="text-[10px] font-bold uppercase block mb-1">Valor da Multa Aplicada (R$)</label>
+                      <input
+                        type="number"
+                        min={100}
+                        step={50}
+                        value={penalidadeValorMulta}
+                        onChange={(e) => setPenalidadeValorMulta(parseFloat(e.target.value) || 0)}
+                        className="font-bold text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase block mb-1">Fundamentação Técnica e Dosimetria da Decisão</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Exponha as razões do julgamento do PAS, atenuantes/agravantes e aplicação dosimétrica das penas..."
+                    value={penalidadeFundamentacao}
+                    onChange={(e) => setPenalidadeFundamentacao(e.target.value)}
+                    className="text-xs"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Comprovação de Entrega Presencial (Exigência Expressa da Normativa) */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-2xl space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-xs font-black uppercase text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <UserCheck className="w-4 h-4 text-emerald-500" />
+                  Comprovação de Entrega Presencial ao Notificado
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEntregaPresencialTipo('PRESENCIAL_RECEBIDO')}
+                    className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase cursor-pointer transition ${
+                      entregaPresencialTipo === 'PRESENCIAL_RECEBIDO'
+                        ? 'bg-emerald-600 text-white shadow'
+                        : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                    }`}
+                  >
+                    Ciência Presencial
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEntregaPresencialTipo('RECUSA_TESTEMUNHAS')}
+                    className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase cursor-pointer transition ${
+                      entregaPresencialTipo === 'RECUSA_TESTEMUNHAS'
+                        ? 'bg-rose-600 text-white shadow'
+                        : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                    }`}
+                  >
+                    Certidão de Recusa (2 Testemunhas)
+                  </button>
+                </div>
+              </div>
+
+              {entregaPresencialTipo === 'PRESENCIAL_RECEBIDO' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase block mb-1">Responsável que Recebeu Presencialmente</label>
+                    <input
+                      type="text"
+                      placeholder="Nome legível de quem tomou ciência no local"
+                      value={signatureOwner}
+                      onChange={(e) => setSignatureOwner(e.target.value)}
+                      className="text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase block mb-1">Fiscal Responsável pela Entrega</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={`${currentUser?.nome_completo || 'Carlos Eduardo Silva'} • Matrícula ${currentUser?.matricula || 'DVIS-BC'}`}
+                      className="bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-mono"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 rounded-xl space-y-3">
+                  <p className="text-[11px] font-bold text-rose-900 dark:text-rose-200">
+                    ✍️ O notificado recusou-se a assinar ou dar ciência ao auto presencial. Identifique as 2 (duas) testemunhas presenciais da recusa:
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-300">Testemunha Presencial 1</label>
+                      <input
+                        type="text"
+                        placeholder="Nome completo da Testemunha 1"
+                        value={recusaTestemunha1Nome}
+                        onChange={(e) => setRecusaTestemunha1Nome(e.target.value)}
+                        className="text-xs mb-1"
+                      />
+                      <input
+                        type="text"
+                        placeholder="CPF ou RG da Testemunha 1"
+                        value={recusaTestemunha1Cpf}
+                        onChange={(e) => setRecusaTestemunha1Cpf(e.target.value)}
+                        className="text-xs font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-300">Testemunha Presencial 2</label>
+                      <input
+                        type="text"
+                        placeholder="Nome completo da Testemunha 2"
+                        value={recusaTestemunha2Nome}
+                        onChange={(e) => setRecusaTestemunha2Nome(e.target.value)}
+                        className="text-xs mb-1"
+                      />
+                      <input
+                        type="text"
+                        placeholder="CPF ou RG da Testemunha 2"
+                        value={recusaTestemunha2Cpf}
+                        onChange={(e) => setRecusaTestemunha2Cpf(e.target.value)}
+                        className="text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Aviso Obrigatório do 1DOC */}
+            <div className="p-3.5 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black font-mono shrink-0">
+                  1D
+                </div>
+                <div>
+                  <p className="font-black text-blue-950 dark:text-blue-100">
+                    Encaminhamento Obrigatório à Direção via 1Doc
+                  </p>
+                  <p className="text-[11px] text-blue-800 dark:text-blue-300">
+                    Todos os autos lavrados devem ser despachados para a Direção da Vigilância Sanitária na plataforma 1Doc Municipal.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenExternal) {
+                    onOpenExternal('https://bc.1doc.com.br/b.php?pg=o/login&n=3');
+                  } else {
+                    window.open('https://bc.1doc.com.br/b.php?pg=o/login&n=3', '_blank');
+                  }
+                }}
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shrink-0 transition"
+              >
+                <span>Acessar 1Doc BC</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
@@ -1772,6 +2522,17 @@ export const FiscalizacaoView: React.FC<FiscalizacaoViewProps> = ({
                   <ArrowLeft className="w-4 h-4" /> Voltar a Minhas Demandas
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => {
+                  setItemParaRitoModal(selectedItem);
+                  setModalRitoOpen(true);
+                }}
+                className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black px-5 py-2 rounded-xl text-xs uppercase cursor-pointer flex items-center gap-1.5 transition active:scale-95 shadow"
+              >
+                <Scale className="w-4 h-4 text-amber-200" />
+                <span>Auto Oficial do Rito Sanitário</span>
+              </button>
               <button
                 onClick={handlePrint}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-2 rounded-xl text-xs uppercase cursor-pointer flex items-center gap-1.5 transition active:scale-95 shadow"
@@ -1894,6 +2655,26 @@ export const FiscalizacaoView: React.FC<FiscalizacaoViewProps> = ({
         }}
         onClose={() => setConfirmDelete({ isOpen: false, id: '', description: '' })}
       />
+
+      {/* Modal do Documento Oficial do Rito Processual Sanitário (Normativa DVIS) */}
+      {itemParaRitoModal && (
+        <RitoProcessualDocumentoModal
+          isOpen={modalRitoOpen}
+          onClose={() => {
+            setModalRitoOpen(false);
+            setItemParaRitoModal(null);
+          }}
+          fiscalizacao={itemParaRitoModal}
+          currentUser={currentUser}
+          onOpenExternal={(url: string) => {
+            if (onOpenExternal) {
+              onOpenExternal(url);
+            } else {
+              window.open(url, '_blank');
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
