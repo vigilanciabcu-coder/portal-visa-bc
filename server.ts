@@ -13,9 +13,11 @@ function getPort(): number {
   const portArgIdx = process.argv.indexOf('--port');
   if (portArgIdx !== -1 && process.argv[portArgIdx + 1]) {
     const parsed = parseInt(process.argv[portArgIdx + 1], 10);
-    if (!isNaN(parsed)) return parsed;
+    if (!isNaN(parsed) && parsed !== 8080) return parsed;
   }
-  if (process.env.PORT) {
+  // No ambiente de contêiner AI Studio / Cloud Run, a porta 8080 é do proxy NGINX.
+  // A aplicação Node / Express / Vite deve obrigatoriamente rodar na porta 3000.
+  if (process.env.PORT && process.env.PORT !== '8080') {
     const parsed = parseInt(process.env.PORT, 10);
     if (!isNaN(parsed)) return parsed;
   }
