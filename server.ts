@@ -43,6 +43,12 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
+// Inicia a escuta na porta 3000 de forma imediata (< 20ms) para que as sondas de saúde do ambiente aprovem instantaneamente
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n  ➜  Local:   http://localhost:${PORT}/`);
+  console.log(`  ➜  Network: http://0.0.0.0:${PORT}/\n`);
+});
+
 // 2. CNPJ / CPF Auto-Fill Lookup Endpoint
 app.get('/api/cnpj/:cnpj', async (req, res) => {
   const cleanVal = req.params.cnpj.replace(/\D/g, '');
@@ -971,9 +977,3 @@ if (process.env.NODE_ENV === 'production') {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
-
-// Inicia a escuta na porta 3000 de forma imediata (< 50ms) para que o health-check do ambiente aprove instantaneamente
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n  ➜  Local:   http://localhost:${PORT}/`);
-  console.log(`  ➜  Network: http://0.0.0.0:${PORT}/\n`);
-});
