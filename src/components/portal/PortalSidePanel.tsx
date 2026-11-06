@@ -31,6 +31,51 @@ interface PortalSidePanelProps {
   setMuralIndex: React.Dispatch<React.SetStateAction<number>>;
 }
 
+// Helper para detecção de gênero por primeiro nome
+const getGeneroPorNome = (nomeCompleto?: string): 'M' | 'F' => {
+  if (!nomeCompleto) return 'M';
+  const primeiroNome = nomeCompleto
+    .trim()
+    .split(' ')[0]
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  const nomesFemininos = new Set([
+    'ana', 'maria', 'rita', 'daiane', 'dayane', 'beatriz', 'carla', 'camila', 'bruna', 'juliana',
+    'patricia', 'fernanda', 'aline', 'amanda', 'mariana', 'gabriela', 'larissa', 'vanessa', 'jessica',
+    'leticia', 'paula', 'daniela', 'danielle', 'renata', 'luana', 'monica', 'priscila', 'claudia',
+    'marcia', 'silvia', 'simone', 'luciana', 'adriana', 'eliane', 'elisa', 'elisabete', 'elizabeth',
+    'cristina', 'sandra', 'rosana', 'rosangela', 'teresa', 'tereza', 'cleide', 'fatima', 'regina',
+    'helena', 'isabela', 'isabella', 'raquel', 'andreia', 'andrea', 'debora', 'denise', 'sueli',
+    'suely', 'vera', 'sonia', 'sabrina', 'tania', 'valeria', 'vivian', 'viviane', 'carolina',
+    'caroline', 'joana', 'flavia', 'cleusa', 'maristela', 'marlene', 'neusa', 'neuza', 'salete',
+    'roseli', 'rose', 'solange', 'lorena', 'natalia', 'nathalia', 'tamires', 'thais', 'taisa',
+    'marta', 'marisa', 'ivone', 'iraci', 'gisele', 'giselle', 'graziela', 'geovana', 'giovana',
+    'elza', 'edna', 'eva', 'ester', 'daniele', 'cintia', 'cinthia', 'bianca', 'alessandra',
+    'leila', 'lidia', 'ligia', 'lorena', 'luiza', 'luisa', 'luzia', 'magda', 'mais', 'maisa',
+    'nilza', 'norma', 'olga', 'paloma', 'pamela', 'poliana', 'pollyana', 'rebeca', 'ruth',
+    'shirley', 'sirlei', 'tatiana', 'tatiane', 'telma', 'valquiria', 'zelia', 'zilda', 'ines',
+    'cleia', 'creusa', 'dulce', 'gilda', 'iara', 'inara', 'janete', 'jurema', 'katia', 'lia',
+    'lorene', 'lucia', 'maira', 'mara', 'marina', 'marise', 'miriam', 'nadia', 'naiara', 'nair',
+    'neide', 'noemi', 'nubia', 'otavia', 'rosane', 'samanta', 'samara', 'suelen', 'suzana', 'telma',
+    'valesca', 'vilma', 'waleska', 'yasmin', 'yara'
+  ]);
+
+  if (nomesFemininos.has(primeiroNome)) return 'F';
+
+  const excecoesMasculinas = new Set([
+    'luca', 'lucas', 'alexandre', 'andre', 'felipe', 'guilherme', 'jorge', 'jose', 'davi', 'david',
+    'caua', 'juba', 'ayrton', 'alisson', 'adailton', 'hamilton'
+  ]);
+
+  if (primeiroNome.endsWith('a') && !excecoesMasculinas.has(primeiroNome)) {
+    return 'F';
+  }
+
+  return 'M';
+};
+
 export const PortalSidePanel: React.FC<PortalSidePanelProps> = ({
   currentUser,
   escala,
@@ -72,6 +117,19 @@ export const PortalSidePanel: React.FC<PortalSidePanelProps> = ({
     onSendMessage(chatInput);
     setChatInput('');
   };
+
+  // Aniversariantes de Hoje
+  const aniversariantesHoje = users.filter((u) => {
+    if (!u.data_nascimento) return false;
+    const parts = u.data_nascimento.split('-');
+    if (parts.length < 3) return false;
+    const birthMonth = parseInt(parts[1], 10) - 1;
+    const birthDay = parseInt(parts[2], 10);
+    return birthMonth === todayMonth && birthDay === todayDay;
+  });
+
+  const aniversarianteDestaque = aniversariantesHoje.length > 0 ? aniversariantesHoje[0] : null;
+  const generoDestaque = aniversarianteDestaque ? getGeneroPorNome(aniversarianteDestaque.nome_completo) : null;
 
   // Aniversariantes do Mês
   const aniversariantesMes = users.filter((u) => {
@@ -261,20 +319,44 @@ export const PortalSidePanel: React.FC<PortalSidePanelProps> = ({
       ) : (
         /* Painel dos Servidores e Contabilidade */
         <>
-          {/* Card Plantão do Dia */}
+          {/* Card AGENDA (com Plantão & Aniversário Dinâmico) */}
           {plantaoExibido && (
             <div
               onClick={() => onNavigate('agenda')}
-              className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer hover:border-blue-400 transition text-left group"
+              className={`rounded-2xl p-4 transition text-left group cursor-pointer ${
+                generoDestaque === 'F'
+                  ? 'bg-gradient-to-br from-pink-50/90 via-rose-50/40 to-white dark:from-pink-950/40 dark:via-slate-800 dark:to-slate-800 border-2 border-pink-400/80 dark:border-pink-500/80 shadow-md ring-2 ring-pink-400/20 hover:border-pink-500'
+                  : generoDestaque === 'M'
+                  ? 'bg-gradient-to-br from-blue-50/90 via-sky-50/40 to-white dark:from-blue-950/40 dark:via-slate-800 dark:to-slate-800 border-2 border-blue-400/80 dark:border-blue-500/80 shadow-md ring-2 ring-blue-400/20 hover:border-blue-500'
+                  : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-blue-400'
+              }`}
             >
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-2 mb-2.5">
-                <span className="text-[10px] font-black uppercase text-blue-600 dark:text-blue-400 flex items-center gap-1 tracking-wider">
-                  <Calendar className="w-3.5 h-3.5" /> Plantão Sanitário
+              <div className={`flex items-center justify-between border-b pb-2 mb-2.5 ${
+                generoDestaque === 'F'
+                  ? 'border-pink-200/80 dark:border-pink-800/60'
+                  : generoDestaque === 'M'
+                  ? 'border-blue-200/80 dark:border-blue-800/60'
+                  : 'border-slate-100 dark:border-slate-700/60'
+              }`}>
+                <span className={`text-[10px] font-black uppercase flex items-center gap-1.5 tracking-wider ${
+                  generoDestaque === 'F'
+                    ? 'text-pink-600 dark:text-pink-400'
+                    : generoDestaque === 'M'
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-blue-600 dark:text-blue-400'
+                }`}>
+                  <Calendar className="w-3.5 h-3.5" /> AGENDA
                 </span>
-                <span className="text-[10px] text-slate-400 group-hover:text-blue-500 font-bold">
+                <span className={`text-[10px] font-bold ${
+                  generoDestaque === 'F'
+                    ? 'text-pink-400 group-hover:text-pink-600 dark:group-hover:text-pink-300'
+                    : 'text-slate-400 group-hover:text-blue-500'
+                }`}>
                   Ver Agenda →
                 </span>
               </div>
+
+              {/* Escala / Plantão */}
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xs font-black text-slate-800 dark:text-white uppercase">
@@ -290,6 +372,62 @@ export const PortalSidePanel: React.FC<PortalSidePanelProps> = ({
                   </span>
                 </div>
               </div>
+
+              {/* Aniversariante do Dia (aparece embaixo, mas dentro da janela) */}
+              {aniversariantesHoje.length > 0 && (
+                <div className="mt-3 pt-2.5 border-t border-slate-200/80 dark:border-slate-700/60 space-y-1.5">
+                  {aniversariantesHoje.map((aniv) => {
+                    const gen = getGeneroPorNome(aniv.nome_completo);
+                    const isMulher = gen === 'F';
+                    return (
+                      <div
+                        key={aniv.id}
+                        className={`p-2.5 rounded-xl border flex items-center justify-between gap-2.5 transition ${
+                          isMulher
+                            ? 'bg-pink-100/80 dark:bg-pink-950/60 border-pink-300 dark:border-pink-800 text-pink-950 dark:text-pink-100 shadow-xs'
+                            : 'bg-blue-100/80 dark:bg-blue-950/60 border-blue-300 dark:border-blue-800 text-blue-950 dark:text-blue-100 shadow-xs'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 shadow-xs ${
+                              isMulher
+                                ? 'bg-pink-500 text-white'
+                                : 'bg-blue-600 text-white'
+                            }`}
+                          >
+                            <Cake className="w-4 h-4 animate-bounce" />
+                          </div>
+                          <div className="min-w-0 text-left">
+                            <div
+                              className={`text-[9px] font-black uppercase tracking-wider ${
+                                isMulher
+                                  ? 'text-pink-700 dark:text-pink-300'
+                                  : 'text-blue-700 dark:text-blue-300'
+                              }`}
+                            >
+                              🎉 Aniversário de Hoje
+                            </div>
+                            <div className="text-xs font-black uppercase truncate leading-tight">
+                              {aniv.nome_completo}
+                            </div>
+                          </div>
+                        </div>
+
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shrink-0 shadow-xs ${
+                            isMulher
+                              ? 'bg-pink-600 text-white'
+                              : 'bg-blue-600 text-white'
+                          }`}
+                        >
+                          Parabéns! 🎂
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
