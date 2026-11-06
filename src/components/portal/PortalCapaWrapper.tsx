@@ -53,7 +53,10 @@ export const PortalCapaWrapper: React.FC<PortalCapaWrapperProps> = ({
   return (
     <div className="flex flex-col gap-5 text-left">
       {/* 🌟 BANNER DE DESTAQUE SUPERIOR: PORTAL DO MUNÍCIPE & BANCO DE IDEIAS SANITÁRIAS */}
-      <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-slate-950 p-4 sm:p-6 rounded-3xl shadow-xl border-2 border-amber-300 relative overflow-hidden">
+      <div
+        style={{ height: '140.141px' }}
+        className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-slate-950 p-4 sm:p-6 rounded-3xl shadow-xl border-2 border-amber-300 relative overflow-hidden flex flex-col justify-center"
+      >
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 relative z-10">
           <div className="space-y-1.5 max-w-full">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-950/20 text-slate-950 rounded-full text-xs font-black uppercase tracking-wider">
