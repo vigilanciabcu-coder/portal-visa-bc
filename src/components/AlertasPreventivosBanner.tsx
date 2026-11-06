@@ -159,7 +159,10 @@ export const AlertasPreventivosBanner: React.FC<AlertasPreventivosBannerProps> =
   return (
     <div className="bg-gradient-to-r from-red-950/90 via-slate-900 to-amber-950/90 border border-red-500/50 rounded-2xl shadow-xl overflow-hidden mb-4 animate-fadeIn text-slate-100">
       {/* Barra de Alerta Principal */}
-      <div className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div
+        style={{ height: '60.9922px' }}
+        className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+      >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-red-600/30 border border-red-500/60 flex items-center justify-center text-red-400 shrink-0 shadow-lg">
             <ShieldAlert className="w-6 h-6 animate-pulse" />
