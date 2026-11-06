@@ -131,13 +131,7 @@ export const PortalSidePanel: React.FC<PortalSidePanelProps> = ({
   const aniversarianteDestaque = aniversariantesHoje.length > 0 ? aniversariantesHoje[0] : null;
   const generoDestaque = aniversarianteDestaque ? getGeneroPorNome(aniversarianteDestaque.nome_completo) : null;
 
-  // Aniversariantes do Mês
-  const aniversariantesMes = users.filter((u) => {
-    if (!u.data_nascimento) return false;
-    const parts = u.data_nascimento.split('-');
-    if (parts.length < 3) return false;
-    return parseInt(parts[1], 10) - 1 === todayMonth;
-  });
+
 
   // Helper para renderizar o Mural DVIS Oficial de forma padronizada e completa
   const renderMural = () => {
@@ -539,34 +533,6 @@ export const PortalSidePanel: React.FC<PortalSidePanelProps> = ({
               </button>
             </form>
           </div>
-
-          {/* Aniversariantes do Mês */}
-          {aniversariantesMes.length > 0 && (
-            <div className="bg-gradient-to-r from-pink-50 to-amber-50 dark:from-pink-950/30 dark:to-amber-950/30 rounded-2xl p-3 border border-pink-200 dark:border-pink-900/60 text-left text-xs space-y-1.5">
-              <span className="text-[10px] font-black uppercase text-pink-700 dark:text-pink-400 flex items-center gap-1 tracking-wider">
-                <Cake className="w-3.5 h-3.5" /> Aniversariantes do Mês
-              </span>
-              <div className="flex flex-wrap gap-1.5 pt-0.5">
-                {aniversariantesMes.map((u) => {
-                  const day = u.data_nascimento?.split('-')[2];
-                  const isHoje = parseInt(day || '0', 10) === todayDay;
-                  return (
-                    <span
-                      key={u.id}
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold ${
-                        isHoje
-                          ? 'bg-pink-600 text-white shadow-xs animate-bounce'
-                          : 'bg-white/80 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-pink-200 dark:border-pink-900'
-                      }`}
-                    >
-                      <Gift className="w-3 h-3 text-pink-500" />
-                      {u.nome_completo.split(' ')[0]} ({day})
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>

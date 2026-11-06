@@ -19,8 +19,54 @@ import {
   Sparkles,
   CheckCircle2,
   Link as LinkIcon,
-  Search
+  Search,
+  Cake
 } from 'lucide-react';
+
+// Helper para detecção de gênero por primeiro nome
+const getGeneroPorNome = (nomeCompleto?: string): 'M' | 'F' => {
+  if (!nomeCompleto) return 'M';
+  const primeiroNome = nomeCompleto
+    .trim()
+    .split(' ')[0]
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  const nomesFemininos = new Set([
+    'ana', 'maria', 'rita', 'daiane', 'dayane', 'beatriz', 'carla', 'camila', 'bruna', 'juliana',
+    'patricia', 'fernanda', 'aline', 'amanda', 'mariana', 'gabriela', 'larissa', 'vanessa', 'jessica',
+    'leticia', 'paula', 'daniela', 'danielle', 'renata', 'luana', 'monica', 'priscila', 'claudia',
+    'marcia', 'silvia', 'simone', 'luciana', 'adriana', 'eliane', 'elisa', 'elisabete', 'elizabeth',
+    'cristina', 'sandra', 'rosana', 'rosangela', 'teresa', 'tereza', 'cleide', 'fatima', 'regina',
+    'helena', 'isabela', 'isabella', 'raquel', 'andreia', 'andrea', 'debora', 'denise', 'sueli',
+    'suely', 'vera', 'sonia', 'sabrina', 'tania', 'valeria', 'vivian', 'viviane', 'carolina',
+    'caroline', 'joana', 'flavia', 'cleusa', 'maristela', 'marlene', 'neusa', 'neuza', 'salete',
+    'roseli', 'rose', 'solange', 'lorena', 'natalia', 'nathalia', 'tamires', 'thais', 'taisa',
+    'marta', 'marisa', 'ivone', 'iraci', 'gisele', 'giselle', 'graziela', 'geovana', 'giovana',
+    'elza', 'edna', 'eva', 'ester', 'daniele', 'cintia', 'cinthia', 'bianca', 'alessandra',
+    'leila', 'lidia', 'ligia', 'lorena', 'luiza', 'luisa', 'luzia', 'magda', 'mais', 'maisa',
+    'nilza', 'norma', 'olga', 'paloma', 'pamela', 'poliana', 'pollyana', 'rebeca', 'ruth',
+    'shirley', 'sirlei', 'tatiana', 'tatiane', 'telma', 'valquiria', 'zelia', 'zilda', 'ines',
+    'cleia', 'creusa', 'dulce', 'gilda', 'iara', 'inara', 'janete', 'jurema', 'katia', 'lia',
+    'lorene', 'lucia', 'maira', 'mara', 'marina', 'marise', 'miriam', 'nadia', 'naiara', 'nair',
+    'neide', 'noemi', 'nubia', 'otavia', 'rosane', 'samanta', 'samara', 'suelen', 'suzana', 'telma',
+    'valesca', 'vilma', 'waleska', 'yasmin', 'yara'
+  ]);
+
+  if (nomesFemininos.has(primeiroNome)) return 'F';
+
+  const excecoesMasculinas = new Set([
+    'luca', 'lucas', 'alexandre', 'andre', 'felipe', 'guilherme', 'jorge', 'jose', 'davi', 'david',
+    'caua', 'juba', 'ayrton', 'alisson', 'adailton', 'hamilton'
+  ]);
+
+  if (primeiroNome.endsWith('a') && !excecoesMasculinas.has(primeiroNome)) {
+    return 'F';
+  }
+
+  return 'M';
+};
 
 interface AgendaViewProps {
   escala: EscalaItem[];
@@ -205,6 +251,44 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   const countEventos = monthItems.filter((x) => x.tipo === 'EVENTO').length;
   const countFeriados = monthItems.filter((x) => x.tipo === 'FERIADO' || x.tipo === 'FACULTATIVO').length;
 
+  // Aniversariantes do mês atual
+  const aniversariantesMes = users.filter((u) => {
+    if (!u.data_nascimento) return false;
+    const parts = u.data_nascimento.split('-');
+    if (parts.length < 3) return false;
+    return parseInt(parts[1], 10) - 1 === currentMonth;
+  });
+  const countAniversariosMes = aniversariantesMes.length;
+
+  // Helper para buscar aniversariantes de um dia específico do mês atual
+  const getAniversariantesForDay = (dayNum: number) => {
+    return users.filter((u) => {
+      if (!u.data_nascimento) return false;
+      const parts = u.data_nascimento.split('-');
+      if (parts.length < 3) return false;
+      const birthMonth = parseInt(parts[1], 10) - 1;
+      const birthDay = parseInt(parts[2], 10);
+      return birthMonth === currentMonth && birthDay === dayNum;
+    });
+  };
+
+  // Helper para buscar aniversariantes de uma data ISO (YYYY-MM-DD)
+  const getAniversariantesForDate = (dateISO?: string | null) => {
+    if (!dateISO) return [];
+    const partsDate = dateISO.split('-');
+    if (partsDate.length < 3) return [];
+    const targetMonth = parseInt(partsDate[1], 10) - 1;
+    const targetDay = parseInt(partsDate[2], 10);
+    return users.filter((u) => {
+      if (!u.data_nascimento) return false;
+      const parts = u.data_nascimento.split('-');
+      if (parts.length < 3) return false;
+      const birthMonth = parseInt(parts[1], 10) - 1;
+      const birthDay = parseInt(parts[2], 10);
+      return birthMonth === targetMonth && birthDay === targetDay;
+    });
+  };
+
   return (
     <div className="w-full space-y-4 text-left">
       {/* Top Header & Controls */}
@@ -294,6 +378,11 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
           <span className="bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 px-2.5 py-1 rounded-xl">
             📌 {countFeriados} Feriados/Ptos
           </span>
+          {countAniversariosMes > 0 && (
+            <span className="bg-pink-50 dark:bg-pink-950/60 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-800 px-2.5 py-1 rounded-xl">
+              🎂 {countAniversariosMes} Aniversários
+            </span>
+          )}
         </div>
 
         {/* Filter Buttons */}
@@ -376,6 +465,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
           const fullDateISO = `${currentYear}-${monthStr}-${dayStr}`;
 
           const dayItems = getItemsForDate(fullDateISO);
+          const aniversariantesDoDia = getAniversariantesForDay(dayNum);
           const isToday = fullDateISO === new Date().toISOString().split('T')[0];
           const dayOfWeek = new Date(currentYear, currentMonth, dayNum).getDay();
           const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
@@ -396,14 +486,39 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
               {/* Card Header with Large Date Number */}
               <div className="w-full">
                 <div className="flex items-center justify-between mb-1.5">
-                  <div
-                    className={`flex items-center justify-center font-black transition-transform group-hover:scale-110 ${
-                      isToday
-                        ? 'bg-indigo-600 text-white rounded-xl px-2 py-0.5 text-sm sm:text-base md:text-lg shadow-sm'
-                        : 'text-base sm:text-lg md:text-xl text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
-                    }`}
-                  >
-                    {dayNum}
+                  <div className="flex items-center gap-1.5">
+                    <div
+                      className={`flex items-center justify-center font-black transition-transform group-hover:scale-110 ${
+                        isToday
+                          ? 'bg-indigo-600 text-white rounded-xl px-2 py-0.5 text-sm sm:text-base md:text-lg shadow-sm'
+                          : 'text-base sm:text-lg md:text-xl text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
+                      }`}
+                    >
+                      {dayNum}
+                    </div>
+
+                    {/* Pontinhos discretos de Aniversário (1 ponto por aniversariante) */}
+                    {aniversariantesDoDia.length > 0 && (
+                      <div
+                        className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-pink-50/90 dark:bg-pink-950/50 border border-pink-200/80 dark:border-pink-800/60 shadow-2xs"
+                        title={aniversariantesDoDia.map((u) => `🎂 Aniversário: ${u.nome_completo}`).join(' • ')}
+                      >
+                        {aniversariantesDoDia.map((u, dotIdx) => {
+                          const isMulher = getGeneroPorNome(u.nome_completo) === 'F';
+                          return (
+                            <span
+                              key={u.id || dotIdx}
+                              className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-transform group-hover:scale-125 shadow-xs ${
+                                isMulher
+                                  ? 'bg-pink-500 ring-1 ring-pink-300 dark:ring-pink-700'
+                                  : 'bg-blue-500 ring-1 ring-blue-300 dark:ring-blue-700'
+                              }`}
+                              title={`🎂 Aniversário: ${u.nome_completo}`}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Indicators / Counter */}
@@ -492,6 +607,55 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Bloco Comemorativo: Aniversariante(s) do Dia Selecionado */}
+            {(() => {
+              const anivs = getAniversariantesForDate(selectedDate);
+              if (anivs.length === 0) return null;
+              return (
+                <div className="mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-pink-50 via-rose-50 to-amber-50 dark:from-pink-950/40 dark:via-rose-950/30 dark:to-amber-950/30 border-2 border-pink-300 dark:border-pink-800/80 shadow-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase text-pink-700 dark:text-pink-300 flex items-center gap-1.5 tracking-wider">
+                      <Cake className="w-4 h-4 text-pink-500 animate-bounce" />
+                      {anivs.length === 1 ? 'Aniversariante do Dia' : `${anivs.length} Aniversariantes do Dia`}
+                    </span>
+                    <span className="text-[10px] font-black uppercase bg-pink-500 text-white px-2.5 py-0.5 rounded-full shadow-xs">
+                      Parabéns! 🎂
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {anivs.map((u) => {
+                      const isMulher = getGeneroPorNome(u.nome_completo) === 'F';
+                      return (
+                        <div
+                          key={u.id}
+                          className={`p-2.5 rounded-xl flex items-center justify-between gap-3 text-xs font-bold border transition ${
+                            isMulher
+                              ? 'bg-pink-100/80 dark:bg-pink-900/40 border-pink-200 dark:border-pink-800 text-pink-950 dark:text-pink-100'
+                              : 'bg-blue-100/80 dark:bg-blue-900/40 border-blue-200 dark:border-blue-800 text-blue-950 dark:text-blue-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className={`w-3 h-3 rounded-full shrink-0 shadow-xs ${isMulher ? 'bg-pink-500 ring-2 ring-pink-300' : 'bg-blue-500 ring-2 ring-blue-300'}`} />
+                            <div className="min-w-0 text-left">
+                              <span className="font-black uppercase text-sm block truncate">{u.nome_completo}</span>
+                              <span className="text-[10px] font-medium opacity-80 block truncate">{u.cargo || 'Servidor DVIS'}</span>
+                            </div>
+                          </div>
+
+                          {u.matricula && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-black/5 dark:bg-white/10 shrink-0">
+                              Mat: {u.matricula}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* List Existing Events */}
             <div className="space-y-2.5 mb-4 max-h-64 overflow-y-auto pr-1">
