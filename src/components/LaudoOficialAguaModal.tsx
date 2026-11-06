@@ -184,11 +184,46 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
     if (!printAreaRef.current) return;
     try {
       setIsGeneratingPdf(true);
+
+      // 1. Aguardar fontes do navegador estarem 100% carregadas e prontas
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+      // Pequena pausa para garantir que o DOM e os layouts de texto estejam estabilizados
+      await new Promise(resolve => setTimeout(resolve, 80));
+
+      // 2. Renderização de alta fidelidade imune a zoom, tradutor automático e variações de kerning
       const canvas = await html2canvas(printAreaRef.current, {
         scale: 2.5,
         useCORS: true,
         allowTaint: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        logging: false,
+        onclone: (_clonedDoc, clonedElement) => {
+          // Bloqueia qualquer tradução automática do Google Chrome
+          clonedElement.setAttribute('translate', 'no');
+          clonedElement.classList.add('notranslate');
+
+          // Força largura exata de folha A4 a 96DPI (794px = 210mm) para evitar distorções de zoom do browser
+          clonedElement.style.width = '794px';
+          clonedElement.style.minWidth = '794px';
+          clonedElement.style.maxWidth = '794px';
+          clonedElement.style.boxSizing = 'border-box';
+          clonedElement.style.fontFamily = "Arial, Helvetica, 'Liberation Sans', sans-serif";
+          clonedElement.style.letterSpacing = 'normal';
+          clonedElement.style.wordSpacing = 'normal';
+          clonedElement.style.textRendering = 'geometricPrecision';
+
+          // Percorre todos os descendentes para garantir que letter-spacing seja estritamente 'normal'
+          clonedElement.querySelectorAll('*').forEach(node => {
+            const el = node as HTMLElement;
+            el.setAttribute('translate', 'no');
+            el.classList.add('notranslate');
+            el.style.letterSpacing = 'normal';
+            el.style.fontVariant = 'normal';
+            el.style.fontFeatureSettings = 'normal';
+          });
+        }
       });
 
       const imgData = canvas.toDataURL('image/jpeg', 0.98);
@@ -270,7 +305,17 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
         {/* ======================================================== */}
         {/* DOCUMENTO OFICIAL TIMBRADO (FORMATO A4 / IMPRESSÃO LIMPA) */}
         {/* ======================================================== */}
-        <div ref={printAreaRef} id="printable-laudo" className="border-2 border-black p-4 sm:p-6 bg-white relative text-black print:border-black font-sans leading-tight">
+        <div
+          ref={printAreaRef}
+          id="printable-laudo"
+          translate="no"
+          className="notranslate border-2 border-black p-4 sm:p-6 bg-white relative text-black print:border-black font-sans leading-tight"
+          style={{
+            fontFamily: "Arial, 'Helvetica Neue', Helvetica, sans-serif",
+            letterSpacing: 'normal',
+            wordSpacing: 'normal'
+          }}
+        >
           {/* Cabeçalho Oficial */}
           <div className="flex items-center gap-3 sm:gap-4 border-b-2 border-black pb-2 mb-2">
             <img
@@ -285,13 +330,13 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
               }}
             />
             <div className="flex-1 text-left leading-tight space-y-0.5">
-              <div className="text-[10.5px] font-bold uppercase text-slate-700 tracking-wider">
+              <div className="text-[10.5px] font-bold uppercase text-slate-700 tracking-normal">
                 ESTADO DE SANTA CATARINA • MUNICÍPIO DE BALNEÁRIO CAMBORIÚ
               </div>
               <div className="text-[10.5px] font-bold uppercase text-slate-700">
                 SECRETARIA MUNICIPAL DE SAÚDE
               </div>
-              <div className="text-[13px] sm:text-[14px] font-black uppercase text-blue-900 tracking-tight">
+              <div className="text-[13px] sm:text-[14px] font-black uppercase text-blue-900 tracking-normal">
                 DIVISÃO DE VIGILÂNCIA SANITÁRIA (DVIS)
               </div>
               <div className="text-[9.5px] font-bold uppercase text-slate-700">
@@ -301,7 +346,7 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
           </div>
 
           {/* Título Principal */}
-          <div className="text-center font-black text-[11px] uppercase py-0.5 bg-slate-100 border border-black mb-1.5 tracking-wide">
+          <div className="text-center font-black text-[11px] uppercase py-0.5 bg-slate-100 border border-black mb-1.5 tracking-normal">
             LAUDO DE ANÁLISE DE ÁGUA PARA CONSUMO HUMANO
           </div>
 
@@ -309,12 +354,12 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
           <div className="border border-black text-[10px] divide-y divide-black mb-1.5 leading-tight">
             <div className="grid grid-cols-12 divide-x divide-black bg-slate-50 font-bold p-0.5">
               <div className="col-span-4 px-1">
-                PROTOCOLO: <span className="font-mono">{item.protocolo || '60.455/2026'}</span>
+                PROTOCOLO:&nbsp;<span className="font-mono">{item.protocolo || '60.455/2026'}</span>
               </div>
               <div className="col-span-5 px-1">
-                Amostra Nº <span className="font-mono">{item.codigo_amostra || '172'}</span> {item.laudo_numero && (
-                  <span className="text-cyan-900 font-black">• Laudo: {item.laudo_numero}</span>
-                )}
+                Amostra Nº&nbsp;<span className="font-mono">{item.codigo_amostra || '172'}</span>{item.laudo_numero ? (
+                  <span className="text-cyan-900 font-black">&nbsp;•&nbsp;Laudo:&nbsp;{item.laudo_numero}</span>
+                ) : null}
               </div>
               <div className="col-span-3 px-1 text-right uppercase">
                 {item.mes_ano_referencia || 'JULHO / 2026'}
@@ -322,46 +367,46 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
             </div>
 
             <div className="p-0.5 px-1">
-              <span className="font-bold">Responsável pela distribuição:</span> {item.responsavel_distribuicao || 'EMASA'}
+              <span className="font-bold">Responsável pela distribuição:&nbsp;</span>{item.responsavel_distribuicao || 'EMASA'}
             </div>
 
             <div className="p-0.5 px-1">
-              <span className="font-bold">Interessado:</span> <span className="font-black uppercase">{item.interessado || item.estabelecimento}</span>
+              <span className="font-bold">Interessado:&nbsp;</span><span className="font-black uppercase">{item.interessado || item.estabelecimento}</span>
             </div>
 
             <div className="grid grid-cols-12 divide-x divide-black p-0.5">
               <div className="col-span-6 px-1">
-                <span className="font-bold">CNPJ / CPF:</span> <span className="font-mono">{item.cnpj_cpf}</span>
+                <span className="font-bold">CNPJ / CPF:&nbsp;</span><span className="font-mono">{item.cnpj_cpf}</span>
               </div>
               <div className="col-span-6 px-1">
-                <span className="font-bold">Número Alvará:</span> {item.numero_alvara || 'Solicitado'}
+                <span className="font-bold">Número Alvará:&nbsp;</span>{item.numero_alvara || 'Solicitado'}
               </div>
             </div>
 
             <div className="p-0.5 px-1">
-              <span className="font-bold">Endereço:</span> {item.endereco}
+              <span className="font-bold">Endereço:&nbsp;</span>{item.endereco}
             </div>
 
             <div className="grid grid-cols-12 divide-x divide-black p-0.5">
               <div className="col-span-8 px-1">
-                <span className="font-bold">Local de Coleta:</span> <span className="font-black uppercase">{item.local_coleta || 'TORNEIRA DA ÁREA DE MANIPULAÇÃO'}</span>
+                <span className="font-bold">Local de Coleta:&nbsp;</span><span className="font-black uppercase">{item.local_coleta || 'TORNEIRA DA ÁREA DE MANIPULAÇÃO'}</span>
               </div>
               <div className="col-span-4 px-1">
-                <span className="font-bold">Data da Coleta:</span> {formatarDataSegura(item.data_coleta)}
+                <span className="font-bold">Data da Coleta:&nbsp;</span>{formatarDataSegura(item.data_coleta)}
               </div>
             </div>
 
             <div className="grid grid-cols-12 divide-x divide-black p-0.5">
               <div className="col-span-8 px-1">
-                <span className="font-bold">Coletado por:</span> {item.fiscal_coletor || 'Rita Sahd'}
+                <span className="font-bold">Coletado por:&nbsp;</span>{item.fiscal_coletor || 'Rita Sahd'}
               </div>
               <div className="col-span-4 px-1">
-                <span className="font-bold">Hora da Coleta:</span> {item.hora_coleta || '08:20'}
+                <span className="font-bold">Hora da Coleta:&nbsp;</span>{item.hora_coleta || '08:20'}
               </div>
             </div>
 
             <div className="p-0.5 px-1">
-              <span className="font-bold">Observações:</span>
+              <span className="font-bold">Observações:&nbsp;</span>
               <div className="uppercase text-[9px] mt-0.5 font-medium">
                 {item.observacoes || 'ANÁLISE SOLICITADA PARA VERIFICAR QUALIDADE DA ÁGUA PARA CONSUMO HUMANO'}
               </div>
@@ -375,13 +420,13 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
             </div>
             <div className="grid grid-cols-3 divide-x divide-black text-[10px] p-0.5">
               <div className="px-1">
-                <span className="font-bold">Aspecto:</span> {item.aspecto || 'Límpido'}
+                <span className="font-bold">Aspecto:&nbsp;</span>{item.aspecto || 'Límpido'}
               </div>
               <div className="px-1">
-                <span className="font-bold">Odor:</span> {item.odor || 'Inobjetável'}
+                <span className="font-bold">Odor:&nbsp;</span>{item.odor || 'Inobjetável'}
               </div>
               <div className="px-1">
-                <span className="font-bold">Cor:</span> {item.cor || 'Incolor'}
+                <span className="font-bold">Cor:&nbsp;</span>{item.cor || 'Incolor'}
               </div>
             </div>
           </div>
@@ -573,7 +618,7 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
             <div className="grid grid-cols-2 gap-3 items-center">
               <div>
                 <div>
-                  <span className="font-bold">Data do Resultado:</span> {item.data_resultado || '04/08/2026'}
+                  <span className="font-bold">Data do Resultado:&nbsp;</span>{formatarDataSegura(item.data_resultado)}
                 </div>
                 {item.assinatura_digital_validada && (
                   <div className="mt-1 inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md border border-emerald-300">
@@ -605,7 +650,7 @@ export const LaudoOficialAguaModal: React.FC<LaudoOficialAguaModalProps> = ({
               transformOrigin: 'center center'
             }}
           >
-            DOCUMENTO ASSINADO DIGITALMENTE POR SENHA • RESP. TÉCNICO: {item.laboratorialista || 'ADRIANO GUARDINI'} ({item.registro_conselho || 'CRF/SC- 3321'}) • HASH: {item.assinatura_digital_hash || 'VISA-CRF-SC-VALID'} • AUTENTICADO EM: {item.data_resultado || '24/08/2026'} • VIGILÂNCIA SANITÁRIA PMBC
+            DOCUMENTO ASSINADO DIGITALMENTE POR SENHA • RESP. TÉCNICO: {item.laboratorialista || 'ADRIANO GUARDINI'} ({item.registro_conselho || 'CRF/SC- 3321'}) • HASH: {item.assinatura_digital_hash || 'VISA-CRF-SC-VALID'} • AUTENTICADO EM: {formatarDataSegura(item.data_resultado)} • VIGILÂNCIA SANITÁRIA PMBC
           </div>
 
           {/* Rodapé Oficial da Vigilância Sanitária */}

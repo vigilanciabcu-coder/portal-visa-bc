@@ -31,11 +31,110 @@ export const PortalProfileBanner: React.FC<PortalProfileBannerProps> = ({
 
   return (
     <div className="space-y-4 mb-4">
-      {/* 1. BANNER MASTER */}
-      {isMaster && userType === 'SERVIDOR' && (
+      {/* 1. SE FOR SERVIDOR MASTER COM ACESSO A DEMANDAS: BARRA UNIFICADA MEIO A MEIO */}
+      {isMaster && userType === 'SERVIDOR' && (canAccessFiscalDemandas || canAccessDiretorDemandas) && (
+        <div className="rounded-2xl overflow-hidden border-2 border-slate-700/60 shadow-xl grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-700/60 bg-slate-900">
+          {/* METADE ESQUERDA: PAINEL MASTER & DIVISÃO DVIS (Gradiente Roxo / Dourado) */}
+          <div
+            onClick={() => onNavigate('master')}
+            className="bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-950 px-3.5 py-2.5 sm:px-4 sm:py-3 text-white flex items-center justify-between gap-3 cursor-pointer hover:bg-purple-900/30 transition group"
+            title="Clique para acessar o Painel Master"
+          >
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+              <div className="bg-amber-400 text-slate-950 p-2 sm:p-2.5 rounded-xl shadow shrink-0 group-hover:scale-105 transition-transform">
+                <Crown className="w-5 h-5" />
+              </div>
+              <div className="text-left min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <h3 className="font-black uppercase text-xs sm:text-sm text-amber-300 truncate">
+                    Painel Master & Divisão DVIS
+                  </h3>
+                  <span className="hidden xl:inline-block px-1.5 py-0.2 bg-amber-400/20 text-amber-300 border border-amber-400/40 rounded text-[9px] font-black uppercase tracking-wider">
+                    Master
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 truncate max-w-[200px] sm:max-w-xs md:max-w-sm">
+                  Operadores, Agenda Oficial, Mural & Permissões
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onNavigate('master');
+              }}
+              className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] px-3 py-1.5 rounded-xl uppercase shadow transition cursor-pointer shrink-0 flex items-center gap-1 active:scale-95 whitespace-nowrap"
+            >
+              <span>Acessar</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* METADE DIREITA: CONTROLE OPERACIONAL DE DEMANDAS SANITÁRIAS (Gradiente Azul / Ardósia) */}
+          <div className="bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 px-3.5 py-2.5 sm:px-4 sm:py-3 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="bg-blue-600/30 text-blue-300 border border-blue-400/30 p-2 sm:p-2.5 rounded-xl shadow shrink-0">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div className="text-left min-w-0">
+                <div className="inline-flex items-center gap-1 px-1.5 py-0.2 bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded text-[9px] font-black uppercase tracking-wider mb-0.5">
+                  {canAccessDiretorDemandas ? 'Controle Operacional' : 'Área Fiscal'}
+                </div>
+                <h3 className="font-black uppercase text-xs sm:text-sm text-slate-100 truncate">
+                  Demandas Sanitárias
+                </h3>
+              </div>
+            </div>
+
+            {/* Ações / Funções do Controle Operacional */}
+            <div className="flex items-center gap-1.5 w-full sm:w-auto shrink-0 justify-end">
+              {canAccessFiscalDemandas && (
+                <button
+                  type="button"
+                  onClick={() => onNavigate('demandas_fiscal')}
+                  className="px-2.5 py-1.5 rounded-xl bg-blue-900/60 border border-blue-500/50 hover:bg-blue-800/80 hover:border-blue-400 text-white font-black text-[11px] uppercase shadow transition flex items-center gap-1 cursor-pointer active:scale-95 shrink-0"
+                  title="Acessar Minhas Demandas & Ordens de Fiscalização"
+                >
+                  <FileSignature className="w-3.5 h-3.5 text-blue-300" />
+                  <span>Demandas</span>
+                </button>
+              )}
+
+              {canAccessDiretorDemandas && (
+                <button
+                  type="button"
+                  onClick={() => onNavigate('demandas_diretor')}
+                  className="px-2.5 py-1.5 rounded-xl bg-purple-900/60 border border-purple-500/50 hover:bg-purple-800/80 hover:border-purple-400 text-white font-black text-[11px] uppercase shadow transition flex items-center gap-1 cursor-pointer active:scale-95 shrink-0"
+                  title="Gestão da Diretoria e Distribuição de Ordens"
+                >
+                  <Users className="w-3.5 h-3.5 text-purple-300" />
+                  <span>Diretoria</span>
+                </button>
+              )}
+
+              {canAccessDiretorDemandas && (
+                <button
+                  type="button"
+                  onClick={() => onNavigate('demandas_diretor')}
+                  className="px-2.5 py-1.5 rounded-xl bg-emerald-950/70 border border-emerald-500/50 hover:bg-emerald-900/80 hover:border-emerald-400 text-emerald-200 font-black text-[11px] uppercase shadow transition flex items-center gap-1 cursor-pointer active:scale-95 shrink-0"
+                  title="Painel Executivo de Business Intelligence & Relatórios"
+                >
+                  <BarChart3 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>BI Exec</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. CASO SEJA APENAS MASTER (SEM DEMANDAS DE DIRETOR OU FISCAL) */}
+      {isMaster && userType === 'SERVIDOR' && !(canAccessFiscalDemandas || canAccessDiretorDemandas) && (
         <div
           onClick={() => onNavigate('master')}
-          className="bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 p-4 rounded-2xl border-2 border-amber-400/80 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xl cursor-pointer hover:scale-[1.01] transition"
+          className="bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 p-3 sm:p-4 rounded-2xl border-2 border-amber-400/80 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xl cursor-pointer hover:scale-[1.01] transition"
         >
           <div className="flex items-center gap-3">
             <div className="bg-amber-400 text-slate-950 p-2.5 rounded-xl shadow">
@@ -56,7 +155,7 @@ export const PortalProfileBanner: React.FC<PortalProfileBannerProps> = ({
         </div>
       )}
 
-      {/* 2. BANNER CONTABILIDADE */}
+      {/* 3. BANNER CONTABILIDADE */}
       {userType === 'CONTABILIDADE' && (
         <div
           onClick={() => onNavigate('processos_lab')}
@@ -84,7 +183,7 @@ export const PortalProfileBanner: React.FC<PortalProfileBannerProps> = ({
         </div>
       )}
 
-      {/* 3. BANNER CIDADAO & SERVIÇOS DO MUNÍCIPE */}
+      {/* 4. BANNER CIDADAO & SERVIÇOS DO MUNÍCIPE */}
       {userType === 'CIDADAO' && (
         <div className="bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 p-4 sm:p-5 rounded-2xl border-2 border-emerald-400 text-white shadow-xl space-y-4 animate-fadeIn">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -128,7 +227,7 @@ export const PortalProfileBanner: React.FC<PortalProfileBannerProps> = ({
         </div>
       )}
 
-      {/* 4. BANNER CONTRIBUINTE */}
+      {/* 5. BANNER CONTRIBUINTE */}
       {userType === 'CONTRIBUINTE' && (
         <div
           onClick={() => onNavigate('processos_lab')}
@@ -156,8 +255,8 @@ export const PortalProfileBanner: React.FC<PortalProfileBannerProps> = ({
         </div>
       )}
 
-      {/* 5. BANNER DEMANDAS FISCAIS & DIRETORIA (SERVIDOR) */}
-      {userType === 'SERVIDOR' && (canAccessFiscalDemandas || canAccessDiretorDemandas) && (
+      {/* 6. BANNER DEMANDAS FISCAIS & DIRETORIA (SERVIDOR NÃO-MASTER) */}
+      {!isMaster && userType === 'SERVIDOR' && (canAccessFiscalDemandas || canAccessDiretorDemandas) && (
         <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-3 sm:p-4 rounded-2xl border-2 border-blue-500/50 shadow-xl text-left flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3.5">
           <div className="max-w-xl">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded-full text-[10px] font-black uppercase tracking-wider mb-1">

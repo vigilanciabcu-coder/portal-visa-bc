@@ -159,11 +159,39 @@ export const DocumentoOficialPdfModal: React.FC<DocumentoOficialPdfModalProps> =
     try {
       setIsGeneratingPdf(true);
 
+      // Aguardar fontes estarem completamente carregadas
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+      await new Promise(resolve => setTimeout(resolve, 80));
+
       const canvas = await html2canvas(printAreaRef.current, {
         scale: 2.5, // Alta resolução para impressão nítida
         useCORS: true,
         allowTaint: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        logging: false,
+        onclone: (_clonedDoc, clonedElement) => {
+          clonedElement.setAttribute('translate', 'no');
+          clonedElement.classList.add('notranslate');
+          clonedElement.style.width = '794px';
+          clonedElement.style.minWidth = '794px';
+          clonedElement.style.maxWidth = '794px';
+          clonedElement.style.boxSizing = 'border-box';
+          clonedElement.style.fontFamily = "Arial, Helvetica, 'Liberation Sans', sans-serif";
+          clonedElement.style.letterSpacing = 'normal';
+          clonedElement.style.wordSpacing = 'normal';
+          clonedElement.style.textRendering = 'geometricPrecision';
+
+          clonedElement.querySelectorAll('*').forEach(node => {
+            const el = node as HTMLElement;
+            el.setAttribute('translate', 'no');
+            el.classList.add('notranslate');
+            el.style.letterSpacing = 'normal';
+            el.style.fontVariant = 'normal';
+            el.style.fontFeatureSettings = 'normal';
+          });
+        }
       });
 
       const imgData = canvas.toDataURL('image/jpeg', 0.98);
