@@ -100,6 +100,19 @@ export const PORTAL_BUTTONS_CONFIG: PortalButtonDef[] = [
     perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'],
     categoria_portal: 'OPERACIONAL'
   },
+  {
+    id: 'ccpu_btn',
+    nome: 'CCPU - Controle de Pragas',
+    descricao: 'Monitoramento de escorpiões em bueiros com temperatura Google, ratos, baratas e zoonoses',
+    url: '',
+    img: 'ccpu',
+    acao: 'view',
+    view: 'ccpu',
+    badgetext: 'ZOONOSES',
+    perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'],
+    categoria_portal: 'OPERACIONAL',
+    destaque: true
+  },
 
   // 2. MÓDULO CONTRIBUINTE & ESCRITÓRIO CONTÁBIL
   {

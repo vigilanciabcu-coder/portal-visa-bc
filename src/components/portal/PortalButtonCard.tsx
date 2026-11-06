@@ -12,7 +12,8 @@ import {
   ExternalLink,
   Sparkles,
   Lightbulb,
-  Scale
+  Scale,
+  Bug
 } from 'lucide-react';
 
 interface PortalButtonCardProps {
@@ -83,6 +84,18 @@ export const PortalButtonCard: React.FC<PortalButtonCardProps> = ({
           </div>
           <span className="absolute -bottom-1 -right-1 bg-indigo-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase shadow">
             JURÍDICO
+          </span>
+        </div>
+      );
+    }
+    if (b.view === 'ccpu' || b.id === 'ccpu_btn' || b.img === 'ccpu') {
+      return (
+        <div className="relative flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 via-amber-600 to-yellow-600 flex items-center justify-center text-slate-950 shadow-md ring-2 ring-amber-400/50">
+            <span className="text-2xl">🦂</span>
+          </div>
+          <span className="absolute -bottom-1 -right-1 bg-amber-500 text-slate-950 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase shadow">
+            CCPU
           </span>
         </div>
       );

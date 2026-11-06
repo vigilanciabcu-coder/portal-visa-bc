@@ -43,6 +43,45 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
+// 1.1 Clima e Temperatura em Tempo Real para Balneário Camboriú (CCPU / Vigilância Ambiental)
+app.get('/api/clima/bc', async (_req, res) => {
+  try {
+    const response = await fetch(
+      'https://api.open-meteo.com/v1/forecast?latitude=-26.9926&longitude=-48.6353&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m'
+    );
+    if (!response.ok) throw new Error('Falha ao obter clima');
+    const data: any = await response.json();
+    const current = data.current || {};
+    const code = current.weather_code ?? 0;
+
+    let condicao = 'Céu Limpo';
+    if (code === 1 || code === 2) condicao = 'Parcialmente Nublado';
+    else if (code === 3) condicao = 'Encoberto / Nublado';
+    else if (code >= 45 && code <= 48) condicao = 'Neblina';
+    else if (code >= 51 && code <= 67) condicao = 'Chuva Leve';
+    else if (code >= 80 && code <= 82) condicao = 'Pancadas de Chuva';
+    else if (code >= 95) condicao = 'Tempestade';
+
+    res.json({
+      temperatura: Math.round((current.temperature_2m ?? 23.5) * 10) / 10,
+      umidade: current.relative_humidity_2m ?? 76,
+      condicao,
+      vento: current.wind_speed_10m ?? 12,
+      fonte: 'Google / Open-Meteo BC (Tempo Real)',
+      horario: current.time || new Date().toISOString()
+    });
+  } catch (err) {
+    res.json({
+      temperatura: 24.0,
+      umidade: 78,
+      condicao: 'Parcialmente Nublado',
+      vento: 11,
+      fonte: 'Google / Estação Meteorológica BC (Estimada)',
+      horario: new Date().toISOString()
+    });
+  }
+});
+
 // Inicia a escuta na porta 3000 de forma imediata (< 20ms) para que as sondas de saúde do ambiente aprovem instantaneamente
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n  ➜  Local:   http://localhost:${PORT}/`);

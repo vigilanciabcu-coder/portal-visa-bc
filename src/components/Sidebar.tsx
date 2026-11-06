@@ -6,7 +6,7 @@ interface SidebarProps {
   buttons: PortalButton[];
   currentView: string;
   currentUser: UserProfile | null;
-  onNavigate: (view: 'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'teste_pasta' | 'repositorio_juridico') => void;
+  onNavigate: (view: 'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'teste_pasta' | 'repositorio_juridico' | 'ccpu') => void;
   onOpenExternal: (url: string) => void;
   onOpenPwaModal?: () => void;
   onOpenBackupModal?: () => void;
@@ -108,6 +108,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
     if (b.view === 'geo_visa' || b.id === 'mapa' || b.id === 'geo_visa') {
       return <Compass className="w-6 h-6 text-cyan-400" />;
+    }
+    if (b.view === 'ccpu' || b.id === 'ccpu_btn' || b.img === 'ccpu') {
+      return <span className="text-xl" title="CCPU">🦂</span>;
     }
     if (b.view === 'alvara_visa' || b.id === 'alvara_visa') {
       return (

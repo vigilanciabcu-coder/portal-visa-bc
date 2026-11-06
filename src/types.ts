@@ -967,8 +967,68 @@ export interface PortalButton {
   url: string;
   img: string;
   acao: 'link' | 'view';
-  view?: 'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'repositorio_juridico';
+  view?: 'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'repositorio_juridico' | 'ccpu';
   badgetext?: string;
   somenteMaster?: boolean;
   perfisPermitidos?: ('SERVIDOR' | 'CONTABILIDADE' | 'CIDADAO' | 'CONTRIBUINTE')[];
 }
+
+// ==========================================
+// CCPU - CENTRO DE CONTROLE DE PRAGAS URBANAS
+// ==========================================
+export type TipoPragaCcpu =
+  | 'ESCORPIAO'
+  | 'RATO'
+  | 'BARATA'
+  | 'ESPOROTRICOSE'
+  | 'POMBO'
+  | 'FORMIGA'
+  | 'OUTRO';
+
+export type TipoLocalCcpu =
+  | 'BUEIRO_BOCA_LOBO'
+  | 'CAIXA_INSPECAO'
+  | 'GALERIA_ESGOTO'
+  | 'RESIDENCIA'
+  | 'COMERCIO'
+  | 'TERRENO_BALDIO'
+  | 'VIA_PUBLICA'
+  | 'ESCOLA_CRECHE'
+  | 'UNIDADE_SAUDE'
+  | 'OUTRO';
+
+export type StatusEspecimeCcpu = 'VIVO' | 'MORTO' | 'AMBOS' | 'APENAS_VESTIGIOS';
+
+export interface CcpuOcorrenciaItem {
+  id: string;
+  protocolo: string; // Ex: CCPU-2026-0042
+  tipoPraga: TipoPragaCcpu;
+  subtipoEspecie: string; // Ex: Tityus serrulatus (Escorpião Amarelo)
+  dataHora: string; // Ex: 2026-11-06T14:30
+  temperatura: number; // Ex: 24.5
+  umidadeRelativa?: number; // Ex: 78
+  condicaoClima: string; // Ex: "Noite Quente e Úmida"
+  fonteTemperatura: string; // Ex: "Google / Open-Meteo BC (Tempo Real)"
+  endereco: string;
+  numero?: string;
+  bairro: string;
+  tipoLocal: TipoLocalCcpu;
+  identificacaoBueiroLocal: string; // Ex: "Bueiro #BC-B32 - Av. Brasil esquina Rua 1500"
+  lat: number;
+  lng: number;
+  quantidade: number;
+  statusEspecime: StatusEspecimeCcpu;
+  metodoColetaAcao: string; // Ex: "Busca ativa noturna com lanterna UV", "Armadilha mecânica", etc.
+  condicaoEstrutural?: string; // Ex: "Tampa quebrada com fresta de 4cm"
+  fatoresAtrativos: string[]; // Ex: ["Presença de baratas", "Água parada / umidade", "Entulho"]
+  servidorResponsavel: string;
+  matriculaServidor?: string;
+  statusOcorrencia: 'COLETADO' | 'EM_MONITORAMENTO' | 'BLOQUEIO_REALIZADO' | 'AGUARDANDO_OBRAS' | 'CONCLUIDO';
+  notificacaoEmitida: boolean;
+  numeroNotificacao?: string;
+  observacoes: string;
+  medidasAdotadas: string;
+  fotos?: string[];
+  createdAt: string;
+}
+

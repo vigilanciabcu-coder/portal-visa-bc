@@ -102,11 +102,13 @@ import { TelefonesView } from './components/TelefonesView';
 import { PastaVisaView } from './components/PastaVisaView';
 import { AlvaraView } from './components/AlvaraView';
 import { DemandasFiscaisView } from './components/DemandasFiscaisView';
+import { CcpuView } from './components/ccpu/CcpuView';
 
 const PORTAL_BUTTONS: PortalButton[] = [
   { id: 'pref', nome: 'Prefeitura', url: 'https://www.bc.sc.gov.br/', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/brasao__1_-removebg-preview%20(1).avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'demandas_fiscal', nome: 'Minhas Demandas (Fiscal)', url: '', img: 'demandas-fiscal', acao: 'view', view: 'demandas_fiscal', badgetext: 'FISCAL', perfisPermitidos: ['SERVIDOR'] },
   { id: 'demandas_diretor', nome: 'Painel da Diretoria (Demandas)', url: '', img: 'demandas-diretor', acao: 'view', view: 'demandas_diretor', badgetext: 'DIRETORIA', perfisPermitidos: ['SERVIDOR'] },
+  { id: 'ccpu_btn', nome: 'CCPU - Controle de Pragas', url: '', img: 'ccpu', acao: 'view', view: 'ccpu', badgetext: 'ZOONOSES', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'alvara_visa', nome: 'ALVARÁ', url: '', img: 'alvara', acao: 'view', view: 'alvara_visa', badgetext: 'OFICIAL', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'pasta_visa', nome: 'PASTA VISA', url: '', img: 'folder-archive', acao: 'view', view: 'pasta_visa', badgetext: 'ADM', perfisPermitidos: ['SERVIDOR'] },
   { id: '1doc', nome: '1Doc', url: 'https://bc.1doc.com.br/b.php?pg=o/login&n=3', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/1Doc.avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
@@ -136,7 +138,7 @@ const PORTAL_BUTTONS: PortalButton[] = [
 
 export default function App() {
   // Navigation & View
-  const [currentView, setCurrentView] = useState<'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'teste_pasta' | 'portal_contador' | 'repositorio_juridico'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'teste_pasta' | 'portal_contador' | 'repositorio_juridico' | 'ccpu'>('home');
   const [processoParaVistoria, setProcessoParaVistoria] = useState<ProcessoItem | null>(null);
 
   const handleIniciarVistoriaParaProcesso = (processo: ProcessoItem) => {
@@ -1262,6 +1264,13 @@ export default function App() {
                     </button>
                   </div>
                 )
+              )}
+
+              {currentView === 'ccpu' && (
+                <CcpuView
+                  currentUser={currentUser}
+                  onNavigateHome={() => setCurrentView('home')}
+                />
               )}
             </div>
 
