@@ -4,7 +4,7 @@ import { PORTAL_BUTTONS_CONFIG } from './portalButtonsData';
 import { PortalButtonsGrid } from './PortalButtonsGrid';
 import { PortalProfileBanner } from './PortalProfileBanner';
 import { PortalSidePanel } from './PortalSidePanel';
-import { Building2, Lightbulb, Sparkles, Search } from 'lucide-react';
+import { Building2, Sparkles, Search } from 'lucide-react';
 
 interface PortalCapaWrapperProps {
   currentUser: UserProfile | null;
@@ -77,16 +77,6 @@ export const PortalCapaWrapper: React.FC<PortalCapaWrapperProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0 w-full lg:w-auto">
-            <button
-              type="button"
-              onClick={onOpenIdeiasModal}
-              className="px-4 py-2.5 bg-slate-950 hover:bg-slate-900 text-amber-300 hover:text-amber-200 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition active:scale-95 cursor-pointer ring-2 ring-slate-900/40"
-              title="Visualizar as 8 Ideias Inovadoras Sanitárias"
-            >
-              <Lightbulb className="w-4 h-4 text-amber-400" />
-              <span>Ver 8 Ideias Inovadoras</span>
-            </button>
-
             <button
               type="button"
               onClick={onOpenSolicitacaoMunicipe}
