@@ -182,10 +182,14 @@ export const CcpuMapView: React.FC<CcpuMapViewProps> = ({
     if (filtradas.length > 0) {
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
     }
+
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 150);
   }, [ocorrencias, pragaFiltro, onSelectOcorrencia]);
 
   return (
-    <div className="relative w-full h-[520px] rounded-3xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-800">
+    <div className="relative w-full h-[calc(100vh-270px)] min-h-[580px] rounded-3xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-800">
       <div ref={mapContainerRef} className="w-full h-full z-10" />
 
       {/* Legenda Flutuante do Mapa */}

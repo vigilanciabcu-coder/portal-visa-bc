@@ -238,8 +238,8 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-6 text-left max-w-7xl mx-auto pb-12 animate-fadeIn">
-      {/* 1. Header Oficial do Módulo CCPU */}
+    <div className="flex flex-col gap-5 text-left w-full min-h-full p-3 sm:p-5 md:p-6 pb-24 animate-fadeIn">
+      {/* 1. Header Oficial do Módulo CCPU (Tela Cheia) */}
       <div className="bg-gradient-to-r from-amber-600 via-amber-700 to-slate-900 text-white p-5 sm:p-7 rounded-3xl shadow-xl border-2 border-amber-400/40 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
         <div className="space-y-2 max-w-2xl">
           <div className="flex flex-wrap items-center gap-2">
