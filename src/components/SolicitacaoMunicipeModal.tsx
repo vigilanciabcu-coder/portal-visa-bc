@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X,
   Sparkles,
@@ -20,11 +20,14 @@ import {
   Flame,
   BadgeCheck,
   Search,
-  Check
+  Check,
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import { BAIRROS_BC } from '../data/mockData';
-import { ProcessoItem, TramitacaoItem, UserProfile } from '../types';
+import { ProcessoItem, TramitacaoItem, UserProfile, isUserMaster } from '../types';
 import { gerarProximoProtocolo } from '../lib/protocoloService';
+import { fetchCnpj } from '../lib/cnpjService';
 
 export interface ServicoIdeiaItem {
   id: string;
@@ -272,6 +275,227 @@ export const SolicitacaoMunicipeModal: React.FC<SolicitacaoMunicipeModalProps> =
   const [fotosAnexas, setFotosAnexas] = useState<string[]>([]);
   const [termoAceite, setTermoAceite] = useState(false);
 
+  // Estados de automação de preenchimento
+  const [carregandoDados, setCarregandoDados] = useState(false);
+  const [statusPreenchimento, setStatusPreenchimento] = useState<{
+    tipo: 'sucesso' | 'info' | 'aviso';
+    mensagem: string;
+    origem?: string;
+  } | null>(null);
+  const ultimoDocBuscadoRef = useRef<string>('');
+
+  // Função para puxar o máximo de dados do munícipe ou da empresa
+  const puxarDadosCadastrais = useCallback(
+    async (docParaBuscar?: string, forcarSobrescrever = false) => {
+      const docRaw = docParaBuscar !== undefined ? docParaBuscar : cpfCnpj;
+      const cleanVal = (docRaw || '').replace(/\D/g, '');
+
+      if (!cleanVal || cleanVal.length < 11) {
+        return;
+      }
+
+      setCarregandoDados(true);
+      setStatusPreenchimento(null);
+
+      try {
+        let encontrou = false;
+        let fonte = '';
+
+        // 1. Procurar em processos anteriores da VISA
+        let listaProcs = processosExistentes || [];
+        if (!listaProcs.length) {
+          try {
+            const salvos = localStorage.getItem('visa_processos');
+            if (salvos) listaProcs = JSON.parse(salvos);
+          } catch {}
+        }
+
+        const procMatch = listaProcs.find(
+          (p) => (p.cnpj_cpf || '').replace(/\D/g, '') === cleanVal
+        );
+
+        if (procMatch) {
+          encontrou = true;
+          fonte = 'Cadastro Sanitário VISA (Processos Anteriores)';
+
+          if (forcarSobrescrever || !razaoSocial) {
+            setRazaoSocial(procMatch.razao_social || '');
+          }
+          if (forcarSobrescrever || !nomeFantasia) {
+            setNomeFantasia(procMatch.nome_fantasia || procMatch.razao_social || '');
+          }
+          if (forcarSobrescrever || !nomeRequerente) {
+            setNomeRequerente(procMatch.razao_social || currentUser?.nome_completo || '');
+          }
+          if (forcarSobrescrever || !endereco) {
+            setEndereco(procMatch.endereco || '');
+          }
+          if (forcarSobrescrever || !numeroComplemento) {
+            setNumeroComplemento(procMatch.numero_complemento || '');
+          }
+          if (procMatch.bairro) {
+            const bFound = BAIRROS_BC.find(
+              (b) => b.toLowerCase() === procMatch.bairro.toLowerCase()
+            );
+            if (bFound) setBairro(bFound);
+          }
+          if (forcarSobrescrever || !telefone) {
+            if (procMatch.telefone) setTelefone(procMatch.telefone);
+            else if (currentUser?.telefone) setTelefone(currentUser.telefone);
+          }
+          if (forcarSobrescrever || !email) {
+            if (procMatch.email) setEmail(procMatch.email);
+            else if (currentUser?.email) setEmail(currentUser.email);
+          }
+        }
+
+        // 2. Se for CNPJ (14 dígitos), consulta dados cadastrais via fetchCnpj (Receita Federal / APIs)
+        if (cleanVal.length === 14) {
+          try {
+            const dataCnpj = await fetchCnpj(cleanVal);
+            if (dataCnpj && dataCnpj.razao) {
+              encontrou = true;
+              fonte = fonte
+                ? `${fonte} + Receita Federal (CNPJ)`
+                : 'Receita Federal / Cadastro Nacional da Pessoa Jurídica';
+
+              if (forcarSobrescrever || !razaoSocial) {
+                setRazaoSocial(dataCnpj.razao);
+              }
+              if (forcarSobrescrever || !nomeFantasia) {
+                setNomeFantasia(dataCnpj.nome_fantasia || dataCnpj.razao);
+              }
+              if (
+                forcarSobrescrever ||
+                !nomeRequerente ||
+                nomeRequerente === currentUser?.nome_completo
+              ) {
+                if (
+                  dataCnpj.responsavel &&
+                  dataCnpj.responsavel !== 'RESPONSÁVEL CADASTRADO' &&
+                  dataCnpj.responsavel !== 'PROPRIETÁRIO CADASTRADO'
+                ) {
+                  setNomeRequerente(dataCnpj.responsavel);
+                } else if (!nomeRequerente) {
+                  setNomeRequerente(dataCnpj.razao);
+                }
+              }
+              if (forcarSobrescrever || !endereco) {
+                setEndereco(dataCnpj.rua_api || '');
+              }
+              if (forcarSobrescrever || !numeroComplemento) {
+                setNumeroComplemento(dataCnpj.num_api || '');
+              }
+              if (dataCnpj.bairro) {
+                const bFound = BAIRROS_BC.find(
+                  (b) =>
+                    b.toLowerCase().includes(dataCnpj.bairro.toLowerCase()) ||
+                    dataCnpj.bairro.toLowerCase().includes(b.toLowerCase())
+                );
+                if (bFound) setBairro(bFound);
+              }
+              if (
+                (forcarSobrescrever || !telefone) &&
+                dataCnpj.telefone &&
+                dataCnpj.telefone !== '(47) 3367-0000'
+              ) {
+                setTelefone(dataCnpj.telefone);
+              }
+              if ((forcarSobrescrever || !email) && dataCnpj.email) {
+                setEmail(dataCnpj.email);
+              }
+            }
+          } catch (errCnpj) {
+            console.warn('Erro ao consultar CNPJ via API:', errCnpj);
+          }
+        }
+
+        // 3. Complementar com o perfil do usuário logado se campos estiverem vazios
+        if (currentUser) {
+          if (!telefone && currentUser.telefone) setTelefone(currentUser.telefone);
+          if (!email && currentUser.email) setEmail(currentUser.email);
+          if (!endereco && currentUser.endereco) setEndereco(currentUser.endereco);
+          if (currentUser.bairro) {
+            const bUser = BAIRROS_BC.find(
+              (b) => b.toLowerCase() === currentUser.bairro?.toLowerCase()
+            );
+            if (bUser) setBairro(bUser);
+          }
+        }
+
+        ultimoDocBuscadoRef.current = cleanVal;
+
+        if (encontrou) {
+          setStatusPreenchimento({
+            tipo: 'sucesso',
+            mensagem:
+              'Dados carregados automaticamente! Todos os campos estão preenchidos para economizar seu tempo, mas você pode corrigir ou alterar qualquer um deles.',
+            origem: fonte
+          });
+        } else {
+          setStatusPreenchimento({
+            tipo: 'info',
+            mensagem:
+              'Documento não possui cadastro prévio automático. Preencha os campos abaixo conforme necessário.'
+          });
+        }
+      } catch (err) {
+        console.error('Erro na busca de dados cadastrais:', err);
+        setStatusPreenchimento({
+          tipo: 'aviso',
+          mensagem:
+            'Não foi possível sincronizar automaticamente neste momento. Todos os campos continuam liberados para digitação manual.'
+        });
+      } finally {
+        setCarregandoDados(false);
+      }
+    },
+    [
+      cpfCnpj,
+      processosExistentes,
+      currentUser,
+      razaoSocial,
+      nomeFantasia,
+      nomeRequerente,
+      endereco,
+      numeroComplemento,
+      telefone,
+      email
+    ]
+  );
+
+  // Pré-preenchimento ao abrir o modal com dados do usuário logado
+  useEffect(() => {
+    if (isOpen && currentUser) {
+      if (currentUser.nome_completo && !nomeRequerente) {
+        setNomeRequerente(currentUser.nome_completo);
+      }
+      const userDoc = currentUser.cnpj || currentUser.cpf || '';
+      if (userDoc && !cpfCnpj) {
+        setCpfCnpj(userDoc);
+        puxarDadosCadastrais(userDoc, false);
+      }
+      if (currentUser.telefone && !telefone) setTelefone(currentUser.telefone);
+      if (currentUser.email && !email) setEmail(currentUser.email);
+      if (currentUser.endereco && !endereco) setEndereco(currentUser.endereco);
+      if (currentUser.bairro) {
+        const bUser = BAIRROS_BC.find((b) => b.toLowerCase() === currentUser.bairro?.toLowerCase());
+        if (bUser) setBairro(bUser);
+      }
+    }
+  }, [isOpen, currentUser]);
+
+  // Monitora digitação do CPF/CNPJ: quando atinge 11 ou 14 dígitos, busca automaticamente
+  useEffect(() => {
+    const clean = cpfCnpj.replace(/\D/g, '');
+    if ((clean.length === 11 || clean.length === 14) && clean !== ultimoDocBuscadoRef.current) {
+      const timer = setTimeout(() => {
+        puxarDadosCadastrais(clean, false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [cpfCnpj, puxarDadosCadastrais]);
+
   // Recibo de sucesso
   const [protocoloGerado, setProtocoloGerado] = useState<string>('');
   const [dataHoraProtocolo, setDataHoraProtocolo] = useState<string>('');
@@ -385,14 +609,23 @@ export const SolicitacaoMunicipeModal: React.FC<SolicitacaoMunicipeModalProps> =
   const handleReiniciar = () => {
     setEtapa('ESCOLHA');
     setNomeRequerente(currentUser?.nome_completo || '');
-    setCpfCnpj(currentUser?.cpf || currentUser?.cnpj || '');
+    const userDoc = currentUser?.cpf || currentUser?.cnpj || '';
+    setCpfCnpj(userDoc);
     setRazaoSocial('');
     setNomeFantasia('');
-    setEndereco('');
+    setTelefone(currentUser?.telefone || '');
+    setEmail(currentUser?.email || '');
+    setEndereco(currentUser?.endereco || '');
     setNumeroComplemento('');
+    setBairro(currentUser?.bairro || 'Centro');
     setDescricaoDetalhada('');
     setFotosAnexas([]);
     setTermoAceite(false);
+    setStatusPreenchimento(null);
+    ultimoDocBuscadoRef.current = '';
+    if (userDoc) {
+      puxarDadosCadastrais(userDoc, false);
+    }
   };
 
   return (
@@ -647,59 +880,112 @@ export const SolicitacaoMunicipeModal: React.FC<SolicitacaoMunicipeModalProps> =
                 </button>
               </div>
 
-              {/* 🏢 MÓDULO DE TESTE: LINKAR COM DADOS SANITÁRIOS EXISTENTES DA VISA */}
-              <div className="p-3.5 bg-gradient-to-r from-blue-50 via-indigo-50 to-slate-50 dark:from-blue-950/40 dark:via-indigo-950/40 dark:to-slate-900 border-2 border-dashed border-blue-300 dark:border-blue-700/60 rounded-2xl space-y-2.5">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="p-1 rounded-lg bg-blue-600 text-white text-xs">⚡</span>
-                    <span className="text-xs font-black uppercase text-blue-950 dark:text-blue-200">
-                      Testar com Estabelecimento Cadastrado na VISA (Link Instantâneo):
+              {/* 🏢 MÓDULO DE TESTE: LINKAR COM DADOS SANITÁRIOS EXISTENTES DA VISA (RESTRITO AO DESENVOLVEDOR / MASTER) */}
+              {isUserMaster(currentUser) && (
+                <div className="p-3.5 bg-gradient-to-r from-amber-50 via-blue-50 to-indigo-50 dark:from-amber-950/20 dark:via-blue-950/40 dark:to-indigo-950/40 border-2 border-dashed border-amber-400/80 dark:border-amber-600/60 rounded-2xl space-y-2.5">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded-md bg-amber-500 text-white font-black text-[10px] uppercase tracking-wider shadow-xs">
+                        🛠️ Modo Desenvolvedor / Master
+                      </span>
+                      <span className="text-xs font-black uppercase text-slate-800 dark:text-slate-200">
+                        Atalhos de Teste de Cadastro (Visível Apenas Para Desenvolvedores):
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold bg-amber-200/80 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 px-2.5 py-0.5 rounded-full border border-amber-300 dark:border-amber-700">
+                      Simular preenchimento instantâneo
                     </span>
                   </div>
-                  <span className="text-[10px] font-black uppercase bg-blue-200/80 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 px-2.5 py-0.5 rounded-full border border-blue-300 dark:border-blue-700">
-                    Clique para preencher e ver o sistema reagir
-                  </span>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                  {ESTABELECIMENTOS_TESTE_LINKADOS.map((est) => (
-                    <button
-                      key={est.cnpj_cpf}
-                      type="button"
-                      onClick={() => {
-                        setNomeRequerente(est.razao_social);
-                        setCpfCnpj(est.cnpj_cpf);
-                        setRazaoSocial(est.razao_social);
-                        setNomeFantasia(est.nome_fantasia);
-                        setEndereco(est.endereco);
-                        setNumeroComplemento(est.numeroComplemento);
-                        setBairro(est.bairro);
-                        setTelefone(est.telefone);
-                        setEmail(est.email);
-                        setDescricaoDetalhada(`[TESTE INTEGRADO]: Solicitação vinculada aos dados prévios de ${est.nome}. Protocolo anterior registrado na base: ${est.protocoloVinculado}.`);
-                      }}
-                      className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-500 hover:bg-blue-50/60 dark:hover:bg-blue-950/60 text-left transition cursor-pointer space-y-1 shadow-2xs group active:scale-98"
-                    >
-                      <div className="font-extrabold text-xs text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate flex items-center justify-between">
-                        <span>{est.nome}</span>
-                        <span className="text-[10px] text-blue-500 font-bold">Usar →</span>
-                      </div>
-                      <div className="text-[10px] text-slate-500 font-mono">
-                        CNPJ: {est.cnpj_cpf}
-                      </div>
-                      <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold line-clamp-1">
-                        {est.destaque}
-                      </div>
-                    </button>
-                  ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                    {ESTABELECIMENTOS_TESTE_LINKADOS.map((est) => (
+                      <button
+                        key={est.cnpj_cpf}
+                        type="button"
+                        onClick={() => {
+                          setNomeRequerente(est.razao_social);
+                          setCpfCnpj(est.cnpj_cpf);
+                          setRazaoSocial(est.razao_social);
+                          setNomeFantasia(est.nome_fantasia);
+                          setEndereco(est.endereco);
+                          setNumeroComplemento(est.numeroComplemento);
+                          setBairro(est.bairro);
+                          setTelefone(est.telefone);
+                          setEmail(est.email);
+                          setDescricaoDetalhada(`[TESTE INTEGRADO]: Solicitação vinculada aos dados prévios de ${est.nome}. Protocolo anterior registrado na base: ${est.protocoloVinculado}.`);
+                          setStatusPreenchimento({
+                            tipo: 'sucesso',
+                            mensagem: `Dados de teste de ${est.nome} aplicados com sucesso! Todos os campos continuam editáveis caso queira alterar.`,
+                            origem: 'Ambiente de Teste do Desenvolvedor'
+                          });
+                        }}
+                        className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-amber-500 hover:bg-amber-50/60 dark:hover:bg-amber-950/40 text-left transition cursor-pointer space-y-1 shadow-2xs group active:scale-98"
+                      >
+                        <div className="font-extrabold text-xs text-slate-800 dark:text-slate-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 truncate flex items-center justify-between">
+                          <span>{est.nome}</span>
+                          <span className="text-[10px] text-amber-600 font-bold">Usar →</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-mono">
+                          CNPJ: {est.cnpj_cpf}
+                        </div>
+                        <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold line-clamp-1">
+                          {est.destaque}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Banner Informativo de Auto-Preenchimento Inteligente */}
+              {statusPreenchimento && (
+                <div
+                  className={`p-3 rounded-2xl border text-xs flex items-start justify-between gap-3 animate-fadeIn ${
+                    statusPreenchimento.tipo === 'sucesso'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200'
+                      : statusPreenchimento.tipo === 'aviso'
+                      ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200'
+                      : 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-200'
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <div className="p-1 rounded-lg bg-white/60 dark:bg-black/20 shrink-0 mt-0.5">
+                      {statusPreenchimento.tipo === 'sucesso' ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-bold leading-snug">{statusPreenchimento.mensagem}</p>
+                      {statusPreenchimento.origem && (
+                        <p className="text-[11px] opacity-80 mt-0.5">
+                          Origem dos dados: <strong>{statusPreenchimento.origem}</strong>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setStatusPreenchimento(null)}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer shrink-0"
+                    title="Dispensar aviso"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
 
               {/* Dados do Requerente */}
               <div className="space-y-3">
-                <h4 className="text-xs font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-1.5">
-                  <Building2 className="w-4 h-4 text-blue-500" /> 1. Identificação do Requerente / Estabelecimento
-                </h4>
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-1.5 flex-wrap gap-2">
+                  <h4 className="text-xs font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4 text-blue-500" /> 1. Identificação do Requerente / Estabelecimento
+                  </h4>
+                  <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5" /> Preenchimento rápido • Altere qualquer campo se necessário
+                  </span>
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div>
@@ -717,17 +1003,53 @@ export const SolicitacaoMunicipeModal: React.FC<SolicitacaoMunicipeModalProps> =
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      CPF ou CNPJ do Requerente *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex: 000.000.000-00 ou 00.000.000/0001-00"
-                      value={cpfCnpj}
-                      onChange={(e) => setCpfCnpj(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 font-mono"
-                    />
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        CPF ou CNPJ do Requerente / Empresa *
+                      </label>
+                      <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">
+                        ⚡ Puxa dados automaticamente
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ex: 000.000.000-00 ou 00.000.000/0001-00"
+                          value={cpfCnpj}
+                          onChange={(e) => setCpfCnpj(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 font-mono text-xs"
+                        />
+                        {carregandoDados && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => puxarDadosCadastrais(cpfCnpj, true)}
+                        disabled={carregandoDados || cpfCnpj.replace(/\D/g, '').length < 11}
+                        className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition shrink-0 cursor-pointer"
+                        title="Buscar dados do munícipe ou empresa na base da VISA e Receita Federal"
+                      >
+                        {carregandoDados ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Buscando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                            <span>Puxar Dados</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                      Busca na VISA e Receita Federal para preencher endereço, razão social, telefone e e-mail.
+                    </p>
                   </div>
 
                   <div>

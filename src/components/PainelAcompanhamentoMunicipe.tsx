@@ -26,7 +26,7 @@ import {
   Lightbulb,
   Image
 } from 'lucide-react';
-import { ProcessoItem, TramitacaoItem, UserProfile } from '../types';
+import { ProcessoItem, TramitacaoItem, UserProfile, isUserMaster } from '../types';
 import { SERVICOS_IDEIAS_VISA, ESTABELECIMENTOS_TESTE_LINKADOS } from './SolicitacaoMunicipeModal';
 
 export interface PainelAcompanhamentoMunicipeProps {
@@ -285,25 +285,27 @@ export const PainelAcompanhamentoMunicipe: React.FC<PainelAcompanhamentoMunicipe
           )}
         </div>
 
-        {/* 🏢 CHIPS DE TESTE RÁPIDO COM DADOS INTEGRADOS */}
-        <div className="flex items-center gap-1.5 flex-wrap pt-1 text-xs">
-          <span className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1">
-            ⚡ Testar com Estabelecimento da Base:
-          </span>
-          {ESTABELECIMENTOS_TESTE_LINKADOS.map((est) => (
-            <button
-              key={est.cnpj_cpf}
-              type="button"
-              onClick={() => {
-                setTermoBusca(est.protocoloVinculado);
-              }}
-              className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-blue-100 dark:bg-slate-800 dark:hover:bg-blue-900/40 text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-300 font-bold text-[11px] border border-slate-200 dark:border-slate-700 transition cursor-pointer flex items-center gap-1 active:scale-95"
-            >
-              <span>{est.nome.split(' ')[0]}</span>
-              <span className="font-mono text-[10px] text-blue-500 font-bold">({est.protocoloVinculado})</span>
-            </button>
-          ))}
-        </div>
+        {/* 🏢 CHIPS DE TESTE RÁPIDO COM DADOS INTEGRADOS - APENAS DESENVOLVEDOR / MASTER */}
+        {isUserMaster(currentUser) && (
+          <div className="flex items-center gap-1.5 flex-wrap pt-1 text-xs">
+            <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase flex items-center gap-1">
+              🛠️ Teste Dev (Base VISA):
+            </span>
+            {ESTABELECIMENTOS_TESTE_LINKADOS.map((est) => (
+              <button
+                key={est.cnpj_cpf}
+                type="button"
+                onClick={() => {
+                  setTermoBusca(est.protocoloVinculado);
+                }}
+                className="px-2.5 py-1 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 font-bold text-[11px] border border-amber-200 dark:border-amber-800 transition cursor-pointer flex items-center gap-1 active:scale-95"
+              >
+                <span>{est.nome.split(' ')[0]}</span>
+                <span className="font-mono text-[10px] text-amber-700 dark:text-amber-300 font-bold">({est.protocoloVinculado})</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Lista Rápida de Resultados Encontrados */}
         {termoBusca.trim().length >= 2 && (
