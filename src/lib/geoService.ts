@@ -15,24 +15,28 @@ export const SEDE_VISA_BC = {
   lng: -48.6425
 };
 
-// Coordenadas centrais aproximadas dos bairros de Balneário Camboriú
+// Coordenadas centrais aproximadas dos bairros de Balneário Camboriú (Ordem Alfabética A-Z)
 export const COORDENADAS_BAIRROS_BC: Record<string, { lat: number; lng: number }> = {
-  'CENTRO': { lat: -26.9925, lng: -48.6353 },
-  'NAÇÕES': { lat: -26.9790, lng: -48.6420 },
-  'PIONEIROS': { lat: -26.9740, lng: -48.6310 },
-  'BARRA': { lat: -27.0180, lng: -48.6140 },
-  'MUNICÍPIOS': { lat: -27.0010, lng: -48.6500 },
-  'VILA REAL': { lat: -27.0090, lng: -48.6420 },
-  'PRAIA DOS AMORES': { lat: -26.9580, lng: -48.6250 },
   'ARIRIBÁ': { lat: -26.9680, lng: -48.6360 },
+  'BARRA': { lat: -27.0180, lng: -48.6140 },
+  'CENTRO': { lat: -26.9925, lng: -48.6353 },
   'ESTADOS': { lat: -26.9950, lng: -48.6440 },
-  'NOVA ESPERANÇA': { lat: -27.0210, lng: -48.6350 },
-  'SÃO JUDAS TADEU': { lat: -27.0240, lng: -48.6200 },
-  'ESTALEIRO': { lat: -27.0390, lng: -48.5780 },
   'ESTALEIRINHO': { lat: -27.0580, lng: -48.5770 },
-  'TAQUARAS': { lat: -27.0280, lng: -48.5830 },
+  'ESTALEIRO': { lat: -27.0390, lng: -48.5780 },
+  'IATE CLUBE': { lat: -27.0150, lng: -48.6280 },
   'LARANJEIRAS': { lat: -27.0100, lng: -48.5950 },
-  'PRAIA BRAVA': { lat: -26.9450, lng: -48.6310 } // Limite Itajaí / BC
+  'MUNICÍPIOS': { lat: -27.0010, lng: -48.6500 },
+  'NAÇÕES': { lat: -26.9790, lng: -48.6420 },
+  'NOVA ESPERANÇA': { lat: -27.0210, lng: -48.6350 },
+  'PINHO': { lat: -27.0260, lng: -48.5850 },
+  'PIONEIROS': { lat: -26.9740, lng: -48.6310 },
+  'PRAIA BRAVA': { lat: -26.9450, lng: -48.6310 }, // Limite Itajaí / BC
+  'PRAIA DOS AMORES': { lat: -26.9580, lng: -48.6250 },
+  'SÃO JUDAS TADEU': { lat: -27.0240, lng: -48.6200 },
+  'TAQUARAS': { lat: -27.0280, lng: -48.5830 },
+  'TAQUARINHAS': { lat: -27.0330, lng: -48.5800 },
+  'VÁRZEA DO RANCHINHO': { lat: -27.0070, lng: -48.6600 },
+  'VILA REAL': { lat: -27.0090, lng: -48.6420 }
 };
 
 // Vias principais e pontos de referência de Balneário Camboriú

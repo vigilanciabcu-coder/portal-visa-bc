@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Printer, Download, MapPin, Thermometer, ShieldCheck, Bug, Calendar, User, FileText } from 'lucide-react';
 import { CcpuOcorrenciaItem } from '../../types';
+import { getAnimalInfo } from '../../data/ccpuAnimaisData';
 
 interface CcpuRelatorioOficialModalProps {
   ocorrencia: CcpuOcorrenciaItem | null;
@@ -17,16 +18,11 @@ export const CcpuRelatorioOficialModal: React.FC<CcpuRelatorioOficialModalProps>
     window.print();
   };
 
+  const animalInfo = getAnimalInfo(ocorrencia.tipoPraga);
+
   const getPragaNome = (tipo: string) => {
-    switch (tipo) {
-      case 'ESCORPIAO': return 'Escorpião (Aracnídeo)';
-      case 'RATO': return 'Roedor / Rato';
-      case 'BARATA': return 'Barata / Barata de Esgoto';
-      case 'ESPOROTRICOSE': return 'Esporotricose Zoonótica';
-      case 'POMBO': return 'Pombo Urbano (Aves Sinantrópicas)';
-      case 'FORMIGA': return 'Formiga Urbana';
-      default: return tipo;
-    }
+    const a = getAnimalInfo(tipo);
+    return `${a.icon} ${a.nome}`;
   };
 
   const getLocalNome = (tipo: string) => {

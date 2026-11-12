@@ -977,12 +977,27 @@ export interface PortalButton {
 // CCPU - CENTRO DE CONTROLE DE PRAGAS URBANAS
 // ==========================================
 export type TipoPragaCcpu =
+  | 'ARANHA'
+  | 'AVE'
+  | 'BOVINO'
+  | 'CAO'
+  | 'CARAMUJO_AFRICANO'
+  | 'CARRAPATO'
+  | 'EQUINO'
   | 'ESCORPIAO'
+  | 'FELINO'
+  | 'FORMIGA'
+  | 'LAGARTA'
+  | 'MORCEGO'
+  | 'MOSQUITO'
+  | 'POMBO'
+  | 'ROEDOR'
+  | 'SUINO'
+  | 'OUTROS'
+  // Compatibilidade com registros legados
   | 'RATO'
   | 'BARATA'
   | 'ESPOROTRICOSE'
-  | 'POMBO'
-  | 'FORMIGA'
   | 'OUTRO';
 
 export type TipoLocalCcpu =

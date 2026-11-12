@@ -3,22 +3,13 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { CcpuOcorrenciaItem, TipoPragaCcpu } from '../../types';
 import { SEDE_VISA_BC } from '../../lib/geoService';
+import { getAnimalInfo } from '../../data/ccpuAnimaisData';
 
 interface CcpuMapViewProps {
   ocorrencias: CcpuOcorrenciaItem[];
   onSelectOcorrencia: (item: CcpuOcorrenciaItem) => void;
   pragaFiltro: string;
 }
-
-const PRAGA_CORES: Record<string, { bg: string; border: string; emoji: string }> = {
-  ESCORPIAO: { bg: '#f59e0b', border: '#b45309', emoji: '🦂' },
-  RATO: { bg: '#f43f5e', border: '#be123c', emoji: '🐀' },
-  BARATA: { bg: '#ca8a04', border: '#854d0e', emoji: '🪳' },
-  ESPOROTRICOSE: { bg: '#a855f7', border: '#7e22ce', emoji: '🐱' },
-  POMBO: { bg: '#0284c7', border: '#0369a1', emoji: '🕊️' },
-  FORMIGA: { bg: '#ea580c', border: '#c2410c', emoji: '🐜' },
-  OUTRO: { bg: '#64748b', border: '#334155', emoji: '⚠️' }
-};
 
 export const CcpuMapView: React.FC<CcpuMapViewProps> = ({
   ocorrencias,
@@ -90,15 +81,15 @@ export const CcpuMapView: React.FC<CcpuMapViewProps> = ({
     const bounds = L.latLngBounds([]);
 
     filtradas.forEach((o) => {
-      const cfg = PRAGA_CORES[o.tipoPraga] || PRAGA_CORES.OUTRO;
+      const animal = getAnimalInfo(o.tipoPraga);
       const isScorpion = o.tipoPraga === 'ESCORPIAO';
 
       const customIcon = L.divIcon({
         className: 'custom-ccpu-marker',
         html: `
           <div style="
-            background: ${cfg.bg};
-            border: 2px solid ${cfg.border};
+            background: #ffffff;
+            border: 2px solid #0f172a;
             width: ${isScorpion ? '38px' : '32px'};
             height: ${isScorpion ? '38px' : '32px'};
             border-radius: 50%;
@@ -111,7 +102,7 @@ export const CcpuMapView: React.FC<CcpuMapViewProps> = ({
             transition: transform 0.2s;
             position: relative;
           ">
-            <span>${cfg.emoji}</span>
+            <span>${animal.icon}</span>
             <span style="
               position: absolute;
               bottom: -4px;
@@ -135,8 +126,8 @@ export const CcpuMapView: React.FC<CcpuMapViewProps> = ({
       const popupHtml = `
         <div style="font-family: sans-serif; font-size: 12px; line-height: 1.4; min-width: 200px;">
           <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-            <span style="font-size: 16px;">${cfg.emoji}</span>
-            <strong style="font-size: 13px; color: #0f172a;">${o.tipoPraga} • ${o.quantidade} ${o.quantidade === 1 ? 'coletado' : 'coletados'}</strong>
+            <span style="font-size: 16px;">${animal.icon}</span>
+            <strong style="font-size: 13px; color: #0f172a;">${animal.nome} • ${o.quantidade} ${o.quantidade === 1 ? 'coletado' : 'coletados'}</strong>
           </div>
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; margin-bottom: 6px;">
             <div style="font-weight: bold; color: #b45309; font-size: 11px;">📍 ${o.identificacaoBueiroLocal || 'Bueiro / Local'}</div>

@@ -26,8 +26,15 @@ import {
 import { CcpuOcorrenciaItem, TipoPragaCcpu, UserProfile } from '../../types';
 import { CcpuNovaOcorrenciaModal } from './CcpuNovaOcorrenciaModal';
 import { CcpuRelatorioOficialModal } from './CcpuRelatorioOficialModal';
+import { CcpuRelatorioGeoModal } from './CcpuRelatorioGeoModal';
+import { CcpuRelatorioClimaModal } from './CcpuRelatorioClimaModal';
 import { CcpuMapView } from './CcpuMapView';
 import { INITIAL_CCPU_OCORRENCIAS } from '../../data/ccpuMockData';
+import {
+  ANIMAIS_CCPU_CONFIG,
+  getAnimalInfo,
+  BAIRROS_BC_ALFABETICO
+} from '../../data/ccpuAnimaisData';
 
 interface CcpuViewProps {
   currentUser: UserProfile | null;
@@ -70,6 +77,8 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
   // Modais
   const [modalNovaAberta, setModalNovaAberta] = useState(false);
   const [ocorrenciaSelecionadaRelatorio, setOcorrenciaSelecionadaRelatorio] = useState<CcpuOcorrenciaItem | null>(null);
+  const [modalGeoRelatorioAberta, setModalGeoRelatorioAberta] = useState(false);
+  const [modalClimaRelatorioAberta, setModalClimaRelatorioAberta] = useState(false);
 
   // Clima em tempo real no cabeçalho
   const [climaAtual, setClimaAtual] = useState<{ temp: number; cond: string } | null>(null);
@@ -138,27 +147,32 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
   // Lista filtrada
   const ocorrenciasFiltradas = useMemo(() => {
     return ocorrencias.filter((o) => {
-      if (filtroPraga !== 'TODAS' && o.tipoPraga !== filtroPraga) return false;
+      if (filtroPraga !== 'TODAS') {
+        const info = getAnimalInfo(o.tipoPraga);
+        if (o.tipoPraga !== filtroPraga && info.id !== filtroPraga) return false;
+      }
       if (filtroBairro !== 'TODOS' && o.bairro !== filtroBairro) return false;
       if (buscaTexto.trim()) {
         const q = buscaTexto.toLowerCase();
+        const info = getAnimalInfo(o.tipoPraga);
         const match =
           o.protocolo.toLowerCase().includes(q) ||
           o.identificacaoBueiroLocal.toLowerCase().includes(q) ||
           o.endereco.toLowerCase().includes(q) ||
           o.bairro.toLowerCase().includes(q) ||
           o.servidorResponsavel.toLowerCase().includes(q) ||
-          o.subtipoEspecie.toLowerCase().includes(q);
+          (o.subtipoEspecie && o.subtipoEspecie.toLowerCase().includes(q)) ||
+          info.nome.toLowerCase().includes(q);
         if (!match) return false;
       }
       return true;
     });
   }, [ocorrencias, filtroPraga, filtroBairro, buscaTexto]);
 
-  // Bairros únicos para o filtro
+  // Bairros ordenados alfabeticamente para o filtro
   const bairrosDisponiveis = useMemo(() => {
-    const set = new Set(ocorrencias.map((o) => o.bairro));
-    return Array.from(set).sort();
+    const todos = new Set([...BAIRROS_BC_ALFABETICO, ...ocorrencias.map((o) => o.bairro)]);
+    return Array.from(todos).sort((a, b) => a.localeCompare(b, 'pt-BR'));
   }, [ocorrencias]);
 
   // Exportar CSV
@@ -213,29 +227,8 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
     document.body.removeChild(link);
   };
 
-  const getPragaIcon = (tipo: string) => {
-    switch (tipo) {
-      case 'ESCORPIAO': return '🦂';
-      case 'RATO': return '🐀';
-      case 'BARATA': return '🪳';
-      case 'ESPOROTRICOSE': return '🐱';
-      case 'POMBO': return '🕊️';
-      case 'FORMIGA': return '🐜';
-      default: return '⚠️';
-    }
-  };
-
-  const getPragaBadgeClass = (tipo: string) => {
-    switch (tipo) {
-      case 'ESCORPIAO': return 'bg-amber-500/15 text-amber-900 dark:text-amber-300 border-amber-500/30';
-      case 'RATO': return 'bg-rose-500/15 text-rose-900 dark:text-rose-300 border-rose-500/30';
-      case 'BARATA': return 'bg-yellow-600/15 text-yellow-900 dark:text-yellow-300 border-yellow-600/30';
-      case 'ESPOROTRICOSE': return 'bg-purple-500/15 text-purple-900 dark:text-purple-300 border-purple-500/30';
-      case 'POMBO': return 'bg-sky-500/15 text-sky-900 dark:text-sky-300 border-sky-500/30';
-      case 'FORMIGA': return 'bg-orange-500/15 text-orange-900 dark:text-orange-300 border-orange-500/30';
-      default: return 'bg-slate-500/15 text-slate-900 dark:text-slate-300 border-slate-500/30';
-    }
-  };
+  const getPragaIcon = (tipo: string) => getAnimalInfo(tipo).icon;
+  const getPragaBadgeClass = (tipo: string) => getAnimalInfo(tipo).badgeBg;
 
   return (
     <div className="flex flex-col gap-5 text-left w-full min-h-full p-3 sm:p-5 md:p-6 pb-24 animate-fadeIn">
@@ -406,31 +399,47 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
 
       {/* 4. Barra de Filtros (Praga, Bairro e Busca) */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-        {/* Filtro por Praga */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-          <span className="text-[11px] font-bold uppercase text-slate-400 mr-1 shrink-0">Praga:</span>
-          {[
-            { id: 'TODAS', label: 'Todas' },
-            { id: 'ESCORPIAO', label: '🦂 Escorpião' },
-            { id: 'RATO', label: '🐀 Rato' },
-            { id: 'BARATA', label: '🪳 Barata' },
-            { id: 'ESPOROTRICOSE', label: '🐱 Esporotricose' },
-            { id: 'POMBO', label: '🕊️ Pombo' },
-            { id: 'FORMIGA', label: '🐜 Formiga' }
-          ].map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setFiltroPraga(item.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
-                filtroPraga === item.id
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
+        {/* Filtro por Animal / Vetor */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none py-1 max-w-full">
+          <span className="text-[11px] font-bold uppercase text-slate-400 mr-1 shrink-0">Animal / Vetor:</span>
+          <button
+            type="button"
+            onClick={() => setFiltroPraga('TODAS')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
+              filtroPraga === 'TODAS'
+                ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            Todos ({ocorrencias.length})
+          </button>
+          {ANIMAIS_CCPU_CONFIG.map((a) => {
+            const count = ocorrencias.filter(
+              (o) => o.tipoPraga === a.id || getAnimalInfo(o.tipoPraga).id === a.id
+            ).length;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setFiltroPraga(a.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
+                  filtroPraga === a.id
+                    ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <span>{a.icon}</span>
+                <span>{a.nome}</span>
+                {count > 0 && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                    filtroPraga === a.id ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Filtro por Bairro e Busca */}
@@ -520,50 +529,58 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
                     className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-400/60 dark:hover:border-amber-400/40 shadow-sm transition flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
                   >
                     <div className="flex items-start gap-4">
-                      {/* Ícone da praga */}
-                      <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl shrink-0 border border-slate-200 dark:border-slate-700">
-                        {getPragaIcon(item.tipoPraga)}
-                      </div>
+                      {(() => {
+                        const animalInfo = getAnimalInfo(item.tipoPraga);
+                        return (
+                          <>
+                            {/* Ícone do animal */}
+                            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl shrink-0 border border-slate-200 dark:border-slate-700">
+                              {animalInfo.icon}
+                            </div>
 
-                      {/* Dados principais */}
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${getPragaBadgeClass(item.tipoPraga)}`}>
-                            {item.tipoPraga} • {item.quantidade} {item.quantidade === 1 ? 'coletado' : 'coletados'}
-                          </span>
-                          <span className="text-xs font-mono font-bold text-slate-500">
-                            {item.protocolo}
-                          </span>
-                          <span className="text-xs text-slate-400">·</span>
-                          <span className="text-xs text-slate-500 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> {dataFormatada}
-                          </span>
-                        </div>
+                            {/* Dados principais */}
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${animalInfo.badgeBg}`}>
+                                  {animalInfo.icon} {animalInfo.nome} • {item.quantidade} {item.quantidade === 1 ? 'registrado' : 'registrados'}
+                                </span>
+                                <span className="text-xs font-mono font-bold text-slate-500">
+                                  {item.protocolo}
+                                </span>
+                                <span className="text-xs text-slate-400">·</span>
+                                <span className="text-xs text-slate-500 flex items-center gap-1">
+                                  <Clock className="w-3 h-3" /> {dataFormatada}
+                                </span>
+                              </div>
 
-                        <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                          <span className="text-amber-600 dark:text-amber-400">📍</span>
-                          <span>{item.identificacaoBueiroLocal}</span>
-                        </h4>
+                              <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                                <span className="text-amber-600 dark:text-amber-400">📍</span>
+                                <span>{item.identificacaoBueiroLocal}</span>
+                              </h4>
 
-                        <p className="text-xs text-slate-600 dark:text-slate-400">
-                          {item.endereco}, {item.numero || 'S/N'} • Bairro <strong className="text-slate-800 dark:text-slate-200">{item.bairro}</strong>
-                        </p>
+                              <p className="text-xs text-slate-600 dark:text-slate-400">
+                                {item.endereco}, {item.numero || 'S/N'} • Bairro <strong className="text-slate-800 dark:text-slate-200">{item.bairro}</strong>
+                              </p>
 
-                        <div className="flex flex-wrap items-center gap-3 text-[11px] pt-1">
-                          <span className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1">
-                            <Thermometer className="w-3.5 h-3.5" />
-                            {item.temperatura}°C ({item.condicaoClima})
-                          </span>
-                          <span className="text-slate-400">·</span>
-                          <span className="text-slate-500 italic">
-                            {item.subtipoEspecie}
-                          </span>
-                          <span className="text-slate-400">·</span>
-                          <span className="text-slate-600 dark:text-slate-300 font-semibold">
-                            Fiscal: {item.servidorResponsavel}
-                          </span>
-                        </div>
-                      </div>
+                              <div className="flex flex-wrap items-center gap-3 text-[11px] pt-1">
+                                <span className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                                  <Thermometer className="w-3.5 h-3.5" />
+                                  {item.temperatura}°C ({item.condicaoClima})
+                                  {item.umidadeRelativa ? ` • ${item.umidadeRelativa}% UR` : ''}
+                                </span>
+                                <span className="text-slate-400">·</span>
+                                <span className="text-slate-600 dark:text-slate-300 font-medium">
+                                  {item.subtipoEspecie || animalInfo.descricaoGenerica}
+                                </span>
+                                <span className="text-slate-400">·</span>
+                                <span className="text-slate-600 dark:text-slate-300 font-semibold">
+                                  Fiscal: {item.servidorResponsavel}
+                                </span>
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     {/* Ações */}
@@ -597,15 +614,82 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
       {/* ABA RELATÓRIOS EPIDEMIOLÓGICOS E ANÁLISES */}
       {abaAtiva === 'relatorios' && (
         <div className="space-y-6">
+          {/* Dois Novos Relatórios Especializados Solicitados */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 1. Relatório Geoespacial de Coordenadas */}
+            <div className="p-6 rounded-3xl bg-gradient-to-br from-blue-900/10 via-slate-900/5 to-amber-900/10 dark:from-blue-950/40 dark:to-slate-900/60 border-2 border-blue-500/30 hover:border-blue-500/60 transition shadow-sm space-y-4 flex flex-col justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30">
+                    Mapeamento Espacial • GPS
+                  </span>
+                  <span className="text-2xl">📍</span>
+                </div>
+                <h3 className="text-base font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <span>Relatório Geoespacial de Coordenadas</span>
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Relatório detalhado das posições geográficas exatas (Latitude e Longitude) de todas as demandas e ocorrências em Balneário Camboriú. Filtrável por animal ou todas as espécies, com link direto ao Google Maps, bounding box e exportação CSV.
+                </p>
+              </div>
+
+              <div className="pt-2 flex items-center justify-between border-t border-slate-200 dark:border-slate-800">
+                <span className="text-[11px] font-bold text-slate-500">
+                  {ocorrencias.length} pontos mapeados
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setModalGeoRelatorioAberta(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider transition cursor-pointer shadow-md active:scale-95"
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>Gerar Relatório Geoespacial</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 2. Relatório Climatológico & Epidemiológico */}
+            <div className="p-6 rounded-3xl bg-gradient-to-br from-amber-900/10 via-slate-900/5 to-emerald-900/10 dark:from-amber-950/40 dark:to-slate-900/60 border-2 border-amber-500/30 hover:border-amber-500/60 transition shadow-sm space-y-4 flex flex-col justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                    Meteorologia & Zoonoses
+                  </span>
+                  <span className="text-2xl">🌡️</span>
+                </div>
+                <h3 className="text-base font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <span>Relatório Climatológico & Epidemiológico</span>
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Correlação direta entre as demandas registradas por animal e as variáveis de microclima: temperatura ambiente (°C), umidade relativa do ar (%) e condição climática, permitindo identificar picos de infestação em períodos quentes ou chuvosos.
+                </p>
+              </div>
+
+              <div className="pt-2 flex items-center justify-between border-t border-slate-200 dark:border-slate-800">
+                <span className="text-[11px] font-bold text-slate-500">
+                  Temp média: {climaAtual ? `${climaAtual.temp}°C` : '24°C'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setModalClimaRelatorioAberta(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider transition cursor-pointer shadow-md active:scale-95"
+                >
+                  <Thermometer className="w-3.5 h-3.5" />
+                  <span>Gerar Relatório de Clima</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-black uppercase text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-amber-500" />
-                  <span>Análise Epidemiológica de Zoonoses & Bueiros • Balneário Camboriú</span>
+                  <span>Análise Epidemiológica Integrada de Zoonoses & Vetores • BC</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Correlação de coletas com temperatura ambiente, vetores e bueiros críticos
+                  Consolidação municipal por bairro e espécies registradas na CCPU
                 </p>
               </div>
 
@@ -650,7 +734,7 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
             {/* Tabela de Incidência por Bairro */}
             <div className="pt-2">
               <h4 className="text-xs font-black uppercase text-slate-700 dark:text-slate-300 mb-2">
-                Incidência de Ocorrências por Bairro de Balneário Camboriú
+                Incidência de Ocorrências por Bairro de Balneário Camboriú (Ordem Alfabética)
               </h4>
               <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden text-xs">
                 <table className="w-full text-left">
@@ -658,14 +742,15 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
                     <tr>
                       <th className="p-3">Bairro</th>
                       <th className="p-3">Ocorrências</th>
-                      <th className="p-3">Pragas Principais</th>
+                      <th className="p-3">Animais / Vetores Principais</th>
                       <th className="p-3">Temperatura Média</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
                     {bairrosDisponiveis.map((b) => {
                       const itensBairro = ocorrencias.filter((o) => o.bairro === b);
-                      const pragasBairro = Array.from(new Set(itensBairro.map((o) => o.tipoPraga))).join(', ');
+                      if (itensBairro.length === 0) return null;
+                      const pragasBairro = Array.from(new Set(itensBairro.map((o) => getAnimalInfo(o.tipoPraga).nome))).join(', ');
                       const mediaTemp = (itensBairro.reduce((acc, c) => acc + c.temperatura, 0) / itensBairro.length).toFixed(1);
 
                       return (
@@ -699,6 +784,22 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
         <CcpuRelatorioOficialModal
           ocorrencia={ocorrenciaSelecionadaRelatorio}
           onClose={() => setOcorrenciaSelecionadaRelatorio(null)}
+        />
+      )}
+
+      {/* Modal de Relatório Geoespacial de Coordenadas */}
+      {modalGeoRelatorioAberta && (
+        <CcpuRelatorioGeoModal
+          ocorrencias={ocorrencias}
+          onClose={() => setModalGeoRelatorioAberta(false)}
+        />
+      )}
+
+      {/* Modal de Relatório Climatológico & Epidemiológico */}
+      {modalClimaRelatorioAberta && (
+        <CcpuRelatorioClimaModal
+          ocorrencias={ocorrencias}
+          onClose={() => setModalClimaRelatorioAberta(false)}
         />
       )}
     </div>
