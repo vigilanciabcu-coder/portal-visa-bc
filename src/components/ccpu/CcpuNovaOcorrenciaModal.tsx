@@ -267,11 +267,11 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
               </div>
 
               {/* Menu Dropdown de Seleção dos Animais */}
-              <div className="flex-1">
+              <div>
                 <select
                   value={tipoPraga}
                   onChange={(e) => handleAnimalChange(e.target.value as TipoPragaCcpu)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-sm"
+                  className="w-[300px] max-w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-sm"
                 >
                   {ANIMAIS_CCPU_CONFIG.map((a) => (
                     <option key={a.id} value={a.id} className="py-2 text-sm font-semibold">
@@ -316,7 +316,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                 value={dataHora}
                 onChange={(e) => setDataHora(e.target.value)}
                 required
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                className="w-[225px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
               />
             </div>
           </div>
@@ -429,7 +429,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                 <select
                   value={bairro}
                   onChange={(e) => aplicarBairro(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-amber-700 dark:text-amber-400 outline-none cursor-pointer"
+                  className="w-[303px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-amber-700 dark:text-amber-400 outline-none cursor-pointer"
                 >
                   {BAIRROS_BC_ALFABETICO.map((b) => (
                     <option key={b} value={b}>
@@ -535,7 +535,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                   value={quantidade}
                   onChange={(e) => setQuantidade(parseInt(e.target.value) || 1)}
                   required
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-black outline-none"
+                  className="w-[125px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-black outline-none"
                 />
               </div>
 
@@ -546,7 +546,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                 <select
                   value={statusEspecime}
                   onChange={(e) => setStatusEspecime(e.target.value as StatusEspecimeCcpu)}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold outline-none cursor-pointer"
+                  className="w-[325px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold outline-none cursor-pointer"
                 >
                   <option value="VIVO">Animal Vivo</option>
                   <option value="MORTO">Animal Morto</option>
