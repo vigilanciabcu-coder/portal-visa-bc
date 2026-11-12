@@ -10,9 +10,7 @@ import {
   Sparkles,
   RefreshCw,
   CheckCircle2,
-  FileText,
-  Search,
-  Check
+  FileText
 } from 'lucide-react';
 import { CcpuOcorrenciaItem, TipoPragaCcpu, TipoLocalCcpu, StatusEspecimeCcpu, UserProfile } from '../../types';
 import { COORDENADAS_BAIRROS_BC } from '../../lib/geoService';
@@ -49,7 +47,6 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
   const [endereco, setEndereco] = useState('');
   const [numero, setNumero] = useState('');
   const [bairro, setBairro] = useState('CENTRO');
-  const [buscaLetraBairro, setBuscaLetraBairro] = useState('');
   const [tipoLocal, setTipoLocal] = useState<TipoLocalCcpu>('BUEIRO_BOCA_LOBO');
   const [identificacaoBueiroLocal, setIdentificacaoBueiroLocal] = useState('');
   const [lat, setLat] = useState<number>(-26.9925);
@@ -85,22 +82,8 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
     'Coleta e contenção sanitária; registro no banco de dados epidemiológico do CCPU e orientação preventiva.'
   );
 
-  // Letras disponíveis para atalho rápido
-  const letrasAtalho = useMemo(() => {
-    const iniciais = new Set<string>();
-    BAIRROS_BC_ALFABETICO.forEach((b) => {
-      const inicial = b.charAt(0).toUpperCase();
-      iniciais.add(inicial);
-    });
-    return Array.from(iniciais).sort();
-  }, []);
-
-  // Lista de bairros filtrados conforme digitação ou seleção
-  const bairrosFiltrados = useMemo(() => {
-    const termo = buscaLetraBairro.trim().toUpperCase();
-    if (!termo) return BAIRROS_BC_ALFABETICO;
-    return BAIRROS_BC_ALFABETICO.filter((b) => b.toUpperCase().includes(termo));
-  }, [buscaLetraBairro]);
+  // Informações do animal selecionado para exibição visual
+  const animalSelecionadoInfo = useMemo(() => getAnimalInfo(tipoPraga), [tipoPraga]);
 
   // Atualiza coordenadas ao mudar bairro
   const aplicarBairro = (novoBairro: string) => {
@@ -109,34 +92,6 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
     if (coords) {
       setLat(coords.lat);
       setLng(coords.lng);
-    }
-  };
-
-  // Ao digitar qualquer letra, já busca e sugere o bairro correspondente
-  const handleDigitarLetraBairro = (texto: string) => {
-    setBuscaLetraBairro(texto);
-    const termo = texto.trim().toUpperCase();
-    if (termo.length >= 1) {
-      // Prioriza bairro que começa exatamente com a letra/termo
-      const exato = BAIRROS_BC_ALFABETICO.find((b) => b.toUpperCase().startsWith(termo));
-      if (exato) {
-        aplicarBairro(exato);
-        return;
-      }
-      // Se não, qualquer que contenha
-      const contem = BAIRROS_BC_ALFABETICO.find((b) => b.toUpperCase().includes(termo));
-      if (contem) {
-        aplicarBairro(contem);
-      }
-    }
-  };
-
-  // Ao clicar em uma letra de atalho (ex: [C] -> Centro, [N] -> Nações)
-  const handleAtalhoLetra = (letra: string) => {
-    setBuscaLetraBairro(letra);
-    const match = BAIRROS_BC_ALFABETICO.find((b) => b.toUpperCase().startsWith(letra));
-    if (match) {
-      aplicarBairro(match);
     }
   };
 
@@ -291,36 +246,46 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
         {/* Formulário com Scroll */}
         <form onSubmit={handleSubmit} className="p-6 sm:p-8 overflow-y-auto space-y-6 text-left">
           
-          {/* 1. Escolha do Animal / Demanda (Todos os 17 Animais) */}
-          <div className="space-y-2">
+          {/* 1. Escolha do Animal / Demanda (Menu Dropdown com Figura ao Lado) */}
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 block">
-                1. Selecione o Animal / Demanda para Atendimento (17 Categorias) *
+              <label className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 block">
+                1. Selecione o Animal / Demanda para Atendimento *
               </label>
               <span className="text-[11px] text-amber-600 dark:text-amber-400 font-bold">
-                Modo genérico ativo: selecione o animal sem exigência de espécie científica
+                Modo genérico ativo • 17 categorias de atendimento
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-              {ANIMAIS_CCPU_CONFIG.map((a) => {
-                const isSelected = tipoPraga === a.id;
-                return (
-                  <button
-                    key={a.id}
-                    type="button"
-                    onClick={() => handleAnimalChange(a.id)}
-                    className={`p-2.5 rounded-2xl border-2 transition-all flex flex-col items-center justify-center text-center cursor-pointer ${
-                      isSelected
-                        ? a.bgAtivo + ' ring-2 ring-amber-400/50 shadow-md scale-[1.02] font-black'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    <span className="text-2xl mb-1">{a.icon}</span>
-                    <span className="text-xs font-bold leading-tight">{a.nome}</span>
-                  </button>
-                );
-              })}
+            <div className="flex items-center gap-3.5">
+              {/* Figura do animal selecionado ao lado do dropdown */}
+              <div
+                className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center text-3xl shadow-sm shrink-0 bg-white dark:bg-slate-800 ${animalSelecionadoInfo.borda}`}
+                title={`Animal selecionado: ${animalSelecionadoInfo.nome}`}
+              >
+                <span>{animalSelecionadoInfo.icon}</span>
+              </div>
+
+              {/* Menu Dropdown de Seleção dos Animais */}
+              <div className="flex-1">
+                <select
+                  value={tipoPraga}
+                  onChange={(e) => handleAnimalChange(e.target.value as TipoPragaCcpu)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-sm"
+                >
+                  {ANIMAIS_CCPU_CONFIG.map((a) => (
+                    <option key={a.id} value={a.id} className="py-2 text-sm font-semibold">
+                      {a.icon} {a.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Badge indicativa do animal */}
+              <div className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-black uppercase tracking-wider shrink-0 ${animalSelecionadoInfo.badgeBg}`}>
+                <span>{animalSelecionadoInfo.icon}</span>
+                <span>{animalSelecionadoInfo.nome}</span>
+              </div>
             </div>
           </div>
 
@@ -382,9 +347,11 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="text-[11px] font-bold uppercase text-slate-600 dark:text-slate-400 block mb-1">
+            {/* Barras de Temperatura e Umidade com a largura do nome da coluna, e Condição reduzida em ~50px */}
+            <div className="flex flex-wrap items-end gap-3 sm:gap-4">
+              {/* Barra de Temperatura (°C) * -> do tamanho do nome da coluna (~140px) */}
+              <div className="w-36 shrink-0">
+                <label className="text-[11px] font-bold uppercase text-slate-600 dark:text-slate-400 block mb-1 whitespace-nowrap">
                   Temperatura (°C) *
                 </label>
                 <div className="relative">
@@ -394,14 +361,15 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                     value={temperatura}
                     onChange={(e) => setTemperatura(parseFloat(e.target.value) || 0)}
                     required
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-amber-600 dark:text-amber-400 outline-none"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-amber-600 dark:text-amber-400 outline-none pr-8"
                   />
-                  <span className="absolute right-3 top-2 text-xs font-black text-slate-400">°C</span>
+                  <span className="absolute right-2.5 top-2 text-xs font-black text-slate-400">°C</span>
                 </div>
               </div>
 
-              <div>
-                <label className="text-[11px] font-bold uppercase text-slate-600 dark:text-slate-400 block mb-1">
+              {/* Barra de Umidade Relativa (%) -> do tamanho do nome da coluna (~160px) */}
+              <div className="w-40 shrink-0">
+                <label className="text-[11px] font-bold uppercase text-slate-600 dark:text-slate-400 block mb-1 whitespace-nowrap">
                   Umidade Relativa (%)
                 </label>
                 <div className="relative">
@@ -409,22 +377,23 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                     type="number"
                     value={umidadeRelativa}
                     onChange={(e) => setUmidadeRelativa(parseInt(e.target.value) || 0)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold outline-none"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold outline-none pr-7"
                   />
-                  <span className="absolute right-3 top-2 text-xs font-black text-slate-400">%</span>
+                  <span className="absolute right-2.5 top-2 text-xs font-black text-slate-400">%</span>
                 </div>
               </div>
 
-              <div>
-                <label className="text-[11px] font-bold uppercase text-slate-600 dark:text-slate-400 block mb-1">
+              {/* Barra de Condição / Descrição do clima -> ~50px a menos (w-56) */}
+              <div className="w-56 max-w-full shrink-0">
+                <label className="text-[11px] font-bold uppercase text-slate-600 dark:text-slate-400 block mb-1 whitespace-nowrap">
                   Condição / Descrição
                 </label>
                 <input
                   type="text"
                   value={condicaoClima}
                   onChange={(e) => setCondicaoClima(e.target.value)}
-                  placeholder="Ex: Noite Quente e Úmida"
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none"
+                  placeholder="Ex: Parcialmente Nublado"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none"
                 />
               </div>
             </div>
@@ -439,73 +408,30 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
             </div>
           </div>
 
-          {/* 3. Localização do Ponto / Bairro em Ordem Alfabética com Digitação Rápida */}
+          {/* 3. Localização do Ponto • Bairro (Lista Completa em Ordem Alfabética A-Z) */}
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-rose-500" />
-                <span>3. Localização • Bairro (Ordem Alfabética A-Z com Busca Rápida)</span>
+                <span>3. Localização • Bairro (Ordem Alfabética A-Z)</span>
               </h3>
-              <span className="text-[11px] text-blue-600 dark:text-blue-400 font-bold">
-                ⚡ Digite uma letra ou clique no atalho para puxar o bairro instantaneamente
+              <span className="text-[11px] text-slate-500 font-semibold">
+                Lista completa dos 20 bairros oficiais de Balneário Camboriú
               </span>
             </div>
 
-            {/* Atalhos de Letras A-Z */}
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-bold uppercase text-slate-500 block">
-                Atalhos Rápidos de Inicial do Bairro:
-              </span>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {letrasAtalho.map((letra) => {
-                  const isActive = bairro.toUpperCase().startsWith(letra);
-                  return (
-                    <button
-                      key={letra}
-                      type="button"
-                      onClick={() => handleAtalhoLetra(letra)}
-                      className={`w-7 h-7 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center ${
-                        isActive
-                          ? 'bg-amber-500 text-slate-950 shadow-sm scale-105'
-                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
-                      }`}
-                      title={`Filtrar bairros iniciados com "${letra}"`}
-                    >
-                      {letra}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Seleção e Digitação Rápida do Bairro */}
+            {/* Bairro Selecionado e Coordenadas GPS */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 block">
-                  Digite a Letra ou Nome do Bairro:
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={buscaLetraBairro}
-                    onChange={(e) => handleDigitarLetraBairro(e.target.value)}
-                    placeholder="Digite ex: 'C' para Centro, 'N' para Nações..."
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold outline-none focus:ring-2 focus:ring-amber-500 pl-8"
-                  />
-                  <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-3" />
-                </div>
-              </div>
-
-              <div>
+              <div className="sm:col-span-2">
                 <label className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 block mb-1">
-                  Bairro Selecionado (A-Z) *
+                  Bairro de Balneário Camboriú (Lista Completa A-Z) *
                 </label>
                 <select
                   value={bairro}
                   onChange={(e) => aplicarBairro(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-amber-700 dark:text-amber-400 outline-none cursor-pointer"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-amber-700 dark:text-amber-400 outline-none cursor-pointer"
                 >
-                  {bairrosFiltrados.map((b) => (
+                  {BAIRROS_BC_ALFABETICO.map((b) => (
                     <option key={b} value={b}>
                       {b}
                     </option>
@@ -513,7 +439,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                 </select>
               </div>
 
-              <div className="sm:col-span-1">
+              <div>
                 <label className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 block mb-1">
                   Coordenadas GPS (WGS-84)
                 </label>
