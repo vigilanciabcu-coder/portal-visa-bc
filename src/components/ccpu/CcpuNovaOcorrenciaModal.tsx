@@ -246,7 +246,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
         {/* Formulário com Scroll */}
         <form onSubmit={handleSubmit} className="p-6 sm:p-8 overflow-y-auto space-y-6 text-left">
           
-          {/* 1. Escolha do Animal / Demanda (Menu Dropdown com Figura ao Lado) */}
+          {/* 1. Escolha do Animal / Demanda + Identificação Genérica + Data/Hora */}
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <label className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 block">
@@ -257,72 +257,69 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
               </span>
             </div>
 
-            <div className="flex items-center gap-3.5">
-              {/* Figura do animal selecionado ao lado do dropdown */}
-              <div
-                className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center text-3xl shadow-sm shrink-0 bg-white dark:bg-slate-800 ${animalSelecionadoInfo.borda}`}
-                title={`Animal selecionado: ${animalSelecionadoInfo.nome}`}
-              >
-                <span>{animalSelecionadoInfo.icon}</span>
+            <div className="flex flex-col lg:flex-row lg:items-start gap-3">
+              {/* Figura + Dropdown de Animal */}
+              <div className="shrink-0">
+                <label className="text-[11px] font-bold uppercase text-slate-700 dark:text-slate-300 block mb-1">
+                  Animal / Demanda *
+                </label>
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className={`w-11 h-11 rounded-xl border-2 flex items-center justify-center text-2xl shadow-sm shrink-0 bg-white dark:bg-slate-800 ${animalSelecionadoInfo.borda}`}
+                    title={`Animal selecionado: ${animalSelecionadoInfo.nome}`}
+                  >
+                    <span>{animalSelecionadoInfo.icon}</span>
+                  </div>
+
+                  <select
+                    value={tipoPraga}
+                    onChange={(e) => handleAnimalChange(e.target.value as TipoPragaCcpu)}
+                    className="w-[260px] sm:w-[300px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-sm"
+                  >
+                    {ANIMAIS_CCPU_CONFIG.map((a) => (
+                      <option key={a.id} value={a.id} className="py-2 text-sm font-semibold">
+                        {a.icon} {a.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              {/* Menu Dropdown de Seleção dos Animais */}
-              <div>
-                <select
-                  value={tipoPraga}
-                  onChange={(e) => handleAnimalChange(e.target.value as TipoPragaCcpu)}
-                  className="w-[300px] max-w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-sm"
-                >
-                  {ANIMAIS_CCPU_CONFIG.map((a) => (
-                    <option key={a.id} value={a.id} className="py-2 text-sm font-semibold">
-                      {a.icon} {a.nome}
-                    </option>
-                  ))}
-                </select>
+              {/* Identificação Genérica */}
+              <div className="flex-1 min-w-0 w-full">
+                <label className="text-[11px] font-bold uppercase text-slate-700 dark:text-slate-300 block mb-1 truncate">
+                  Identificação do Animal / Detalhe (Genérico e Opcional)
+                </label>
+                <input
+                  type="text"
+                  value={subtipoEspecie}
+                  onChange={(e) => setSubtipoEspecie(e.target.value)}
+                  placeholder="Ex: Cão de porte médio, Aranha marrom, etc."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+                <span className="text-[10px] text-slate-500 mt-1 block">
+                  Preenchido automaticamente com o animal selecionado. Pode ser alterado ou complementado livremente.
+                </span>
               </div>
 
-              {/* Badge indicativa do animal */}
-              <div className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-black uppercase tracking-wider shrink-0 ${animalSelecionadoInfo.badgeBg}`}>
-                <span>{animalSelecionadoInfo.icon}</span>
-                <span>{animalSelecionadoInfo.nome}</span>
+              {/* Data e Hora */}
+              <div className="w-full lg:w-[225px] shrink-0">
+                <label className="text-[11px] font-bold uppercase text-slate-700 dark:text-slate-300 block mb-1 truncate">
+                  Data e Hora da Coleta / Atendimento *
+                </label>
+                <input
+                  type="datetime-local"
+                  value={dataHora}
+                  onChange={(e) => setDataHora(e.target.value)}
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                />
               </div>
-            </div>
-          </div>
-
-          {/* Identificação Genérica e Data/Hora */}
-          <div className="flex flex-col sm:flex-row items-start gap-4">
-            <div className="flex-1 w-full">
-              <label className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 block mb-1">
-                Identificação do Animal / Detalhe (Genérico e Opcional)
-              </label>
-              <input
-                type="text"
-                value={subtipoEspecie}
-                onChange={(e) => setSubtipoEspecie(e.target.value)}
-                placeholder="Ex: Cão de porte médio, Aranha marrom, etc."
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
-              />
-              <span className="text-[10px] text-slate-500 mt-1 block">
-                Preenchido automaticamente com o animal selecionado. Pode ser alterado ou complementado livremente.
-              </span>
-            </div>
-
-            <div className="w-full sm:w-[225px] shrink-0">
-              <label className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 block mb-1">
-                Data e Hora da Coleta / Atendimento *
-              </label>
-              <input
-                type="datetime-local"
-                value={dataHora}
-                onChange={(e) => setDataHora(e.target.value)}
-                required
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
-              />
             </div>
           </div>
 
           {/* 2. Temperatura e Clima no Momento da Ocorrência */}
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-600/5 to-slate-100 dark:to-slate-800/40 border border-amber-300 dark:border-amber-500/30 space-y-3">
+          <div className="p-4 sm:h-[168.688px] rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-600/5 to-slate-100 dark:to-slate-800/40 border border-amber-300 dark:border-amber-500/30 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Thermometer className="w-5 h-5 text-amber-600 dark:text-amber-400" />
