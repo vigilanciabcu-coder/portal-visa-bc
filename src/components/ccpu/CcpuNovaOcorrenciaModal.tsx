@@ -530,7 +530,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                   value={quantidade}
                   onChange={(e) => setQuantidade(parseInt(e.target.value) || 1)}
                   required
-                  className="w-[125px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-black outline-none"
+                  className="w-[200.792px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-black outline-none"
                 />
               </div>
 
@@ -541,7 +541,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                 <select
                   value={statusEspecime}
                   onChange={(e) => setStatusEspecime(e.target.value as StatusEspecimeCcpu)}
-                  className="w-[325px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold outline-none cursor-pointer"
+                  className="w-[248.833px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold outline-none cursor-pointer"
                 >
                   <option value="VIVO">Animal Vivo</option>
                   <option value="MORTO">Animal Morto</option>
