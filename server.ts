@@ -84,7 +84,7 @@ app.get('/api/clima/bc', async (_req, res) => {
 });
 
 // Inicia a escuta na porta 3000 de forma imediata (< 20ms) para que as sondas de saúde do ambiente aprovem instantaneamente
-app.listen(PORT, '0.0.0.0', () => {
+const httpServer = app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n  ➜  Local:   http://localhost:${PORT}/`);
   console.log(`  ➜  Network: http://0.0.0.0:${PORT}/\n`);
 });
@@ -977,6 +977,7 @@ app.get('/manifest.webmanifest', (_req, res) => {
 });
 
 let viteMiddleware: any = null;
+let viteServerInstance: any = null;
 const viteReadyPromise = (async () => {
   if (process.env.NODE_ENV !== 'production') {
     try {
@@ -988,6 +989,7 @@ const viteReadyPromise = (async () => {
         server: { middlewareMode: true, hmr: false, ws: false, watch: null },
         appType: 'spa',
       });
+      viteServerInstance = vite;
       viteMiddleware = vite.middlewares;
     } catch (err) {
       console.error('Erro ao inicializar middleware do Vite:', err);
@@ -995,12 +997,28 @@ const viteReadyPromise = (async () => {
   }
 })();
 
+const shutdownGracefully = () => {
+  httpServer.close(() => {
+    if (viteServerInstance) {
+      Promise.resolve(viteServerInstance.close()).finally(() => process.exit(0));
+    } else {
+      process.exit(0);
+    }
+  });
+  setTimeout(() => process.exit(0), 1500).unref();
+};
+process.on('SIGTERM', shutdownGracefully);
+process.on('SIGINT', shutdownGracefully);
+
 app.use(async (req, res, next) => {
   if (viteMiddleware) {
     return viteMiddleware(req, res, next);
   }
   if (process.env.NODE_ENV === 'production') {
     return next();
+  }
+  if (req.method === 'HEAD') {
+    return res.status(200).end();
   }
   try {
     await viteReadyPromise;
