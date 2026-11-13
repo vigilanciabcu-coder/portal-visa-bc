@@ -106,7 +106,7 @@ import { CcpuView } from './components/ccpu/CcpuView';
 import { SinncMinimalistPortalView } from './components/sinnc/SinncMinimalistPortalView';
 
 const PORTAL_BUTTONS: PortalButton[] = [
-  { id: 'portal_sinnc', nome: 'SINNC Minimalista', url: '', img: 'sinnc-minimal', acao: 'view', view: 'portal_sinnc', badgetext: 'MINIMAL', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
+  { id: 'portal_sinnc', nome: 'Capa Teste', url: '', img: 'sinnc-minimal', acao: 'view', view: 'portal_sinnc', badgetext: 'MINIMAL', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'pref', nome: 'Prefeitura', url: 'https://www.bc.sc.gov.br/', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/brasao__1_-removebg-preview%20(1).avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'demandas_fiscal', nome: 'Minhas Demandas (Fiscal)', url: '', img: 'demandas-fiscal', acao: 'view', view: 'demandas_fiscal', badgetext: 'FISCAL', perfisPermitidos: ['SERVIDOR'] },
   { id: 'demandas_diretor', nome: 'Painel da Diretoria (Demandas)', url: '', img: 'demandas-diretor', acao: 'view', view: 'demandas_diretor', badgetext: 'DIRETORIA', perfisPermitidos: ['SERVIDOR'] },

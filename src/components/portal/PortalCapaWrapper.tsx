@@ -139,10 +139,10 @@ export const PortalCapaWrapper: React.FC<PortalCapaWrapperProps> = ({
               type="button"
               onClick={() => onNavigate('portal_sinnc')}
               className="px-3.5 py-2 rounded-xl bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-sm whitespace-nowrap self-start sm:self-auto"
-              title="Abrir a versão minimalista estilo SINNC Saúde – Vigilância Sanitária"
+              title="Abrir painel minimalista Capa Teste – Vigilância Sanitária"
             >
               <LayoutGrid className="w-4 h-4" />
-              <span>Portal Minimalista (SINNC)</span>
+              <span>Capa Teste</span>
             </button>
           </div>
 

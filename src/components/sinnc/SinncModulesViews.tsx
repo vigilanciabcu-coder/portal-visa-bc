@@ -129,7 +129,7 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `relatorio-sinnc-visa-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `relatorio-visa-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };

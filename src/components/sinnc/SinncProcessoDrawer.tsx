@@ -38,7 +38,7 @@ export const SinncProcessoDrawer: React.FC<SinncProcessoDrawerProps> = ({
     setSaving(true);
     try {
       const nowIso = new Date().toISOString();
-      const authCode = `SINNC-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      const authCode = `VISA-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
       const autorNome = currentUser?.nome_completo || 'Coordenação VISA';
       const autorCargo = currentUser?.cargo || 'Auditor Fiscal';
       const autorMat = currentUser?.matricula || 'DVIS';

@@ -15,11 +15,11 @@ export interface PortalButtonDef extends PortalButton {
 }
 
 export const PORTAL_BUTTONS_CONFIG: PortalButtonDef[] = [
-  // 0. PORTAL MINIMALISTA (ESTILO SINNC SAÚDE)
+  // 0. PORTAL MINIMALISTA (CAPA TESTE)
   {
     id: 'portal_sinnc',
-    nome: 'SINNC Saúde (Minimalista)',
-    descricao: 'Painel minimalista estilo SINNC Saúde – Vigilância Sanitária com indicadores, tarefas e consultas',
+    nome: 'Capa Teste',
+    descricao: 'Painel minimalista de Vigilância Sanitária com indicadores, tarefas e consultas',
     url: '',
     img: 'sinnc-minimal',
     acao: 'view',

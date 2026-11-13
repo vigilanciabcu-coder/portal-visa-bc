@@ -148,11 +148,11 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
             <div className="w-5 h-5 rounded-sm bg-white/15 border border-white/25 flex items-center justify-center">
               <div className="w-2.5 h-2.5 border border-white/90 rounded-[2px]" />
             </div>
-            <span className="text-xs font-semibold tracking-wide whitespace-nowrap">SINNC</span>
+            <span className="text-xs font-semibold tracking-wide whitespace-nowrap">VISA</span>
           </div>
           <span className="h-3.5 w-px bg-white/25 shrink-0" aria-hidden="true" />
           <span className="text-xs font-medium text-white/95 truncate">
-            SINNC Saúde – Vigilância Sanitária
+            Vigilância Sanitária
           </span>
         </div>
 
@@ -289,7 +289,7 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
 
           {/* Rodapé Discreto Institucional */}
           <footer className="h-7 bg-[#f8fafc] border-t border-slate-200 px-4 flex items-center justify-between gap-4 text-[10.5px] text-slate-500 shrink-0">
-            <span className="truncate">SINNC Saúde · Vigilância Sanitária</span>
+            <span className="truncate">VISA-BC · Vigilância Sanitária</span>
             <span className="hidden sm:inline truncate">
               Profissional: {currentUser?.nome_completo || 'Coordenação VISA'}
             </span>
