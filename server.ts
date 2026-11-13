@@ -1,10 +1,10 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import { GoogleGenAI } from '@google/genai';
-import dotenv from 'dotenv';
 
-dotenv.config();
+if (fs.existsSync(path.join(process.cwd(), '.env')) || fs.existsSync(path.join(process.cwd(), '.env.local'))) {
+  import('dotenv').then((dotenv) => dotenv.config({ quiet: true } as any)).catch(() => {});
+}
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -26,13 +26,14 @@ function getPort(): number {
 const PORT = getPort();
 
 // Initialize Gemini client lazily
-let aiClient: GoogleGenAI | null = null;
-function getGeminiClient(): GoogleGenAI {
+let aiClient: any = null;
+async function getGeminiClient(): Promise<any> {
   if (!aiClient) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY não configurada no ambiente.');
     }
+    const { GoogleGenAI } = await import('@google/genai');
     aiClient = new GoogleGenAI({ apiKey });
   }
   return aiClient;
@@ -469,7 +470,7 @@ app.post('/api/gemini/analyze', async (req, res) => {
   try {
     const { tipoVistoria, tipoEstabelecimento, irregularidades, observacoes, risco } = req.body;
 
-    const ai = getGeminiClient();
+    const ai = await getGeminiClient();
     const prompt = `
 Você é um especialista jurídico em Vigilância Sanitária e Engenharia de Alimentos da Prefeitura Municipal de Balneário Camboriú (DVIS / SC).
 Analise as seguintes constatações de fiscalização em tempo real:
@@ -979,9 +980,12 @@ let viteMiddleware: any = null;
 const viteReadyPromise = (async () => {
   if (process.env.NODE_ENV !== 'production') {
     try {
+      if (process.env.DISABLE_HMR === undefined) {
+        process.env.DISABLE_HMR = 'true';
+      }
       const { createServer: createViteServer } = await import('vite');
       const vite = await createViteServer({
-        server: { middlewareMode: true, hmr: false },
+        server: { middlewareMode: true, hmr: false, ws: false, watch: null },
         appType: 'spa',
       });
       viteMiddleware = vite.middlewares;

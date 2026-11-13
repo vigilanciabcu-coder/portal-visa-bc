@@ -290,8 +290,8 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
           </div>
 
           {/* Identificação Genérica e Data/Hora */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+          <div className="flex flex-col sm:flex-row items-start gap-4">
+            <div className="flex-1 w-full">
               <label className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 block mb-1">
                 Identificação do Animal / Detalhe (Genérico e Opcional)
               </label>
@@ -307,7 +307,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
               </span>
             </div>
 
-            <div>
+            <div className="w-full sm:w-[225px] shrink-0">
               <label className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 block mb-1">
                 Data e Hora da Coleta / Atendimento *
               </label>
@@ -316,7 +316,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                 value={dataHora}
                 onChange={(e) => setDataHora(e.target.value)}
                 required
-                className="w-[225px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
               />
             </div>
           </div>
@@ -420,16 +420,16 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
               </span>
             </div>
 
-            {/* Bairro Selecionado e Coordenadas GPS */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2">
+            {/* Linha 1: BAIRRO (pouco maior que Várzea do Ranchinho) + Logradouro (ocupa o resto da linha) */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+              <div className="w-full sm:w-[250px] shrink-0">
                 <label className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 block mb-1">
-                  Bairro de Balneário Camboriú (Lista Completa A-Z) *
+                  BAIRRO
                 </label>
                 <select
                   value={bairro}
                   onChange={(e) => aplicarBairro(e.target.value)}
-                  className="w-[303px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-amber-700 dark:text-amber-400 outline-none cursor-pointer"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-amber-700 dark:text-amber-400 outline-none cursor-pointer"
                 >
                   {BAIRROS_BC_ALFABETICO.map((b) => (
                     <option key={b} value={b}>
@@ -439,20 +439,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                 </select>
               </div>
 
-              <div>
-                <label className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 block mb-1">
-                  Coordenadas GPS (WGS-84)
-                </label>
-                <div className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono text-xs text-blue-600 dark:text-blue-400 font-bold flex items-center justify-between">
-                  <span>Lat: {lat.toFixed(4)}</span>
-                  <span>Lng: {lng.toFixed(4)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Logradouro e Número */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2">
+              <div className="flex-1 min-w-0">
                 <label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-400 block mb-1">
                   Logradouro / Avenida / Rua *
                 </label>
@@ -465,9 +452,12 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none"
                 />
               </div>
+            </div>
 
-              <div>
-                <label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-400 block mb-1">
+            {/* Linha 2: Número / Referência, Tipo de Local / Instalação *, Identificação do Bueiro ou Ponto Exato, Coordenadas GPS (WGS-84) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
+              <div className="lg:col-span-2">
+                <label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-400 block mb-1 truncate">
                   Número / Referência
                 </label>
                 <input
@@ -475,14 +465,12 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                   value={numero}
                   onChange={(e) => setNumero(e.target.value)}
                   placeholder="Ex: 1500 ou S/N"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none"
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-400 block mb-1">
+              <div className="lg:col-span-3">
+                <label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-400 block mb-1 truncate">
                   Tipo de Local / Instalação *
                 </label>
                 <select
@@ -503,8 +491,8 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                 </select>
               </div>
 
-              <div>
-                <label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-400 block mb-1">
+              <div className="lg:col-span-4">
+                <label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-400 block mb-1 truncate">
                   Identificação do Bueiro ou Ponto Exato
                 </label>
                 <input
@@ -512,8 +500,18 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                   value={identificacaoBueiroLocal}
                   onChange={(e) => setIdentificacaoBueiroLocal(e.target.value)}
                   placeholder="Ex: Bueiro #BC-C12 calçada ímpar ou Pátio interno"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none"
                 />
+              </div>
+
+              <div className="lg:col-span-3">
+                <label className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 block mb-1 truncate">
+                  Coordenadas GPS (WGS-84)
+                </label>
+                <div className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono text-xs text-blue-600 dark:text-blue-400 font-bold flex items-center justify-between gap-2">
+                  <span>Lat: {lat.toFixed(4)}</span>
+                  <span>Lng: {lng.toFixed(4)}</span>
+                </div>
               </div>
             </div>
           </div>
