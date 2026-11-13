@@ -37,7 +37,7 @@ export const PortalButtonsGrid: React.FC<PortalButtonsGridProps> = ({
     if (userType === 'SERVIDOR' && !isMaster && b.view) {
       if (currentUser?.paginas_permitidas && currentUser.paginas_permitidas.length > 0) {
         // Se possui páginas específicas configuradas, respeita a lista
-        if (!currentUser.paginas_permitidas.includes(b.view) && b.view !== 'home' && b.view !== 'cidadao' && b.view !== 'alvara_visa') {
+        if (!currentUser.paginas_permitidas.includes(b.view) && b.view !== 'home' && b.view !== 'cidadao' && b.view !== 'alvara_visa' && b.view !== 'portal_sinnc') {
           return false;
         }
       }

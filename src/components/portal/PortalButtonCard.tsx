@@ -13,7 +13,8 @@ import {
   Sparkles,
   Lightbulb,
   Scale,
-  Bug
+  Bug,
+  LayoutGrid
 } from 'lucide-react';
 
 interface PortalButtonCardProps {
@@ -28,6 +29,15 @@ export const PortalButtonCard: React.FC<PortalButtonCardProps> = ({
   todayDay = new Date().getDate()
 }) => {
   const renderCardGraphic = () => {
+    if (b.view === 'portal_sinnc' || b.id === 'portal_sinnc' || b.img === 'sinnc-minimal') {
+      return (
+        <div className="relative flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-[#3b6d96] border border-[#2c5475] flex items-center justify-center text-white shadow-sm">
+            <LayoutGrid className="w-6 h-6 stroke-[1.75]" />
+          </div>
+        </div>
+      );
+    }
     if (b.id === 'solicitar_servicos_municipe' || b.img === 'sparkles') {
       return (
         <div className="relative flex items-center justify-center">
@@ -199,6 +209,9 @@ export const PortalButtonCard: React.FC<PortalButtonCardProps> = ({
   };
 
   const getBorderHighlightClass = () => {
+    if (b.view === 'portal_sinnc' || b.id === 'portal_sinnc') {
+      return 'border-2 border-[#3b6d96] dark:border-[#4c84b3] bg-[#eef3f8] dark:bg-slate-800/80';
+    }
     if (b.view === 'demandas_fiscal' || b.id === 'demandas_fiscal') {
       return 'border-2 border-blue-500 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/20';
     }

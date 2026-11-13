@@ -15,6 +15,21 @@ export interface PortalButtonDef extends PortalButton {
 }
 
 export const PORTAL_BUTTONS_CONFIG: PortalButtonDef[] = [
+  // 0. PORTAL MINIMALISTA (ESTILO SINNC SAÚDE)
+  {
+    id: 'portal_sinnc',
+    nome: 'SINNC Saúde (Minimalista)',
+    descricao: 'Painel minimalista estilo SINNC Saúde – Vigilância Sanitária com indicadores, tarefas e consultas',
+    url: '',
+    img: 'sinnc-minimal',
+    acao: 'view',
+    view: 'portal_sinnc',
+    badgetext: 'MINIMAL',
+    perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'],
+    categoria_portal: 'OPERACIONAL',
+    destaque: true
+  },
+
   // 1. MÓDULO OPERACIONAL & FISCALIZAÇÃO SANITÁRIA
   {
     id: 'demandas_fiscal',

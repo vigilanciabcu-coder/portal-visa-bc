@@ -103,8 +103,10 @@ import { PastaVisaView } from './components/PastaVisaView';
 import { AlvaraView } from './components/AlvaraView';
 import { DemandasFiscaisView } from './components/DemandasFiscaisView';
 import { CcpuView } from './components/ccpu/CcpuView';
+import { SinncMinimalistPortalView } from './components/sinnc/SinncMinimalistPortalView';
 
 const PORTAL_BUTTONS: PortalButton[] = [
+  { id: 'portal_sinnc', nome: 'SINNC Minimalista', url: '', img: 'sinnc-minimal', acao: 'view', view: 'portal_sinnc', badgetext: 'MINIMAL', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'pref', nome: 'Prefeitura', url: 'https://www.bc.sc.gov.br/', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/brasao__1_-removebg-preview%20(1).avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'demandas_fiscal', nome: 'Minhas Demandas (Fiscal)', url: '', img: 'demandas-fiscal', acao: 'view', view: 'demandas_fiscal', badgetext: 'FISCAL', perfisPermitidos: ['SERVIDOR'] },
   { id: 'demandas_diretor', nome: 'Painel da Diretoria (Demandas)', url: '', img: 'demandas-diretor', acao: 'view', view: 'demandas_diretor', badgetext: 'DIRETORIA', perfisPermitidos: ['SERVIDOR'] },
@@ -138,7 +140,7 @@ const PORTAL_BUTTONS: PortalButton[] = [
 
 export default function App() {
   // Navigation & View
-  const [currentView, setCurrentView] = useState<'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'teste_pasta' | 'portal_contador' | 'repositorio_juridico' | 'ccpu'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'teste_pasta' | 'portal_contador' | 'repositorio_juridico' | 'ccpu' | 'portal_sinnc'>('home');
   const [processoParaVistoria, setProcessoParaVistoria] = useState<ProcessoItem | null>(null);
 
   const handleIniciarVistoriaParaProcesso = (processo: ProcessoItem) => {
@@ -910,6 +912,21 @@ export default function App() {
 
   return (
     <div className="bg-slate-50 dark:bg-slate-950 flex flex-col h-screen h-[100dvh] w-full overflow-hidden text-slate-900 dark:text-slate-100 font-sans text-center">
+      {currentView === 'portal_sinnc' ? (
+        <SinncMinimalistPortalView
+          currentUser={currentUser}
+          processos={processos}
+          fiscalizacoes={fiscalizacoes}
+          amostrasLaboratorio={amostrasLaboratorio}
+          feiras={feiras}
+          escala={escala}
+          users={users}
+          onSaveProcesso={handleSaveProcesso}
+          onExitMinimalPortal={() => setCurrentView('home')}
+          onNavigateClassic={(v) => setCurrentView(v as any)}
+        />
+      ) : (
+      <>
       {/* Shell Container */}
       <div className="flex flex-col flex-1 h-full min-h-0 overflow-hidden">
         {/* Header Bar */}
@@ -1279,6 +1296,8 @@ export default function App() {
           </main>
         </div>
       </div>
+      </>
+      )}
 
       {/* Modals */}
       <LoginModal
@@ -1389,7 +1408,8 @@ export default function App() {
         onSaveProcesso={handleSaveProcesso}
       />
 
-      {/* 💡 BOTÃO FLUTUANTE: PORTAL DO MUNÍCIPE & IDEIAS VISA (Posicionado na esquerda, acima do rodapé e 100% livre do chat da equipe) */}
+      {/* 💡 BOTÃO FLUTUANTE: PORTAL DO MUNÍCIPE & IDEIAS VISA (Oculto no Portal Minimalista SINNC) */}
+      {currentView !== 'portal_sinnc' && (
       <div className="fixed bottom-12 left-4 sm:left-20 md:left-24 z-40">
         <button
           type="button"
@@ -1406,6 +1426,7 @@ export default function App() {
           </span>
         </button>
       </div>
+      )}
 
       {/* 💡 MODAL DE IDEIAS INOVADORAS DA VIGILÂNCIA SANITÁRIA */}
       <IdeiasInovacoesVisaModal

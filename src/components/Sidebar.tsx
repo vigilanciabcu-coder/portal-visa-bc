@@ -1,12 +1,12 @@
 import React from 'react';
 import { PortalButton, UserProfile, userHasAccessToPage, isUserMaster } from '../types';
-import { ShieldCheck, Calendar, Microscope, Crown, User, Building2, Search, FileText, FileSpreadsheet, PhoneCall, FolderArchive, FileSignature, Users, Compass, Download } from 'lucide-react';
+import { ShieldCheck, Calendar, Microscope, Crown, User, Building2, Search, FileText, FileSpreadsheet, PhoneCall, FolderArchive, FileSignature, Users, Compass, Download, LayoutGrid } from 'lucide-react';
 
 interface SidebarProps {
   buttons: PortalButton[];
   currentView: string;
   currentUser: UserProfile | null;
-  onNavigate: (view: 'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'teste_pasta' | 'repositorio_juridico' | 'ccpu') => void;
+  onNavigate: (view: 'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'teste_pasta' | 'repositorio_juridico' | 'ccpu' | 'portal_sinnc') => void;
   onOpenExternal: (url: string) => void;
   onOpenPwaModal?: () => void;
   onOpenBackupModal?: () => void;
@@ -97,6 +97,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   });
 
   const renderIcon = (b: PortalButton) => {
+    if (b.view === 'portal_sinnc' || b.id === 'portal_sinnc' || b.img === 'sinnc-minimal') {
+      return <LayoutGrid className="w-6 h-6 text-sky-300" />;
+    }
     if (b.view === 'demandas_fiscal' || b.id === 'demandas_fiscal' || b.img === 'demandas-fiscal') {
       return <FileSignature className="w-6 h-6 text-blue-400" />;
     }

@@ -329,6 +329,7 @@ export const SETORES_DEMANDA_LISTA: SetorConfig[] = [
 
 export function userHasAccessToPage(user: UserProfile | null | undefined, pageOrButtonId: string): boolean {
   if (!user) return false;
+  if (pageOrButtonId === 'portal_sinnc' || pageOrButtonId === 'portal_sinnc_btn') return true;
   // O usuário MASTER tem acesso 100% irrestrito e incondicional a TUDO SEMPRE
   if (isUserMaster(user)) return true;
 
@@ -967,7 +968,7 @@ export interface PortalButton {
   url: string;
   img: string;
   acao: 'link' | 'view';
-  view?: 'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'repositorio_juridico' | 'ccpu';
+  view?: 'home' | 'demandas' | 'demandas_fiscal' | 'demandas_diretor' | 'feiras' | 'agenda' | 'master' | 'fiscalizacao' | 'processos' | 'processos_lab' | 'laboratorio' | 'cidadao' | 'portal_contador' | 'cnae' | 'telefone' | 'pasta_visa' | 'alvara_visa' | 'geo_visa' | 'repositorio_juridico' | 'ccpu' | 'portal_sinnc';
   badgetext?: string;
   somenteMaster?: boolean;
   perfisPermitidos?: ('SERVIDOR' | 'CONTABILIDADE' | 'CIDADAO' | 'CONTRIBUINTE')[];

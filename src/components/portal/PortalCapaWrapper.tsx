@@ -4,7 +4,7 @@ import { PORTAL_BUTTONS_CONFIG } from './portalButtonsData';
 import { PortalButtonsGrid } from './PortalButtonsGrid';
 import { PortalProfileBanner } from './PortalProfileBanner';
 import { PortalSidePanel } from './PortalSidePanel';
-import { Building2, Sparkles, Search } from 'lucide-react';
+import { Building2, Sparkles, Search, LayoutGrid } from 'lucide-react';
 
 interface PortalCapaWrapperProps {
   currentUser: UserProfile | null;
@@ -112,7 +112,7 @@ export const PortalCapaWrapper: React.FC<PortalCapaWrapperProps> = ({
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Coluna Central: Título da Seção & Grade Modular de Botões */}
         <div className="flex-1 space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
             <div>
               <h1 className="text-lg md:text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -134,6 +134,16 @@ export const PortalCapaWrapper: React.FC<PortalCapaWrapperProps> = ({
                   : 'Selecione um módulo operacional para acesso direto às ferramentas municipais.'}
               </p>
             </div>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('portal_sinnc')}
+              className="px-3.5 py-2 rounded-xl bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-sm whitespace-nowrap self-start sm:self-auto"
+              title="Abrir a versão minimalista estilo SINNC Saúde – Vigilância Sanitária"
+            >
+              <LayoutGrid className="w-4 h-4" />
+              <span>Portal Minimalista (SINNC)</span>
+            </button>
           </div>
 
           {/* Grade Modular de Todos os Botões */}

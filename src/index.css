@@ -402,3 +402,26 @@ label {
     z-index: 999999 !important;
   }
 }
+
+/* --- PORTAL MINIMALISTA SINNC (ISOLADO DA ESTÉTICA CLÁSSICA) --- */
+.sinnc-portal {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+.sinnc-portal .font-mono {
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+}
+.sinnc-portal input:not([type="radio"]):not([type="checkbox"]):not([type="file"]),
+.sinnc-portal select,
+.sinnc-portal textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 0.375rem;
+  font-weight: 500 !important;
+}
+.sinnc-portal input:not([type="radio"]):not([type="checkbox"]):focus,
+.sinnc-portal select:focus,
+.sinnc-portal textarea:focus {
+  border-color: #3b6d96 !important;
+  box-shadow: 0 0 0 2px rgba(59, 109, 150, 0.16) !important;
+}
