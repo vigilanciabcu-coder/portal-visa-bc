@@ -215,6 +215,30 @@ export const CcpuRelatorioOficialModal: React.FC<CcpuRelatorioOficialModalProps>
               </div>
             </div>
 
+            {ocorrencia.insumosUtilizados && ocorrencia.insumosUtilizados.length > 0 && (
+              <div className="text-xs">
+                <span className="font-bold text-slate-600 block text-[10px] uppercase mb-1.5">
+                  Iscas, Insumos e Larvicida Aplicados:
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {ocorrencia.insumosUtilizados.map((insumo) => (
+                    <div
+                      key={insumo.id}
+                      className="px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-between gap-2"
+                    >
+                      <span className="font-bold text-slate-800">{insumo.nome}</span>
+                      <span className="font-black text-amber-900 font-mono">
+                        {insumo.quantidade}{' '}
+                        {insumo.unidade === 'litro'
+                          ? insumo.quantidade === 1 ? 'litro' : 'litros'
+                          : insumo.quantidade === 1 ? 'unidade' : 'unidades'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {ocorrencia.fatoresAtrativos && ocorrencia.fatoresAtrativos.length > 0 && (
               <div className="text-xs">
                 <span className="font-bold text-slate-600 block text-[10px] uppercase mb-1">Fatores Atrativos Identificados no Ponto:</span>

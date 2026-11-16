@@ -10,11 +10,37 @@ import {
   Sparkles,
   RefreshCw,
   CheckCircle2,
-  FileText
+  FileText,
+  FlaskConical,
+  LocateFixed
 } from 'lucide-react';
-import { CcpuOcorrenciaItem, TipoPragaCcpu, TipoLocalCcpu, StatusEspecimeCcpu, UserProfile } from '../../types';
+import {
+  CcpuInsumoUtilizado,
+  CcpuOcorrenciaItem,
+  TipoPragaCcpu,
+  TipoLocalCcpu,
+  StatusEspecimeCcpu,
+  UserProfile
+} from '../../types';
 import { COORDENADAS_BAIRROS_BC } from '../../lib/geoService';
 import { ANIMAIS_CCPU_CONFIG, BAIRROS_BC_ALFABETICO, getAnimalInfo } from '../../data/ccpuAnimaisData';
+
+const INSUMOS_CCPU_OPCOES: Array<{
+  id: CcpuInsumoUtilizado['id'];
+  nome: string;
+  unidade: 'unidade' | 'litro';
+  sigla: string;
+  step: string;
+}> = [
+  { id: 'PARAFINADO', nome: 'Parafinado', unidade: 'unidade', sigla: 'un', step: '1' },
+  { id: 'COLANTE', nome: 'Colante', unidade: 'unidade', sigla: 'un', step: '1' },
+  { id: 'EXTRUSADO', nome: 'Extrusado', unidade: 'unidade', sigla: 'un', step: '1' },
+  { id: 'ISCA_FRESCA', nome: 'Isca Fresca', unidade: 'unidade', sigla: 'un', step: '1' },
+  { id: 'GRANULADO', nome: 'Granulado', unidade: 'unidade', sigla: 'un', step: '1' },
+  { id: 'GEL', nome: 'Gel', unidade: 'unidade', sigla: 'un', step: '1' },
+  { id: 'PO', nome: 'Pó', unidade: 'unidade', sigla: 'un', step: '1' },
+  { id: 'LARVICIDA', nome: 'Larvicida', unidade: 'litro', sigla: 'L', step: '0.1' }
+];
 
 interface CcpuNovaOcorrenciaModalProps {
   currentUser: UserProfile | null;
@@ -51,6 +77,8 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
   const [identificacaoBueiroLocal, setIdentificacaoBueiroLocal] = useState('');
   const [lat, setLat] = useState<number>(-26.9925);
   const [lng, setLng] = useState<number>(-48.6353);
+  const [capturandoGps, setCapturandoGps] = useState(false);
+  const [gpsFeedback, setGpsFeedback] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
 
   // Coleta
   const [quantidade, setQuantidade] = useState<number>(1);
@@ -66,6 +94,16 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
     'Água estagnada / alta umidade'
   ]);
   const [novoFator, setNovoFator] = useState('');
+  const [insumosQtd, setInsumosQtd] = useState<Record<CcpuInsumoUtilizado['id'], string>>({
+    PARAFINADO: '',
+    COLANTE: '',
+    EXTRUSADO: '',
+    ISCA_FRESCA: '',
+    GRANULADO: '',
+    GEL: '',
+    PO: '',
+    LARVICIDA: ''
+  });
 
   // Responsável e Ações
   const [servidorResponsavel, setServidorResponsavel] = useState(() => {
@@ -88,11 +126,43 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
   // Atualiza coordenadas ao mudar bairro
   const aplicarBairro = (novoBairro: string) => {
     setBairro(novoBairro);
+    setGpsFeedback(null);
     const coords = COORDENADAS_BAIRROS_BC[novoBairro.toUpperCase()];
     if (coords) {
       setLat(coords.lat);
       setLng(coords.lng);
     }
+  };
+
+  // Captura coordenadas GPS (WGS-84) da posição atual do dispositivo
+  const handleCapturarGpsAtual = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGpsFeedback({ tipo: 'erro', texto: 'Geolocalização não suportada neste dispositivo.' });
+      return;
+    }
+    setCapturandoGps(true);
+    setGpsFeedback(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLat(pos.coords.latitude);
+        setLng(pos.coords.longitude);
+        const precisao = Math.round(pos.coords.accuracy || 0);
+        setGpsFeedback({
+          tipo: 'ok',
+          texto: precisao > 0 ? `Posição atual capturada (±${precisao}m)` : 'Posição atual capturada'
+        });
+        setCapturandoGps(false);
+      },
+      (err) => {
+        let msg = 'Não foi possível obter a posição GPS atual.';
+        if (err.code === 1) msg = 'Permissão de localização negada no navegador.';
+        else if (err.code === 2) msg = 'Sinal GPS indisponível no momento.';
+        else if (err.code === 3) msg = 'Tempo esgotado ao buscar coordenadas GPS.';
+        setGpsFeedback({ tipo: 'erro', texto: msg });
+        setCapturandoGps(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   };
 
   // Ao mudar de animal/vetor, atualiza método e rótulo genérico
@@ -178,6 +248,22 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
         : `${endereco}, ${numero || 'S/N'}`);
 
     const animalInfo = getAnimalInfo(tipoPraga);
+    const insumosSelecionados: CcpuInsumoUtilizado[] = INSUMOS_CCPU_OPCOES.reduce<CcpuInsumoUtilizado[]>(
+      (acc, item) => {
+        const raw = (insumosQtd[item.id] || '').replace(',', '.').trim();
+        const qtd = parseFloat(raw);
+        if (!isNaN(qtd) && qtd > 0) {
+          acc.push({
+            id: item.id,
+            nome: item.nome,
+            quantidade: item.unidade === 'unidade' ? Math.round(qtd) : Math.round(qtd * 100) / 100,
+            unidade: item.unidade
+          });
+        }
+        return acc;
+      },
+      []
+    );
 
     const nova: CcpuOcorrenciaItem = {
       id: `ccpu-${Date.now()}`,
@@ -200,6 +286,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
       statusEspecime,
       metodoColetaAcao: metodoColetaAcao.trim(),
       condicaoEstrutural: condicaoEstrutural.trim(),
+      insumosUtilizados: insumosSelecionados.length > 0 ? insumosSelecionados : undefined,
       fatoresAtrativos,
       servidorResponsavel: servidorResponsavel.trim(),
       matriculaServidor: matriculaServidor.trim(),
@@ -505,10 +592,33 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                 <label className="text-xs font-bold uppercase text-slate-700 dark:text-slate-300 block mb-1 truncate">
                   Coordenadas GPS (WGS-84)
                 </label>
-                <div className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono text-xs text-blue-600 dark:text-blue-400 font-bold flex items-center justify-between gap-2">
-                  <span>Lat: {lat.toFixed(4)}</span>
-                  <span>Lng: {lng.toFixed(4)}</span>
+                <div className="flex items-stretch gap-2">
+                  <div className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono text-xs text-blue-600 dark:text-blue-400 font-bold flex items-center justify-between gap-2">
+                    <span className="truncate">Lat: {lat.toFixed(5)}</span>
+                    <span className="truncate">Lng: {lng.toFixed(5)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCapturarGpsAtual}
+                    disabled={capturandoGps}
+                    title="Pegar coordenadas GPS da posição atual"
+                    className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase tracking-wide transition cursor-pointer shadow-sm active:scale-95 disabled:opacity-60 flex items-center gap-1.5 shrink-0"
+                  >
+                    <LocateFixed className={`w-3.5 h-3.5 ${capturandoGps ? 'animate-spin' : ''}`} />
+                    <span>{capturandoGps ? 'Buscando...' : 'GPS Atual'}</span>
+                  </button>
                 </div>
+                {gpsFeedback && (
+                  <span
+                    className={`text-[10px] font-semibold mt-1 block ${
+                      gpsFeedback.tipo === 'ok'
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-rose-600 dark:text-rose-400'
+                    }`}
+                  >
+                    {gpsFeedback.texto}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -530,7 +640,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                   value={quantidade}
                   onChange={(e) => setQuantidade(parseInt(e.target.value) || 1)}
                   required
-                  className="w-[218.812px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-black outline-none"
+                  className="w-[300px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-black outline-none"
                 />
               </div>
 
@@ -541,7 +651,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                 <select
                   value={statusEspecime}
                   onChange={(e) => setStatusEspecime(e.target.value as StatusEspecimeCcpu)}
-                  className="w-[348.833px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold outline-none cursor-pointer"
+                  className="w-[300px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold outline-none cursor-pointer"
                 >
                   <option value="VIVO">Animal Vivo</option>
                   <option value="MORTO">Animal Morto</option>
@@ -559,7 +669,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                 type="text"
                 value={metodoColetaAcao}
                 onChange={(e) => setMetodoColetaAcao(e.target.value)}
-                className="w-[713.65px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none"
+                className="w-[1013.65px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none"
               />
             </div>
 
@@ -577,10 +687,90 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
             </div>
           </div>
 
-          {/* 5. Fatores Atrativos */}
+          {/* 5. Uso de Iscas, Insumos e Larvicida (Quando Houver Uso) */}
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <FlaskConical className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    5. Uso de Iscas, Insumos e Larvicida (Quando Houver Uso)
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Preencha apenas os itens aplicados no local (Iscas/Insumos em Unidade e Larvicida em Litro).
+                  </p>
+                </div>
+              </div>
+              {Object.values(insumosQtd).some((v) => parseFloat((v || '0').replace(',', '.')) > 0) && (
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                  {Object.values(insumosQtd).filter((v) => parseFloat((v || '0').replace(',', '.')) > 0).length} item(ns) aplicado(s)
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {INSUMOS_CCPU_OPCOES.map((item) => {
+                const rawVal = insumosQtd[item.id];
+                const numVal = parseFloat((rawVal || '0').replace(',', '.'));
+                const isAtivo = !isNaN(numVal) && numVal > 0;
+                const isLitro = item.unidade === 'litro';
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`p-3 rounded-xl border transition ${
+                      isAtivo
+                        ? isLitro
+                          ? 'bg-cyan-50/70 dark:bg-cyan-950/30 border-cyan-400 dark:border-cyan-600'
+                          : 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-400 dark:border-amber-600'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <label
+                        htmlFor={`insumo-${item.id}`}
+                        className="text-xs font-bold uppercase text-slate-800 dark:text-slate-200"
+                      >
+                        {item.nome}
+                      </label>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                          isLitro
+                            ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300'
+                            : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {item.unidade === 'litro' ? 'Litro' : 'Unidade'}
+                      </span>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        id={`insumo-${item.id}`}
+                        type="number"
+                        min="0"
+                        step={item.step}
+                        value={rawVal}
+                        onChange={(e) =>
+                          setInsumosQtd((prev) => ({ ...prev, [item.id]: e.target.value }))
+                        }
+                        placeholder="0"
+                        className="w-full px-3 py-2 pr-14 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                      <span className="absolute right-3 top-2 text-xs font-bold text-slate-400 pointer-events-none">
+                        {item.sigla}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 6. Fatores Atrativos */}
           <div className="space-y-3">
             <label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-400 block">
-              5. Fatores Atrativos Identificados
+              6. Fatores Atrativos Identificados
             </label>
             <div className="flex flex-wrap gap-2">
               {fatoresAtrativos.map((fator, index) => (
@@ -624,10 +814,10 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
             </div>
           </div>
 
-          {/* 6. Servidor e Status */}
+          {/* 7. Servidor e Status */}
           <div className="space-y-4">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              6. Responsabilidade Técnica & Providências
+              7. Responsabilidade Técnica & Providências
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

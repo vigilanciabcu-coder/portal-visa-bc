@@ -193,29 +193,36 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
       'Quantidade',
       'Status Espécime',
       'Método Ação',
+      'Iscas / Insumos e Larvicida',
       'Servidor',
       'Status'
     ];
 
-    const rows = ocorrenciasFiltradas.map((o) => [
-      `"${o.protocolo}"`,
-      `"${o.tipoPraga}"`,
-      `"${o.subtipoEspecie}"`,
-      `"${o.dataHora}"`,
-      o.temperatura,
-      `"${o.condicaoClima}"`,
-      `"${o.bairro}"`,
-      `"${o.endereco}, ${o.numero || 'S/N'}"`,
-      `"${o.tipoLocal}"`,
-      `"${o.identificacaoBueiroLocal}"`,
-      o.lat,
-      o.lng,
-      o.quantidade,
-      `"${o.statusEspecime}"`,
-      `"${o.metodoColetaAcao}"`,
-      `"${o.servidorResponsavel}"`,
-      `"${o.statusOcorrencia}"`
-    ]);
+    const rows = ocorrenciasFiltradas.map((o) => {
+      const insumosResumo = (o.insumosUtilizados || [])
+        .map((i) => `${i.nome}: ${i.quantidade} ${i.unidade === 'litro' ? 'L' : 'un'}`)
+        .join('; ');
+      return [
+        `"${o.protocolo}"`,
+        `"${o.tipoPraga}"`,
+        `"${o.subtipoEspecie}"`,
+        `"${o.dataHora}"`,
+        o.temperatura,
+        `"${o.condicaoClima}"`,
+        `"${o.bairro}"`,
+        `"${o.endereco}, ${o.numero || 'S/N'}"`,
+        `"${o.tipoLocal}"`,
+        `"${o.identificacaoBueiroLocal}"`,
+        o.lat,
+        o.lng,
+        o.quantidade,
+        `"${o.statusEspecime}"`,
+        `"${o.metodoColetaAcao}"`,
+        `"${insumosResumo}"`,
+        `"${o.servidorResponsavel}"`,
+        `"${o.statusOcorrencia}"`
+      ];
+    });
 
     const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -577,6 +584,26 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
                                   Fiscal: {item.servidorResponsavel}
                                 </span>
                               </div>
+
+                              {item.insumosUtilizados && item.insumosUtilizados.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                  {item.insumosUtilizados.map((insumo) => (
+                                    <span
+                                      key={insumo.id}
+                                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                                        insumo.unidade === 'litro'
+                                          ? 'bg-cyan-500/10 text-cyan-800 dark:text-cyan-300 border-cyan-500/30'
+                                          : 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/30'
+                                      }`}
+                                    >
+                                      {insumo.nome}: {insumo.quantidade}{' '}
+                                      {insumo.unidade === 'litro'
+                                        ? insumo.quantidade === 1 ? 'litro' : 'litros'
+                                        : 'un'}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </>
                         );

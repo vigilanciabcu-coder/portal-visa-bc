@@ -1015,6 +1015,13 @@ export type TipoLocalCcpu =
 
 export type StatusEspecimeCcpu = 'VIVO' | 'MORTO' | 'AMBOS' | 'APENAS_VESTIGIOS';
 
+export interface CcpuInsumoUtilizado {
+  id: 'PARAFINADO' | 'COLANTE' | 'EXTRUSADO' | 'ISCA_FRESCA' | 'GRANULADO' | 'GEL' | 'PO' | 'LARVICIDA';
+  nome: string;
+  quantidade: number;
+  unidade: 'unidade' | 'litro';
+}
+
 export interface CcpuOcorrenciaItem {
   id: string;
   protocolo: string; // Ex: CCPU-2026-0042
@@ -1036,6 +1043,7 @@ export interface CcpuOcorrenciaItem {
   statusEspecime: StatusEspecimeCcpu;
   metodoColetaAcao: string; // Ex: "Busca ativa noturna com lanterna UV", "Armadilha mecânica", etc.
   condicaoEstrutural?: string; // Ex: "Tampa quebrada com fresta de 4cm"
+  insumosUtilizados?: CcpuInsumoUtilizado[];
   fatoresAtrativos: string[]; // Ex: ["Presença de baratas", "Água parada / umidade", "Entulho"]
   servidorResponsavel: string;
   matriculaServidor?: string;
