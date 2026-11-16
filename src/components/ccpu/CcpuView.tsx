@@ -21,7 +21,11 @@ import {
   TrendingUp,
   AlertTriangle,
   Building2,
-  Trash2
+  Trash2,
+  Database,
+  Copy,
+  Check,
+  X
 } from 'lucide-react';
 import { CcpuOcorrenciaItem, TipoPragaCcpu, UserProfile, isUserDiretorOuAdministrativo } from '../../types';
 import { CcpuNovaOcorrenciaModal } from './CcpuNovaOcorrenciaModal';
@@ -35,12 +39,80 @@ import {
   fetchCcpuEstoque,
   getLocalCcpuEstoqueItens
 } from '../../lib/ccpuEstoqueService';
-import { INITIAL_CCPU_OCORRENCIAS } from '../../data/ccpuMockData';
+import {
+  deleteCcpuOcorrencia,
+  fetchCcpuOcorrencias,
+  getLocalCcpuOcorrencias,
+  saveCcpuOcorrencia,
+  saveLocalCcpuOcorrencias
+} from '../../lib/ccpuOcorrenciasService';
+import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import {
   ANIMAIS_CCPU_CONFIG,
   getAnimalInfo,
   BAIRROS_BC_ALFABETICO
 } from '../../data/ccpuAnimaisData';
+
+const SQL_COPIA_OCORRENCIAS = `-- Execute no SQL Editor do Supabase (arquivo supabase_ccpu_ocorrencias.sql)
+CREATE TABLE IF NOT EXISTS public.ccpu_ocorrencias (
+    id TEXT PRIMARY KEY,
+    protocolo TEXT NOT NULL,
+    tipo_praga TEXT NOT NULL,
+    subtipo_especie TEXT NOT NULL,
+    data_hora TEXT NOT NULL,
+    temperatura NUMERIC(6, 2) NOT NULL DEFAULT 24.0,
+    umidade_relativa NUMERIC(5, 2),
+    condicao_clima TEXT NOT NULL DEFAULT '',
+    fonte_temperatura TEXT NOT NULL DEFAULT '',
+    endereco TEXT NOT NULL,
+    numero TEXT,
+    bairro TEXT NOT NULL,
+    tipo_local TEXT NOT NULL,
+    identificacao_bueiro_local TEXT NOT NULL,
+    lat NUMERIC(10, 6) NOT NULL,
+    lng NUMERIC(10, 6) NOT NULL,
+    quantidade INTEGER NOT NULL DEFAULT 1,
+    status_especime TEXT NOT NULL DEFAULT 'VIVO',
+    metodo_coleta_acao TEXT NOT NULL DEFAULT '',
+    condicao_estrutural TEXT,
+    insumos_utilizados JSONB NOT NULL DEFAULT '[]'::jsonb,
+    resumo_insumos_consumidos TEXT,
+    fatores_atrativos JSONB NOT NULL DEFAULT '[]'::jsonb,
+    servidor_responsavel TEXT NOT NULL,
+    matricula_servidor TEXT,
+    status_ocorrencia TEXT NOT NULL DEFAULT 'COLETADO',
+    notificacao_emitida BOOLEAN NOT NULL DEFAULT false,
+    numero_notificacao TEXT,
+    observacoes TEXT NOT NULL DEFAULT '',
+    medidas_adotadas TEXT NOT NULL DEFAULT '',
+    fotos JSONB NOT NULL DEFAULT '[]'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.ccpu_ocorrencias_consumo (
+    id TEXT PRIMARY KEY,
+    ocorrencia_id TEXT NOT NULL REFERENCES public.ccpu_ocorrencias(id) ON DELETE CASCADE,
+    protocolo TEXT NOT NULL,
+    insumo_id TEXT NOT NULL,
+    insumo_nome TEXT NOT NULL,
+    quantidade_consumida NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    unidade TEXT NOT NULL DEFAULT 'unidade',
+    tipo_praga TEXT NOT NULL,
+    quantidade_animais INTEGER NOT NULL DEFAULT 0,
+    bairro TEXT NOT NULL,
+    servidor_responsavel TEXT NOT NULL,
+    data_hora TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.ccpu_ocorrencias ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ccpu_ocorrencias_consumo ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Permitir Acesso Completo CCPU Ocorrencias" ON public.ccpu_ocorrencias;
+CREATE POLICY "Permitir Acesso Completo CCPU Ocorrencias" ON public.ccpu_ocorrencias FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Permitir Acesso Completo CCPU Ocorrencias Consumo" ON public.ccpu_ocorrencias_consumo;
+CREATE POLICY "Permitir Acesso Completo CCPU Ocorrencias Consumo" ON public.ccpu_ocorrencias_consumo FOR ALL USING (true) WITH CHECK (true);`;
 
 interface CcpuViewProps {
   currentUser: UserProfile | null;
@@ -51,25 +123,15 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
   currentUser,
   onNavigateHome
 }) => {
-  // Estado das ocorrências com persistência local
-  const [ocorrencias, setOcorrencias] = useState<CcpuOcorrenciaItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('visa_ccpu_ocorrencias');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.warn('Erro ao restaurar ocorrências CCPU:', e);
-    }
-    return INITIAL_CCPU_OCORRENCIAS;
-  });
+  // Estado das ocorrências sincronizado com Supabase + fallback local
+  const [ocorrencias, setOcorrencias] = useState<CcpuOcorrenciaItem[]>(() => getLocalCcpuOcorrencias());
+  const [carregandoOcorrencias, setCarregandoOcorrencias] = useState(false);
+  const [missingOcorrenciasTable, setMissingOcorrenciasTable] = useState(false);
+  const [sqlCopiadoOcorrencias, setSqlCopiadoOcorrencias] = useState(false);
 
-  // Salva no localStorage sempre que houver alteração
+  // Salva cópia local sempre que houver alteração
   useEffect(() => {
-    localStorage.setItem('visa_ccpu_ocorrencias', JSON.stringify(ocorrencias));
+    saveLocalCcpuOcorrencias(ocorrencias);
   }, [ocorrencias]);
 
   // Permissão do Controle de Estoque (apenas Diretores, Administrativos e Master)
@@ -113,8 +175,39 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
     setClimaAtual({ temp: 23.8, cond: 'Parcialmente Nublado' });
   };
 
+  const carregarOcorrencias = async () => {
+    setCarregandoOcorrencias(true);
+    try {
+      const res = await fetchCcpuOcorrencias();
+      setOcorrencias(res.ocorrencias);
+      setMissingOcorrenciasTable(res.missingTable);
+    } finally {
+      setCarregandoOcorrencias(false);
+    }
+  };
+
   useEffect(() => {
     fetchClimaHeader();
+    carregarOcorrencias();
+  }, []);
+
+  // Realtime do Supabase para refletir ocorrências registradas em outros dispositivos
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+    const channel = supabase
+      .channel('ccpu_ocorrencias_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ccpu_ocorrencias' },
+        () => {
+          carregarOcorrencias();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -130,11 +223,18 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
     });
   }, [canAccessEstoque, abaAtiva]);
 
-  // Adiciona nova ocorrência e realiza baixa automática no estoque quando houver insumos
+  // Adiciona nova ocorrência no Supabase e realiza baixa automática no estoque quando houver insumos
   const handleSaveNovaOcorrencia = (nova: CcpuOcorrenciaItem) => {
     setOcorrencias((prev) => [nova, ...prev]);
     setModalNovaAberta(false);
     setOcorrenciaSelecionadaRelatorio(nova); // Abre imediatamente o laudo oficial após salvar
+
+    saveCcpuOcorrencia(nova).then((res) => {
+      if (res.missingTable) {
+        setMissingOcorrenciasTable(true);
+      }
+    });
+
     if (nova.insumosUtilizados && nova.insumosUtilizados.length > 0) {
       baixarEstoquePorOcorrencia(nova, nova.servidorResponsavel).then(() => {
         if (canAccessEstoque) {
@@ -145,10 +245,21 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
     }
   };
 
-  // Exclui ocorrência
+  // Exclui ocorrência localmente e no Supabase
   const handleDeleteOcorrencia = (id: string) => {
     if (confirm('Deseja realmente remover este registro de coleta?')) {
       setOcorrencias((prev) => prev.filter((o) => o.id !== id));
+      deleteCcpuOcorrencia(id);
+    }
+  };
+
+  const handleCopiarSqlOcorrencias = async () => {
+    try {
+      await navigator.clipboard.writeText(SQL_COPIA_OCORRENCIAS);
+      setSqlCopiadoOcorrencias(true);
+      setTimeout(() => setSqlCopiadoOcorrencias(false), 3000);
+    } catch {
+      // ignore clipboard errors
     }
   };
 
@@ -447,6 +558,17 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={carregarOcorrencias}
+            disabled={carregandoOcorrencias}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 transition cursor-pointer disabled:opacity-60"
+            title="Sincronizar ocorrências com o Supabase"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${carregandoOcorrencias ? 'animate-spin' : ''}`} />
+            <span>Atualizar</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleExportCSV}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 transition cursor-pointer"
           >
@@ -455,6 +577,39 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Aviso acionável caso a tabela ccpu_ocorrencias ainda não tenha sido criada no Supabase */}
+      {missingOcorrenciasTable && (
+        <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
+            <Database className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-black uppercase">Tabela de Ocorrências CCPU ainda não criada no Supabase</p>
+              <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5">
+                Execute o SQL das ocorrências no SQL Editor do Supabase para salvar ocorrências, animais recolhidos e insumos consumidos na nuvem.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleCopiarSqlOcorrencias}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase transition cursor-pointer"
+            >
+              {sqlCopiadoOcorrencias ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{sqlCopiadoOcorrencias ? 'SQL Copiado' : 'Copiar SQL'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMissingOcorrenciasTable(false)}
+              className="p-1.5 rounded-lg text-amber-700 dark:text-amber-300 hover:bg-amber-200/40 cursor-pointer"
+              title="Fechar aviso"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 4. Barra de Filtros (Praga, Bairro e Busca) */}
       {(abaAtiva === 'lista' || abaAtiva === 'mapa') && (
