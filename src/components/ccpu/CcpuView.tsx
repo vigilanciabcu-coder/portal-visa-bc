@@ -23,12 +23,18 @@ import {
   Building2,
   Trash2
 } from 'lucide-react';
-import { CcpuOcorrenciaItem, TipoPragaCcpu, UserProfile } from '../../types';
+import { CcpuOcorrenciaItem, TipoPragaCcpu, UserProfile, isUserDiretorOuAdministrativo } from '../../types';
 import { CcpuNovaOcorrenciaModal } from './CcpuNovaOcorrenciaModal';
 import { CcpuRelatorioOficialModal } from './CcpuRelatorioOficialModal';
 import { CcpuRelatorioGeoModal } from './CcpuRelatorioGeoModal';
 import { CcpuRelatorioClimaModal } from './CcpuRelatorioClimaModal';
 import { CcpuMapView } from './CcpuMapView';
+import { CcpuEstoqueView } from './CcpuEstoqueView';
+import {
+  baixarEstoquePorOcorrencia,
+  fetchCcpuEstoque,
+  getLocalCcpuEstoqueItens
+} from '../../lib/ccpuEstoqueService';
 import { INITIAL_CCPU_OCORRENCIAS } from '../../data/ccpuMockData';
 import {
   ANIMAIS_CCPU_CONFIG,
@@ -66,8 +72,14 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
     localStorage.setItem('visa_ccpu_ocorrencias', JSON.stringify(ocorrencias));
   }, [ocorrencias]);
 
-  // Aba ativa: 'lista' | 'mapa' | 'relatorios'
-  const [abaAtiva, setAbaAtiva] = useState<'lista' | 'mapa' | 'relatorios'>('lista');
+  // Permissão do Controle de Estoque (apenas Diretores, Administrativos e Master)
+  const canAccessEstoque = isUserDiretorOuAdministrativo(currentUser);
+
+  // Aba ativa: 'lista' | 'mapa' | 'relatorios' | 'estoque'
+  const [abaAtiva, setAbaAtiva] = useState<'lista' | 'mapa' | 'relatorios' | 'estoque'>('lista');
+  const [estoqueCriticosCount, setEstoqueCriticosCount] = useState<number>(() =>
+    canAccessEstoque ? getLocalCcpuEstoqueItens().filter((i) => i.quantidade_atual <= i.estoque_minimo).length : 0
+  );
 
   // Filtros
   const [filtroPraga, setFiltroPraga] = useState<string>('TODAS');
@@ -105,11 +117,32 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
     fetchClimaHeader();
   }, []);
 
-  // Adiciona nova ocorrência
+  useEffect(() => {
+    if (!canAccessEstoque) {
+      setEstoqueCriticosCount(0);
+      if (abaAtiva === 'estoque') {
+        setAbaAtiva('lista');
+      }
+      return;
+    }
+    fetchCcpuEstoque().then((res) => {
+      setEstoqueCriticosCount(res.itens.filter((i) => i.quantidade_atual <= i.estoque_minimo).length);
+    });
+  }, [canAccessEstoque, abaAtiva]);
+
+  // Adiciona nova ocorrência e realiza baixa automática no estoque quando houver insumos
   const handleSaveNovaOcorrencia = (nova: CcpuOcorrenciaItem) => {
     setOcorrencias((prev) => [nova, ...prev]);
     setModalNovaAberta(false);
     setOcorrenciaSelecionadaRelatorio(nova); // Abre imediatamente o laudo oficial após salvar
+    if (nova.insumosUtilizados && nova.insumosUtilizados.length > 0) {
+      baixarEstoquePorOcorrencia(nova, nova.servidorResponsavel).then(() => {
+        if (canAccessEstoque) {
+          const atual = getLocalCcpuEstoqueItens();
+          setEstoqueCriticosCount(atual.filter((i) => i.quantidade_atual <= i.estoque_minimo).length);
+        }
+      });
+    }
   };
 
   // Exclui ocorrência
@@ -390,6 +423,25 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
           >
             <span>📊 Relatórios Epidemiológicos</span>
           </button>
+
+          {canAccessEstoque && (
+            <button
+              type="button"
+              onClick={() => setAbaAtiva('estoque')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                abaAtiva === 'estoque'
+                  ? 'bg-white dark:bg-slate-900 text-slate-950 dark:text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <span>📦 Controle de Estoque</span>
+              {estoqueCriticosCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-500 text-white font-black">
+                  {estoqueCriticosCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -405,6 +457,7 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
       </div>
 
       {/* 4. Barra de Filtros (Praga, Bairro e Busca) */}
+      {(abaAtiva === 'lista' || abaAtiva === 'mapa') && (
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
         {/* Filtro por Animal / Vetor */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none py-1 max-w-full">
@@ -476,8 +529,17 @@ export const CcpuView: React.FC<CcpuViewProps> = ({
           </div>
         </div>
       </div>
+      )}
 
       {/* 5. Conteúdo da Aba Ativa */}
+
+      {/* ABA ESTOQUE (Somente Diretores, Administrativos e Master) */}
+      {abaAtiva === 'estoque' && canAccessEstoque && (
+        <CcpuEstoqueView
+          currentUser={currentUser}
+          onStockSummaryChange={setEstoqueCriticosCount}
+        />
+      )}
 
       {/* ABA MAPA */}
       {abaAtiva === 'mapa' && (

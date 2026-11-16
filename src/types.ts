@@ -170,6 +170,8 @@ export const MODULOS_SISTEMA: ModuloPermissao[] = [
   { id: 'laboratorio', nome: 'Laboratório & Amostras', categoria: 'MODULO', descricao: 'Controle de análises de água, balneabilidade e laudos', icon: 'Microscope' },
   { id: 'cnae', nome: 'Consulta CNAE (VISA)', categoria: 'MODULO', descricao: 'Tabela de códigos CNAE e classificação de risco sanitário', icon: 'FileSpreadsheet' },
   { id: 'telefone', nome: 'Telefones & Ramais', categoria: 'MODULO', descricao: 'Guia telefônico e ramais internos da vigilância', icon: 'PhoneCall' },
+  { id: 'ccpu', nome: 'CCPU - Controle de Pragas', categoria: 'MODULO', descricao: 'Ocorrências de pragas urbanas, bueiros, GPS e insumos aplicados', icon: 'ShieldCheck' },
+  { id: 'ccpu_estoque', nome: 'Controle de Estoque (CCPU)', categoria: 'MODULO', descricao: 'Gestão de entradas, saídas, saldo mínimo e histórico de iscas e larvicida', icon: 'Building2' },
   { id: 'cidadao', nome: 'Consulta Cidadão (Munícipe)', categoria: 'MODULO', descricao: 'Autoatendimento e consulta de regularidade sanitária', icon: 'Search' },
 
   // Ferramentas & Sistemas Externos Integrados
@@ -190,12 +192,12 @@ export const MODULOS_SISTEMA: ModuloPermissao[] = [
 ];
 
 export const PRESET_PAGINAS = {
-  DIRETOR_GERAL: ['demandas_diretor', 'demandas_fiscal', 'alvara_visa', 'pasta_visa', 'fiscalizacao', 'feiras', 'agenda', 'laboratorio', 'cnae', 'telefone', '1doc', 'epub', 'ahgo', 'rhwb', 'mail', 'geoo', 'domm', 'cnpj', 'alva', 'debi', 'leis', 'mapa', 'pref'],
-  DIRETOR_SETORIAL: ['demandas_diretor', 'demandas_fiscal', 'alvara_visa', 'fiscalizacao', 'agenda', 'cnae', 'telefone', '1doc', 'epub', 'ahgo', 'mail', 'cnpj', 'leis', 'mapa', 'pref'],
-  FISCAL: ['demandas_fiscal', 'alvara_visa', 'fiscalizacao', 'agenda', 'cnae', 'telefone', '1doc', 'epub', 'ahgo', 'mail', 'geoo', 'cnpj', 'leis', 'mapa', 'pref'],
+  DIRETOR_GERAL: ['demandas_diretor', 'demandas_fiscal', 'alvara_visa', 'pasta_visa', 'fiscalizacao', 'feiras', 'agenda', 'laboratorio', 'cnae', 'telefone', 'ccpu', 'ccpu_estoque', '1doc', 'epub', 'ahgo', 'rhwb', 'mail', 'geoo', 'domm', 'cnpj', 'alva', 'debi', 'leis', 'mapa', 'pref'],
+  DIRETOR_SETORIAL: ['demandas_diretor', 'demandas_fiscal', 'alvara_visa', 'fiscalizacao', 'agenda', 'cnae', 'telefone', 'ccpu', 'ccpu_estoque', '1doc', 'epub', 'ahgo', 'mail', 'cnpj', 'leis', 'mapa', 'pref'],
+  FISCAL: ['demandas_fiscal', 'alvara_visa', 'fiscalizacao', 'agenda', 'cnae', 'telefone', 'ccpu', '1doc', 'epub', 'ahgo', 'mail', 'geoo', 'cnpj', 'leis', 'mapa', 'pref'],
   LABORATORIO: ['laboratorio', 'agenda', 'telefone', '1doc', 'ahgo', 'mail', 'cnpj', 'pref'],
   FEIRAS: ['feiras', 'agenda', 'telefone', '1doc', 'ahgo', 'mail', 'cnpj', 'pref'],
-  ADMINISTRATIVO: ['demandas_fiscal', 'pasta_visa', 'alvara_visa', 'agenda', 'telefone', '1doc', 'epub', 'ahgo', 'rhwb', 'mail', 'domm', 'cnpj', 'alva', 'debi', 'leis', 'pref'],
+  ADMINISTRATIVO: ['demandas_fiscal', 'pasta_visa', 'alvara_visa', 'agenda', 'telefone', 'ccpu', 'ccpu_estoque', '1doc', 'epub', 'ahgo', 'rhwb', 'mail', 'domm', 'cnpj', 'alva', 'debi', 'leis', 'pref'],
   TODAS: MODULOS_SISTEMA.map((m) => m.id)
 };
 
@@ -235,6 +237,29 @@ export function isUserDiretor(user: UserProfile | null | undefined): boolean {
     nivel.includes('DIRETOR') ||
     email.includes('diretor')
   );
+}
+
+export function isUserAdministrativo(user: UserProfile | null | undefined): boolean {
+  if (!user) return false;
+  if (isUserMaster(user)) return true;
+  const cargo = (user.cargo || '').toUpperCase();
+  const nivel = (user.nivel_acesso || '').toUpperCase();
+  const email = (user.email || '').toLowerCase();
+  return (
+    cargo.includes('ADMINISTRATIV') ||
+    cargo.includes('ASSISTENTE ADMIN') ||
+    nivel.includes('ADMINISTRATIV') ||
+    email.includes('administrativ')
+  );
+}
+
+export function isUserDiretorOuAdministrativo(user: UserProfile | null | undefined): boolean {
+  if (!user) return false;
+  if (isUserMaster(user) || isUserDiretor(user) || isUserAdministrativo(user)) return true;
+  if (Array.isArray(user.paginas_permitidas) && user.paginas_permitidas.includes('ccpu_estoque')) {
+    return true;
+  }
+  return false;
 }
 
 export function isUserFiscal(user: UserProfile | null | undefined): boolean {
@@ -372,6 +397,12 @@ export function userHasAccessToPage(user: UserProfile | null | undefined, pageOr
     if (pageOrButtonId === 'alvara_visa' && user.paginas_permitidas.includes('alvara_visa')) return true;
     if ((pageOrButtonId === 'demandas_fiscal' || pageOrButtonId === 'demandas') && user.paginas_permitidas.includes('demandas_fiscal')) return true;
     if (pageOrButtonId === 'demandas_diretor' && (isUserDiretor(user) || user.paginas_permitidas.includes('demandas_diretor'))) return true;
+    if (pageOrButtonId === 'ccpu_btn' || pageOrButtonId === 'ccpu') {
+      return user.paginas_permitidas.includes('ccpu') || user.paginas_permitidas.includes('ccpu_btn') || isUserDiretorOuAdministrativo(user);
+    }
+    if (pageOrButtonId === 'ccpu_estoque') {
+      return isUserDiretorOuAdministrativo(user);
+    }
     return false;
   }
 
@@ -382,6 +413,9 @@ export function userHasAccessToPage(user: UserProfile | null | undefined, pageOr
     }
     if (pageOrButtonId === 'demandas_diretor') {
       return isUserDiretor(user) || isUserMaster(user);
+    }
+    if (pageOrButtonId === 'ccpu_estoque') {
+      return isUserDiretorOuAdministrativo(user);
     }
     if (pageOrButtonId === 'laboratorio' || pageOrButtonId === 'tlab') {
       return (user.nivel_acesso === 'VISA (LABORATÓRIO)' || (user.setor || '').toUpperCase().includes('LAB'));
@@ -1054,5 +1088,38 @@ export interface CcpuOcorrenciaItem {
   medidasAdotadas: string;
   fotos?: string[];
   createdAt: string;
+}
+
+export type CcpuInsumoId = CcpuInsumoUtilizado['id'];
+
+export interface CcpuEstoqueItem {
+  id: CcpuInsumoId;
+  nome: string;
+  categoria: 'ISCA_RATICIDA' | 'INSUMO_QUIMICO' | 'LARVICIDA';
+  unidade: 'unidade' | 'litro';
+  quantidade_atual: number;
+  estoque_minimo: number;
+  lote_atual?: string;
+  validade_lote?: string;
+  observacoes?: string;
+  atualizado_em: string;
+  atualizado_por?: string;
+}
+
+export interface CcpuEstoqueMovimentacao {
+  id: string;
+  item_id: CcpuInsumoId;
+  item_nome: string;
+  tipo: 'ENTRADA' | 'SAIDA' | 'AJUSTE';
+  quantidade: number;
+  saldo_anterior: number;
+  saldo_posterior: number;
+  unidade: 'unidade' | 'litro';
+  motivo: string;
+  protocolo_ocorrencia?: string;
+  ocorrencia_id?: string;
+  lote?: string;
+  responsavel: string;
+  data_hora: string;
 }
 

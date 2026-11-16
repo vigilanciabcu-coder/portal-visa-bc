@@ -15,32 +15,87 @@ import {
   LocateFixed
 } from 'lucide-react';
 import {
+  CcpuEstoqueItem,
   CcpuInsumoUtilizado,
   CcpuOcorrenciaItem,
   TipoPragaCcpu,
   TipoLocalCcpu,
   StatusEspecimeCcpu,
-  UserProfile
+  UserProfile,
+  isUserDiretorOuAdministrativo
 } from '../../types';
 import { COORDENADAS_BAIRROS_BC } from '../../lib/geoService';
 import { ANIMAIS_CCPU_CONFIG, BAIRROS_BC_ALFABETICO, getAnimalInfo } from '../../data/ccpuAnimaisData';
+import { fetchCcpuEstoque, getLocalCcpuEstoqueItens } from '../../lib/ccpuEstoqueService';
 
-const INSUMOS_CCPU_OPCOES: Array<{
+interface InsumoOpcaoConfig {
   id: CcpuInsumoUtilizado['id'];
   nome: string;
   unidade: 'unidade' | 'litro';
   sigla: string;
   step: string;
+}
+
+const INSUMOS_CCPU_GRUPOS: Array<{
+  id: string;
+  titulo: string;
+  subtitulo: string;
+  emoji: string;
+  badgeClass: string;
+  gridClass: string;
+  itens: InsumoOpcaoConfig[];
 }> = [
-  { id: 'PARAFINADO', nome: 'Parafinado', unidade: 'unidade', sigla: 'un', step: '1' },
-  { id: 'COLANTE', nome: 'Colante', unidade: 'unidade', sigla: 'un', step: '1' },
-  { id: 'EXTRUSADO', nome: 'Extrusado', unidade: 'unidade', sigla: 'un', step: '1' },
-  { id: 'ISCA_FRESCA', nome: 'Isca Fresca', unidade: 'unidade', sigla: 'un', step: '1' },
-  { id: 'GRANULADO', nome: 'Granulado', unidade: 'unidade', sigla: 'un', step: '1' },
-  { id: 'GEL', nome: 'Gel', unidade: 'unidade', sigla: 'un', step: '1' },
-  { id: 'PO', nome: 'Pó', unidade: 'unidade', sigla: 'un', step: '1' },
-  { id: 'LARVICIDA', nome: 'Larvicida', unidade: 'litro', sigla: 'L', step: '0.1' }
+  {
+    id: 'RATO',
+    titulo: 'Rato',
+    subtitulo: 'Raticidas e armadilhas (Unidade)',
+    emoji: '🐀',
+    badgeClass: 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-300 border-amber-300 dark:border-amber-700',
+    gridClass: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+    itens: [
+      { id: 'PARAFINADO', nome: 'Parafinado', unidade: 'unidade', sigla: 'un', step: '1' },
+      { id: 'COLANTE', nome: 'Colante', unidade: 'unidade', sigla: 'un', step: '1' },
+      { id: 'EXTRUSADO', nome: 'Extrusado', unidade: 'unidade', sigla: 'un', step: '1' },
+      { id: 'ISCA_FRESCA', nome: 'Isca Fresca', unidade: 'unidade', sigla: 'un', step: '1' }
+    ]
+  },
+  {
+    id: 'BARATA',
+    titulo: 'Barata',
+    subtitulo: 'Inseticidas em gel e pó (Unidade)',
+    emoji: '🪳',
+    badgeClass: 'bg-orange-100 text-orange-900 dark:bg-orange-900/40 dark:text-orange-300 border-orange-300 dark:border-orange-700',
+    gridClass: 'grid-cols-1 sm:grid-cols-2',
+    itens: [
+      { id: 'GEL', nome: 'Gel', unidade: 'unidade', sigla: 'un', step: '1' },
+      { id: 'PO', nome: 'Pó', unidade: 'unidade', sigla: 'un', step: '1' }
+    ]
+  },
+  {
+    id: 'MOSQUITO',
+    titulo: 'Mosquito',
+    subtitulo: 'Controle larvário (Litro)',
+    emoji: '🦟',
+    badgeClass: 'bg-cyan-100 text-cyan-900 dark:bg-cyan-900/40 dark:text-cyan-300 border-cyan-300 dark:border-cyan-700',
+    gridClass: 'grid-cols-1',
+    itens: [
+      { id: 'LARVICIDA', nome: 'Larvicida', unidade: 'litro', sigla: 'L', step: '0.1' }
+    ]
+  },
+  {
+    id: 'OUTROS',
+    titulo: 'Formiga / Outros',
+    subtitulo: 'Isca granulada complementar (Unidade)',
+    emoji: '🐜',
+    badgeClass: 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600',
+    gridClass: 'grid-cols-1',
+    itens: [
+      { id: 'GRANULADO', nome: 'Granulado', unidade: 'unidade', sigla: 'un', step: '1' }
+    ]
+  }
 ];
+
+const INSUMOS_CCPU_OPCOES: InsumoOpcaoConfig[] = INSUMOS_CCPU_GRUPOS.flatMap((grupo) => grupo.itens);
 
 interface CcpuNovaOcorrenciaModalProps {
   currentUser: UserProfile | null;
@@ -104,6 +159,10 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
     PO: '',
     LARVICIDA: ''
   });
+  const canSeeEstoqueSaldo = isUserDiretorOuAdministrativo(currentUser);
+  const [estoqueItens, setEstoqueItens] = useState<CcpuEstoqueItem[]>(() =>
+    canSeeEstoqueSaldo ? getLocalCcpuEstoqueItens() : []
+  );
 
   // Responsável e Ações
   const [servidorResponsavel, setServidorResponsavel] = useState(() => {
@@ -218,7 +277,10 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
 
   useEffect(() => {
     handleFetchWeather();
-  }, []);
+    if (canSeeEstoqueSaldo) {
+      fetchCcpuEstoque().then((res) => setEstoqueItens(res.itens));
+    }
+  }, [canSeeEstoqueSaldo]);
 
   const handleAddFator = () => {
     if (!novoFator.trim()) return;
@@ -708,58 +770,100 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {INSUMOS_CCPU_OPCOES.map((item) => {
-                const rawVal = insumosQtd[item.id];
-                const numVal = parseFloat((rawVal || '0').replace(',', '.'));
-                const isAtivo = !isNaN(numVal) && numVal > 0;
-                const isLitro = item.unidade === 'litro';
+            <div className="space-y-4">
+              {INSUMOS_CCPU_GRUPOS.map((grupo) => {
+                const qtdAtivosGrupo = grupo.itens.filter((item) => {
+                  const v = parseFloat((insumosQtd[item.id] || '0').replace(',', '.'));
+                  return !isNaN(v) && v > 0;
+                }).length;
 
                 return (
                   <div
-                    key={item.id}
-                    className={`p-3 rounded-xl border transition ${
-                      isAtivo
-                        ? isLitro
-                          ? 'bg-cyan-50/70 dark:bg-cyan-950/30 border-cyan-400 dark:border-cyan-600'
-                          : 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-400 dark:border-amber-600'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
-                    }`}
+                    key={grupo.id}
+                    className="p-3.5 rounded-xl bg-white/70 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 space-y-2.5"
                   >
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <label
-                        htmlFor={`insumo-${item.id}`}
-                        className="text-xs font-bold uppercase text-slate-800 dark:text-slate-200"
-                      >
-                        {item.nome}
-                      </label>
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                          isLitro
-                            ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300'
-                            : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
-                        }`}
-                      >
-                        {item.unidade === 'litro' ? 'Litro' : 'Unidade'}
-                      </span>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[11px] font-black uppercase tracking-wide border ${grupo.badgeClass}`}
+                        >
+                          <span>{grupo.emoji}</span>
+                          <span>Venenos para {grupo.titulo}</span>
+                        </span>
+                        <span className="text-[11px] text-slate-500">{grupo.subtitulo}</span>
+                      </div>
+                      {qtdAtivosGrupo > 0 && (
+                        <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                          {qtdAtivosGrupo} selecionado(s)
+                        </span>
+                      )}
                     </div>
 
-                    <div className="relative">
-                      <input
-                        id={`insumo-${item.id}`}
-                        type="number"
-                        min="0"
-                        step={item.step}
-                        value={rawVal}
-                        onChange={(e) =>
-                          setInsumosQtd((prev) => ({ ...prev, [item.id]: e.target.value }))
-                        }
-                        placeholder="0"
-                        className="w-full px-3 py-2 pr-14 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-amber-500"
-                      />
-                      <span className="absolute right-3 top-2 text-xs font-bold text-slate-400 pointer-events-none">
-                        {item.sigla}
-                      </span>
+                    <div className={`grid ${grupo.gridClass} gap-3`}>
+                      {grupo.itens.map((item) => {
+                        const rawVal = insumosQtd[item.id];
+                        const numVal = parseFloat((rawVal || '0').replace(',', '.'));
+                        const isAtivo = !isNaN(numVal) && numVal > 0;
+                        const isLitro = item.unidade === 'litro';
+                        const estoqueAtual = estoqueItens.find((e) => e.id === item.id)?.quantidade_atual ?? 0;
+
+                        return (
+                          <div
+                            key={item.id}
+                            className={`p-3 rounded-xl border transition ${
+                              isAtivo
+                                ? isLitro
+                                  ? 'bg-cyan-50/70 dark:bg-cyan-950/30 border-cyan-400 dark:border-cyan-600'
+                                  : 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-400 dark:border-amber-600'
+                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2 mb-1.5">
+                              <label
+                                htmlFor={`insumo-${item.id}`}
+                                className="text-xs font-bold uppercase text-slate-800 dark:text-slate-200"
+                              >
+                                {item.nome}
+                              </label>
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                  isLitro
+                                    ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300'
+                                    : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                                }`}
+                              >
+                                {item.unidade === 'litro' ? 'Litro' : 'Unidade'}
+                              </span>
+                            </div>
+
+                            <div className="relative">
+                              <input
+                                id={`insumo-${item.id}`}
+                                type="number"
+                                min="0"
+                                step={item.step}
+                                value={rawVal}
+                                onChange={(e) =>
+                                  setInsumosQtd((prev) => ({ ...prev, [item.id]: e.target.value }))
+                                }
+                                placeholder="0"
+                                className="w-full px-3 py-2 pr-14 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-amber-500"
+                              />
+                              <span className="absolute right-3 top-2 text-xs font-bold text-slate-400 pointer-events-none">
+                                {item.sigla}
+                              </span>
+                            </div>
+                            {canSeeEstoqueSaldo && (
+                              <span className="text-[10px] text-slate-500 mt-1 block">
+                                Estoque atual:{' '}
+                                <strong className="text-slate-700 dark:text-slate-300">
+                                  {estoqueAtual} {item.sigla}
+                                </strong>
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
