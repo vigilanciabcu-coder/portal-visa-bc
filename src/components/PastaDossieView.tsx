@@ -564,6 +564,7 @@ export function PastaDossieView({
             placeholder="Pesquisar por CNPJ, Razão Social ou Número da Pasta..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ width: '800.75px' }}
             className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-purple-500 font-bold"
           />
         </div>

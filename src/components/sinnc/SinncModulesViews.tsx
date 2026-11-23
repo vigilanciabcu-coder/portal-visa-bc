@@ -8,6 +8,8 @@ import {
   UserProfile,
   EscalaItem,
   AmostraLaboratorioItem,
+  PontoColetaLaboratorio,
+  SolicitacaoLaudoPotabilidadeItem,
 } from '../../types';
 import {
   SinncDashboardMetrics,
@@ -28,6 +30,13 @@ import {
 } from '../../lib/pastaVisaService';
 import { computePastaSemaforo, getLabRecordsForPasta } from '../../lib/interlaceServices';
 import { SinncWorkflowModalKind } from './SinncDemoWorkflowModals';
+import {
+  SinncCcpuAestheticView,
+  SinncConfiguracoesUsuariosView,
+  SinncContadorView,
+  SinncLaboratorioAestheticView,
+  SinncMunicipeView,
+} from './SinncExtendedViews';
 import {
   ArrowUpRight,
   Award,
@@ -53,6 +62,7 @@ interface SinncModulesViewsProps {
   processos: ProcessoItem[];
   fiscalizacoes: FiscalizacaoItem[];
   amostrasLaboratorio: AmostraLaboratorioItem[];
+  pontosColeta?: PontoColetaLaboratorio[];
   feiras: FeiranteItem[];
   escala: EscalaItem[];
   users: UserProfile[];
@@ -63,6 +73,10 @@ interface SinncModulesViewsProps {
   onOpenDossiePorDoc: (doc: string, razaoFallback?: string) => void;
   onOpenWorkflowModal: (kind: SinncWorkflowModalKind, initialPasta?: PastaVisaItem | null) => void;
   onOpenSolicitarLab: (pasta?: PastaVisaItem | null) => void;
+  onOpenTermoColeta?: (amostra?: AmostraLaboratorioItem | null, solicitacao?: SolicitacaoLaudoPotabilidadeItem | null) => void;
+  onOpenLaudoOficial?: (amostra?: AmostraLaboratorioItem | null, solicitacao?: SolicitacaoLaudoPotabilidadeItem | null) => void;
+  onSaveUser?: (user: UserProfile) => Promise<boolean> | void;
+  onDeleteUser?: (userId: string) => void;
   onRefreshState: () => void;
   onNavigateClassic: (view: string) => void;
   compactDensity: boolean;
@@ -296,6 +310,7 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
   processos,
   fiscalizacoes,
   amostrasLaboratorio,
+  pontosColeta = [],
   feiras,
   escala,
   users,
@@ -306,6 +321,10 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
   onOpenDossiePorDoc,
   onOpenWorkflowModal,
   onOpenSolicitarLab,
+  onOpenTermoColeta,
+  onOpenLaudoOficial,
+  onSaveUser,
+  onDeleteUser,
   onRefreshState,
   onNavigateClassic,
   compactDensity,
@@ -1648,79 +1667,80 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
     );
   }
 
-  // 11. CONFIGURAÇÕES E SCRIPT SQL SUPABASE
+  // 10B. TELAS DEDICADAS: MUNÍCIPE, CONTADOR, LABORATÓRIO E CCPU (ESTÉTICA CAPA TESTE)
+  if (activeTab === 'municipe') {
+    return (
+      <SinncMunicipeView
+        currentUser={currentUser}
+        metrics={metrics}
+        processos={processos}
+        onSelectProcesso={onSelectProcesso}
+        onSaveProcesso={onSaveProcesso}
+        onOpenDossiePorDoc={onOpenDossiePorDoc}
+        onOpenWorkflowModal={onOpenWorkflowModal}
+        onOpenSolicitarLab={onOpenSolicitarLab}
+        onRefreshState={onRefreshState}
+        onNavigateClassic={onNavigateClassic}
+        compactDensity={compactDensity}
+      />
+    );
+  }
+
+  if (activeTab === 'contador') {
+    return (
+      <SinncContadorView
+        currentUser={currentUser}
+        metrics={metrics}
+        processos={processos}
+        onSelectProcesso={onSelectProcesso}
+        onOpenDossiePorDoc={onOpenDossiePorDoc}
+        onOpenWorkflowModal={onOpenWorkflowModal}
+        onRefreshState={onRefreshState}
+        onNavigateClassic={onNavigateClassic}
+        compactDensity={compactDensity}
+      />
+    );
+  }
+
+  if (activeTab === 'laboratorio') {
+    return (
+      <SinncLaboratorioAestheticView
+        metrics={metrics}
+        amostrasLaboratorio={amostrasLaboratorio}
+        pontosColeta={pontosColeta}
+        onOpenDossiePorDoc={onOpenDossiePorDoc}
+        onOpenSolicitarLab={onOpenSolicitarLab}
+        onOpenTermoColeta={onOpenTermoColeta}
+        onOpenLaudoOficial={onOpenLaudoOficial}
+        onNavigateClassic={onNavigateClassic}
+        compactDensity={compactDensity}
+      />
+    );
+  }
+
+  if (activeTab === 'ccpu') {
+    return (
+      <SinncCcpuAestheticView
+        currentUser={currentUser}
+        onRefreshState={onRefreshState}
+        onNavigateClassic={onNavigateClassic}
+        compactDensity={compactDensity}
+      />
+    );
+  }
+
+  // 11. CONFIGURAÇÕES, CADASTRO DE USUÁRIOS & SCRIPT SQL SUPABASE
   return (
-    <div className="space-y-5 text-left max-w-3xl">
-      {renderSectionHeader('Preferências do painel e script SQL da Opção A Híbrida para o Supabase')}
-
-      <div className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-200 text-xs">
-        <div className="p-4 flex items-center justify-between gap-4">
-          <div>
-            <div className="font-medium text-slate-800">Densidade das tabelas</div>
-            <div className="text-[11px] text-slate-500">Ajuste o espaçamento vertical das listas operacionais</div>
-          </div>
-          <div className="flex items-center gap-1 p-1 bg-[#f4f6f9] border border-slate-200 rounded-md">
-            <button
-              type="button"
-              onClick={() => setCompactDensity(false)}
-              className={`px-2.5 py-1 rounded text-[11px] font-medium cursor-pointer ${
-                !compactDensity ? 'bg-white text-slate-900 border border-slate-200' : 'text-slate-600'
-              }`}
-            >
-              Confortável
-            </button>
-            <button
-              type="button"
-              onClick={() => setCompactDensity(true)}
-              className={`px-2.5 py-1 rounded text-[11px] font-medium cursor-pointer ${
-                compactDensity ? 'bg-white text-slate-900 border border-slate-200' : 'text-slate-600'
-              }`}
-            >
-              Compacto
-            </button>
-          </div>
-        </div>
-
-        <div className="p-4 flex items-center justify-between gap-4">
-          <div>
-            <div className="font-medium text-slate-800">Usuário autenticado</div>
-            <div className="text-[11px] text-slate-500">
-              {currentUser?.nome_completo || 'Visitante'} · {currentUser?.cargo || 'Perfil padrão'}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => onNavigateClassic('home')}
-            className="px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-xs font-medium text-slate-700 cursor-pointer"
-          >
-            Retornar ao Portal Clássico
-          </button>
-        </div>
-
-        <div className="p-4 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <div className="font-medium text-slate-800 flex items-center gap-1.5">
-              <Database className="w-3.5 h-3.5 text-[#3b6d96]" />
-              <span>Script SQL Completo para o Supabase (Opção A Híbrida)</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard?.writeText(SQL_MIGRATION_SNIPPET);
-                setCopiedSql(true);
-                setTimeout(() => setCopiedSql(false), 2500);
-              }}
-              className="px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 text-[11px] font-medium text-slate-700 flex items-center gap-1 cursor-pointer"
-            >
-              <Copy className="w-3 h-3" />
-              <span>{copiedSql ? 'SQL Copiado' : 'Copiar SQL completo'}</span>
-            </button>
-          </div>
-          <pre className="p-3 rounded bg-slate-900 text-slate-100 font-mono text-[11px] max-h-72 overflow-auto leading-relaxed">
-            {SQL_MIGRATION_SNIPPET}
-          </pre>
-        </div>
-      </div>
-    </div>
+    <SinncConfiguracoesUsuariosView
+      currentUser={currentUser}
+      users={users}
+      onSaveUser={onSaveUser}
+      onDeleteUser={onDeleteUser}
+      onOpenDossiePorDoc={onOpenDossiePorDoc}
+      onNavigateClassic={onNavigateClassic}
+      compactDensity={compactDensity}
+      setCompactDensity={setCompactDensity}
+      sqlMigrationSnippet={SQL_MIGRATION_SNIPPET}
+    />
   );
 };

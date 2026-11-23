@@ -19,6 +19,10 @@ import {
   Award,
   X,
   FolderOpen,
+  User,
+  Calculator,
+  FlaskConical,
+  Bug,
 } from 'lucide-react';
 import {
   AlvaraSanitarioItem,
@@ -73,6 +77,7 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
   processos,
   fiscalizacoes,
   amostrasLaboratorio,
+  pontosColeta = [],
   feiras,
   escala,
   users,
@@ -80,6 +85,8 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
   onSaveFiscalizacao,
   onSaveEscalaItem,
   onSaveFeirante,
+  onSaveUser,
+  onDeleteUser,
   onExitMinimalPortal,
   onNavigateClassic,
 }) => {
@@ -395,11 +402,23 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
       icon: <FolderKanban className="w-4 h-4 stroke-[1.75]" />,
       count: processos.length,
     },
-    { id: 'atendimento', label: 'Portal', icon: <Headphones className="w-4 h-4 stroke-[1.75]" /> },
-    { id: 'programas', label: 'Lab/CCPU', icon: <Layers className="w-4 h-4 stroke-[1.75]" /> },
+    { id: 'municipe', label: 'Munícipe', icon: <User className="w-4 h-4 stroke-[1.75]" /> },
+    { id: 'contador', label: 'Contador', icon: <Calculator className="w-4 h-4 stroke-[1.75]" /> },
+    {
+      id: 'laboratorio',
+      label: 'Laboratório',
+      icon: <FlaskConical className="w-4 h-4 stroke-[1.75]" />,
+      count: metrics.amostrasAguardando,
+    },
+    {
+      id: 'ccpu',
+      label: 'CCPU',
+      icon: <Bug className="w-4 h-4 stroke-[1.75]" />,
+      count: metrics.ccpuLocais.length,
+    },
     { id: 'relatorios', label: 'Relatórios', icon: <BarChart3 className="w-4 h-4 stroke-[1.75]" /> },
     { id: 'gestao', label: 'Diretoria', icon: <Briefcase className="w-4 h-4 stroke-[1.75]" /> },
-    { id: 'configuracoes', label: 'Ajustes', icon: <Settings className="w-4 h-4 stroke-[1.75]" /> },
+    { id: 'configuracoes', label: 'Config', icon: <Settings className="w-4 h-4 stroke-[1.75]" /> },
   ];
 
   const getTabIcon = (id: SinncWorkspaceTabId) => {
@@ -678,6 +697,7 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
                   processos={processos}
                   fiscalizacoes={fiscalizacoes}
                   amostrasLaboratorio={amostrasLaboratorio}
+                  pontosColeta={pontosColeta}
                   feiras={feiras}
                   escala={escala}
                   users={users}
@@ -691,6 +711,10 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
                     setWorkflowModal(kind);
                   }}
                   onOpenSolicitarLab={handleSolicitarLab}
+                  onOpenTermoColeta={(am, sol) => setTermoColetaModal({ amostra: am, solicitacao: sol })}
+                  onOpenLaudoOficial={(am, sol) => setLaudoOficialModal({ amostra: am, solicitacao: sol })}
+                  onSaveUser={onSaveUser}
+                  onDeleteUser={onDeleteUser}
                   onRefreshState={refreshUnifiedState}
                   onNavigateClassic={onNavigateClassic}
                   compactDensity={compactDensity}

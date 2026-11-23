@@ -918,6 +918,7 @@ export default function App() {
           processos={processos}
           fiscalizacoes={fiscalizacoes}
           amostrasLaboratorio={amostrasLaboratorio}
+          pontosColeta={pontosColeta}
           feiras={feiras}
           escala={escala}
           users={users}
@@ -925,6 +926,8 @@ export default function App() {
           onSaveFiscalizacao={handleSaveFiscalizacao}
           onSaveEscalaItem={handleSaveEscalaItem}
           onSaveFeirante={handleSaveFeirante}
+          onSaveUser={handleSaveUser}
+          onDeleteUser={handleDeleteUser}
           onExitMinimalPortal={() => setCurrentView('home')}
           onNavigateClassic={(v) => setCurrentView(v as any)}
         />

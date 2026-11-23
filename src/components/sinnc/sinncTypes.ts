@@ -11,10 +11,12 @@ import {
   HabiteSeRegistroItem,
   PasJuridicoItem,
   SolicitacaoLaudoPotabilidadeItem,
+  PontoColetaLaboratorio,
 } from '../../types';
 import { loadAllAlvarasUnificados, loadAllPastasUnificadas } from '../../lib/pastaVisaService';
 import { loadHabiteSeRegistros, loadPasJuridico } from '../../lib/interlaceServices';
 import { getSolicitacoesPotabilidade } from '../../lib/potabilidadeService';
+import { getLocalCcpuOcorrencias } from '../../lib/ccpuOcorrenciasService';
 
 export type SinncNavId =
   | 'buscar'
@@ -25,6 +27,10 @@ export type SinncNavId =
   | 'licenciamento'
   | 'fiscalizacao'
   | 'processos'
+  | 'municipe'
+  | 'contador'
+  | 'laboratorio'
+  | 'ccpu'
   | 'atendimento'
   | 'programas'
   | 'relatorios'
@@ -63,11 +69,15 @@ export const SINNC_MODULE_LABELS: Record<SinncWorkspaceTabId, string> = {
   licenciamento: 'Licenciamento & Habite-se',
   fiscalizacao: 'Fiscalização',
   processos: 'Processos & PAS',
+  municipe: 'Portal do Munícipe',
+  contador: 'Portal do Contador',
+  laboratorio: 'Laboratório & Potabilidade',
+  ccpu: 'CCPU · Controle de Pragas',
   atendimento: 'Portal Cidadão / Contador',
   programas: 'Laboratório & Programas',
   relatorios: 'Relatórios e BI',
   gestao: 'Triagem Diretoria & Consolidação',
-  configuracoes: 'Configurações e SQL',
+  configuracoes: 'Configurações & Usuários',
 };
 
 export interface SinncPortalDataProps {
@@ -75,6 +85,7 @@ export interface SinncPortalDataProps {
   processos: ProcessoItem[];
   fiscalizacoes: FiscalizacaoItem[];
   amostrasLaboratorio: AmostraLaboratorioItem[];
+  pontosColeta?: PontoColetaLaboratorio[];
   feiras: FeiranteItem[];
   escala: EscalaItem[];
   users: UserProfile[];
@@ -82,6 +93,8 @@ export interface SinncPortalDataProps {
   onSaveFiscalizacao?: (item: FiscalizacaoItem) => Promise<void> | void;
   onSaveEscalaItem?: (item: EscalaItem) => Promise<void> | void;
   onSaveFeirante?: (item: FeiranteItem) => Promise<void> | void;
+  onSaveUser?: (user: UserProfile) => Promise<boolean> | void;
+  onDeleteUser?: (userId: string) => void;
   onExitMinimalPortal: () => void;
   onNavigateClassic: (view: string) => void;
 }
@@ -182,7 +195,7 @@ export function computeSinncMetrics(
 ): SinncDashboardMetrics {
   const alvarasLocais = alvarasOverride || loadAllAlvarasUnificados();
   const pastasLocais = pastasOverride || loadAllPastasUnificadas();
-  const ccpuLocais = safeReadLocalArray<CcpuOcorrenciaItem>('ccpu_ocorrencias');
+  const ccpuLocais = getLocalCcpuOcorrencias();
   const habiteSeLocais = habiteSeOverride || loadHabiteSeRegistros();
   const pasJuridicoLocais = pasOverride || loadPasJuridico();
   const solicitacoesLabLocais = solicitacoesLabOverride || getSolicitacoesPotabilidade();

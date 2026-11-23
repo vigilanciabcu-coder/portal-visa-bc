@@ -109,7 +109,7 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
       value: metrics.amostrasAguardando,
       subtext: `${metrics.amostrasInsatisfatorias} insatisfatória(s) no total`,
       icon: <FlaskConical className="w-3.5 h-3.5" />,
-      targetTab: 'programas',
+      targetTab: 'laboratorio',
     },
     {
       id: 'surtos',
@@ -117,7 +117,7 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
       value: metrics.surtosOcorrenciasAberto,
       subtext: `${metrics.surtosNotificadosTotal} notificados no total`,
       icon: <AlertCircle className="w-3.5 h-3.5" />,
-      targetTab: 'programas',
+      targetTab: 'ccpu',
     },
     {
       id: 'temporarias',
@@ -274,7 +274,7 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
 
           <button
             type="button"
-            onClick={() => onOpenTab('atendimento')}
+            onClick={() => onOpenTab('municipe')}
             className="bg-[#f4f6f9] hover:bg-white border border-slate-200/90 rounded-lg px-3.5 py-3 text-left transition-colors cursor-pointer"
           >
             <div className="text-lg font-semibold text-slate-800 tabular-nums">
@@ -291,7 +291,7 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
 
           <button
             type="button"
-            onClick={() => onOpenTab('programas')}
+            onClick={() => onOpenTab('laboratorio')}
             className="bg-[#f4f6f9] hover:bg-white border border-slate-200/90 rounded-lg px-3.5 py-3 text-left transition-colors cursor-pointer"
           >
             <div className={`text-lg font-semibold tabular-nums ${metrics.amostrasInsatisfatorias > 0 ? 'text-[#a13c46]' : 'text-slate-800'}`}>
