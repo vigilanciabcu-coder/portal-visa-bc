@@ -8,7 +8,13 @@ import {
   AlvaraSanitarioItem,
   PastaVisaItem,
   CcpuOcorrenciaItem,
+  HabiteSeRegistroItem,
+  PasJuridicoItem,
+  SolicitacaoLaudoPotabilidadeItem,
 } from '../../types';
+import { loadAllAlvarasUnificados, loadAllPastasUnificadas } from '../../lib/pastaVisaService';
+import { loadHabiteSeRegistros, loadPasJuridico } from '../../lib/interlaceServices';
+import { getSolicitacoesPotabilidade } from '../../lib/potabilidadeService';
 
 export type SinncNavId =
   | 'buscar'
@@ -53,15 +59,15 @@ export const SINNC_MODULE_LABELS: Record<SinncWorkspaceTabId, string> = {
   buscar: 'Busca global',
   tarefas: 'Minhas tarefas',
   agenda: 'Agenda e escalas',
-  cadastros: 'Cadastros e CNPJs',
-  licenciamento: 'Licenciamento sanitário',
+  cadastros: 'Pastas VISA & CNPJs',
+  licenciamento: 'Licenciamento & Habite-se',
   fiscalizacao: 'Fiscalização',
-  processos: 'Processos administrativos',
-  atendimento: 'Atendimento e ouvidoria',
-  programas: 'Programas e monitoramento',
-  relatorios: 'Relatórios e exportação',
-  gestao: 'Gestão da equipe',
-  configuracoes: 'Configurações do portal',
+  processos: 'Processos & PAS',
+  atendimento: 'Portal Cidadão / Contador',
+  programas: 'Laboratório & Programas',
+  relatorios: 'Relatórios e BI',
+  gestao: 'Triagem Diretoria & Consolidação',
+  configuracoes: 'Configurações e SQL',
 };
 
 export interface SinncPortalDataProps {
@@ -73,6 +79,9 @@ export interface SinncPortalDataProps {
   escala: EscalaItem[];
   users: UserProfile[];
   onSaveProcesso: (item: ProcessoItem) => Promise<void> | void;
+  onSaveFiscalizacao?: (item: FiscalizacaoItem) => Promise<void> | void;
+  onSaveEscalaItem?: (item: EscalaItem) => Promise<void> | void;
+  onSaveFeirante?: (item: FeiranteItem) => Promise<void> | void;
   onExitMinimalPortal: () => void;
   onNavigateClassic: (view: string) => void;
 }
@@ -149,9 +158,13 @@ export interface SinncDashboardMetrics {
   exigenciasLista: ProcessoItem[];
   vencidosEVencendoHoje: ProcessoItem[];
   proximos7Dias: ProcessoItem[];
+  cumprimentosParaConferir: ProcessoItem[];
   alvarasLocais: AlvaraSanitarioItem[];
   pastasLocais: PastaVisaItem[];
   ccpuLocais: CcpuOcorrenciaItem[];
+  habiteSeLocais: HabiteSeRegistroItem[];
+  pasJuridicoLocais: PasJuridicoItem[];
+  solicitacoesLabLocais: SolicitacaoLaudoPotabilidadeItem[];
 }
 
 export function computeSinncMetrics(
@@ -160,11 +173,19 @@ export function computeSinncMetrics(
   fiscalizacoes: FiscalizacaoItem[],
   amostrasLaboratorio: AmostraLaboratorioItem[],
   feiras: FeiranteItem[],
-  escala: EscalaItem[]
+  escala: EscalaItem[],
+  pastasOverride?: PastaVisaItem[],
+  alvarasOverride?: AlvaraSanitarioItem[],
+  habiteSeOverride?: HabiteSeRegistroItem[],
+  pasOverride?: PasJuridicoItem[],
+  solicitacoesLabOverride?: SolicitacaoLaudoPotabilidadeItem[]
 ): SinncDashboardMetrics {
-  const alvarasLocais = safeReadLocalArray<AlvaraSanitarioItem>('visa_alvaras');
-  const pastasLocais = safeReadLocalArray<PastaVisaItem>('pasta_visa_itens');
+  const alvarasLocais = alvarasOverride || loadAllAlvarasUnificados();
+  const pastasLocais = pastasOverride || loadAllPastasUnificadas();
   const ccpuLocais = safeReadLocalArray<CcpuOcorrenciaItem>('ccpu_ocorrencias');
+  const habiteSeLocais = habiteSeOverride || loadHabiteSeRegistros();
+  const pasJuridicoLocais = pasOverride || loadPasJuridico();
+  const solicitacoesLabLocais = solicitacoesLabOverride || getSolicitacoesPotabilidade();
 
   const userFirstName = (currentUser?.nome_completo || '').trim().toLowerCase().split(' ')[0];
   const userFullName = (currentUser?.nome_completo || '').trim().toLowerCase();
@@ -311,6 +332,10 @@ export function computeSinncMetrics(
     return d !== null && d > 0 && d <= 7;
   });
 
+  const cumprimentosParaConferir = processos.filter(
+    (p) => p.cumprimento_cidadao?.status === 'AGUARDANDO_CONFERENCIA'
+  );
+
   return {
     minhasTarefas,
     tarefasAtrasadas,
@@ -338,8 +363,12 @@ export function computeSinncMetrics(
     exigenciasLista,
     vencidosEVencendoHoje,
     proximos7Dias,
+    cumprimentosParaConferir,
     alvarasLocais,
     pastasLocais,
     ccpuLocais,
+    habiteSeLocais,
+    pasJuridicoLocais,
+    solicitacoesLabLocais,
   };
 }

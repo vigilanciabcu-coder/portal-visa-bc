@@ -84,11 +84,21 @@ export interface UserProfile {
 export interface PastaVisaItem {
   id: string;
   cnpj_cpf: string;
+  cpf_cnpj_limpo?: string;
   pasta: string;
+  numero_pasta?: string;
+  pasta_referencia_anterior?: string;
+  origem_numeracao?: 'FISICA_EXISTENTE' | 'DIGITAL_6_DIGITOS';
   razao_social: string;
   status_rf: string; // Ex: ATIVA, BAIXADA, SUSPENSA, INAPTA
   alvara_atualizado: string; // Ex: SIM, NÃO, EM RENOVAÇÃO, TMI PAGO, ISENTO
   setor: string; // Ex: ALIMENTOS, SAÚDE, SERVIÇOS, MEDICAMENTOS, OUTROS
+  telefone?: string;
+  email?: string;
+  endereco?: string;
+  bairro?: string;
+  cnae_principal?: string;
+  grau_risco?: string;
   observacoes?: string;
   criado_por?: string;
   criado_em?: string;
@@ -105,7 +115,9 @@ export interface AlvaraSanitarioItem {
   ano_exercicio: string; // Ex: 2026
   tipo_alvara: TipoAlvara;
   modelo_tipo?: CategoriaModeloAlvara | string; // Ex: "Ponto milho e churro", "Feirante"
-  pasta?: string; // Número/código da pasta física (ex: PASTA 142)
+  pasta?: string; // Número/código da pasta física ou 6 dígitos (ex: 1042/2024 ou 000001)
+  numero_pasta?: string;
+  cpf_cnpj_limpo?: string;
   cnpj_cpf: string; // CPF / CNPJ
   razao_social: string; // NOME DA PESSOA FÍSICA E/OU JURÍDICA
   nome_fantasia?: string; // DENOMINAÇÃO COMERCIAL/NOME FANTASIA
@@ -447,6 +459,8 @@ export interface FeiranteItem {
   num_prot: string;
   feira: string; // "DA cultura", "do pescador", "da orla", "da rua 200"
   pasta: string;
+  numero_pasta?: string;
+  cpf_cnpj_limpo?: string;
   cpf: string;
   nome_pf: string;
   produtos: string;
@@ -535,6 +549,8 @@ export interface FiscalizacaoItem {
   parecerIA?: string;
   processoId?: string;
   numProcesso?: string;
+  numero_pasta?: string;
+  cpf_cnpj_limpo?: string;
 
   // Campos do Rito Processual Sanitário Oficial (Normativa Interna DVIS)
   tipoAtoFiscal?: TipoAtoFiscalRito;
@@ -676,6 +692,8 @@ export interface ProcessoItem {
   venc_1doc?: string;
   prot_1doc?: string;
   pasta?: string;
+  numero_pasta?: string;
+  cpf_cnpj_limpo?: string;
   cep?: string;
   numero_complemento?: string;
   situacao_cadastral?: string;
@@ -706,6 +724,13 @@ export interface ProcessoItem {
   origem_solicitacao?: string;
   solicitante_nome?: string;
   solicitante_contato?: string;
+  cumprimento_cidadao?: {
+    data_envio: string;
+    responsavel: string;
+    descricao: string;
+    anexo_nome?: string;
+    status: 'AGUARDANDO_CONFERENCIA' | 'ACEITO' | 'DEVOLVIDO';
+  };
 }
 
 export type LaboratorioStatus =
@@ -1047,7 +1072,7 @@ export type TipoLocalCcpu =
   | 'UNIDADE_SAUDE'
   | 'OUTRO';
 
-export type StatusEspecimeCcpu = 'VIVO' | 'MORTO' | 'AMBOS' | 'APENAS_VESTIGIOS';
+export type StatusEspecimeCcpu = 'VIVO' | 'MORTO' | 'AMBOS' | 'APENAS_VESTIGIOS' | 'NAO_ENCONTRADO';
 
 export interface CcpuInsumoUtilizado {
   id: 'PARAFINADO' | 'COLANTE' | 'EXTRUSADO' | 'ISCA_FRESCA' | 'GRANULADO' | 'GEL' | 'PO' | 'LARVICIDA';
@@ -1121,5 +1146,54 @@ export interface CcpuEstoqueMovimentacao {
   lote?: string;
   responsavel: string;
   data_hora: string;
+}
+
+// ==========================================
+// HABITE-SE & PAS JURÍDICO (VINCULADOS À PASTA VISA)
+// ==========================================
+export interface HabiteSeRegistroItem {
+  id: string;
+  numero_protocolo: string;
+  numero_pasta: string;
+  cpf_cnpj_limpo: string;
+  cnpj_cpf: string;
+  titular_nome: string;
+  nome_edificacao: string;
+  tipo_peticao: 'TOTAL' | 'PARCIAL';
+  endereco: string;
+  bairro: string;
+  numero_dic?: string;
+  rt_nome?: string;
+  rt_registro?: string;
+  area_total_m2?: string;
+  fiscal_responsavel?: string;
+  status: 'EM ANÁLISE' | 'VISTORIA AGENDADA' | 'COM PENDÊNCIA' | 'DEFERIDO' | 'INDEFERIDO';
+  processo_id?: string;
+  observacoes?: string;
+  criado_em: string;
+  atualizado_em?: string;
+}
+
+export interface PasJuridicoItem {
+  id: string;
+  numero_pas: string;
+  numero_pasta: string;
+  cpf_cnpj_limpo: string;
+  cnpj_cpf: string;
+  razao_social: string;
+  processo_origem_id?: string;
+  processo_origem_protocolo?: string;
+  auto_infracao_origem?: string;
+  enquadramento_legal: string;
+  resumo_fatos: string;
+  fiscal_autuante: string;
+  data_instauracao: string;
+  prazo_defesa_limite: string; // 15 dias padrão
+  status: 'INSTAURADO' | 'AGUARDANDO DEFESA' | 'DEFESA APRESENTADA' | 'JULGAMENTO' | 'PENALIDADE APLICADA' | 'ARQUIVADO';
+  valor_multa_ufm?: string;
+  defesa_texto?: string;
+  decisao_final?: string;
+  criado_em: string;
+  atualizado_em?: string;
 }
 

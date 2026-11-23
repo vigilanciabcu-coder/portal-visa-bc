@@ -84,13 +84,31 @@ export const ProcessoDetalhesParecerModal: React.FC<ProcessoDetalhesParecerModal
     currentUser?.cargo === 'MASTER ADM';
   const isServidor = currentUser?.tipo_usuario === 'SERVIDOR' || isMaster;
 
+  const isFiscalNaoAtribuido = (nome?: string) => {
+    const upper = (nome || '').trim().toUpperCase();
+    return (
+      !upper ||
+      upper.includes('A DISTRIBUIR') ||
+      upper.includes('NÃO ATRIBU') ||
+      upper.includes('NAO ATRIBU')
+    );
+  };
+
+  // Mantém a demanda com a pessoa que já está com ela; só assume o usuário atual se ainda não houver responsável atribuído
+  const resolverFiscalMantido = (proc?: ProcessoItem | null) => {
+    if (proc?.fiscal_responsavel && !isFiscalNaoAtribuido(proc.fiscal_responsavel)) {
+      return proc.fiscal_responsavel;
+    }
+    return currentUser?.nome_completo || proc?.fiscal_responsavel || '';
+  };
+
   // Estado do formulário de novo parecer (para servidores)
   const [novoStatus, setNovoStatus] = useState<ProcessoStatus>(processo.status || 'EM ANÁLISE');
   const [tipoParecer, setTipoParecer] = useState<TipoParecerTecnico>('FAVORÁVEL (DEFERIMENTO)');
   const [textoParecer, setTextoParecer] = useState('');
   const [condicionantes, setCondicionantes] = useState('');
   const [novaValidade, setNovaValidade] = useState(processo.validade || '');
-  const [fiscalDesignado, setFiscalDesignado] = useState(processo.fiscal_responsavel || currentUser?.nome_completo || '');
+  const [fiscalDesignado, setFiscalDesignado] = useState(() => resolverFiscalMantido(processo));
 
   // Estado e controle de auto-salvamento em tempo real
   const [salvandoAuto, setSalvandoAuto] = useState(false);
@@ -188,7 +206,7 @@ export const ProcessoDetalhesParecerModal: React.FC<ProcessoDetalhesParecerModal
     if (processo) {
       setNovoStatus(processo.status || 'EM ANÁLISE');
       setNovaValidade(processo.validade || '');
-      setFiscalDesignado(processo.fiscal_responsavel || currentUser?.nome_completo || '');
+      setFiscalDesignado(resolverFiscalMantido(processo));
 
       // Restaura rascunho de parecer não assinado previamente se existir
       try {
@@ -201,7 +219,7 @@ export const ProcessoDetalhesParecerModal: React.FC<ProcessoDetalhesParecerModal
         }
       } catch {}
     }
-  }, [processo?.id]);
+  }, [processo?.id, processo?.fiscal_responsavel]);
 
   // Função central para persistir qualquer alteração no processo automaticamente
   const salvarAlteracoesProcesso = React.useCallback(
@@ -211,6 +229,7 @@ export const ProcessoDetalhesParecerModal: React.FC<ProcessoDetalhesParecerModal
 
       const processoAtualizado: ProcessoItem = {
         ...processo,
+        fiscal_responsavel: resolverFiscalMantido(processo),
         ...alteracoes
       };
 
@@ -252,11 +271,7 @@ export const ProcessoDetalhesParecerModal: React.FC<ProcessoDetalhesParecerModal
     }
   };
 
-  // Mudança de fiscal responsável -> Salva automaticamente
-  const handleFiscalChange = (val: string) => {
-    setFiscalDesignado(val);
-    salvarAlteracoesProcesso({ fiscal_responsavel: val });
-  };
+  // Garante que o responsável atual pela demanda seja sempre preservado ao atualizar o parecer
 
   // Mudança de validade do alvará/licença -> Salva automaticamente
   const handleValidadeChange = (val: string) => {
@@ -293,7 +308,7 @@ export const ProcessoDetalhesParecerModal: React.FC<ProcessoDetalhesParecerModal
     salvarAlteracoesProcesso(
       {
         status: novoStatus,
-        fiscal_responsavel: fiscalDesignado || processo.fiscal_responsavel,
+        fiscal_responsavel: resolverFiscalMantido(processo) || fiscalDesignado,
         validade: novaValidade || processo.validade
       },
       true
@@ -412,7 +427,7 @@ export const ProcessoDetalhesParecerModal: React.FC<ProcessoDetalhesParecerModal
     const processoAtualizado: ProcessoItem = {
       ...processo,
       status: novoStatus,
-      fiscal_responsavel: fiscalDesignado || processo.fiscal_responsavel,
+      fiscal_responsavel: resolverFiscalMantido(processo) || fiscalDesignado,
       validade: novaValidade || processo.validade,
       observacoes: novasObservacoes,
       pareceres: updatedPareceres
@@ -1442,24 +1457,23 @@ export const ProcessoDetalhesParecerModal: React.FC<ProcessoDetalhesParecerModal
                     </select>
                   </div>
 
-                  {/* Fiscal Atribuído */}
+                  {/* Responsável Atual pela Demanda (Mantido sem retorno à Diretoria) */}
                   <div>
                     <label className="text-[10px] font-black uppercase text-indigo-200 block mb-1">
-                      Fiscal Responsável
+                      Responsável pela Demanda
                     </label>
-                    <input
-                      type="text"
-                      list="fiscais-datalist"
-                      value={fiscalDesignado}
-                      onChange={(e) => handleFiscalChange(e.target.value)}
-                      placeholder="Nome do fiscal..."
-                      className="w-full bg-[#181818] border border-indigo-500/40 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-indigo-400 font-semibold"
-                    />
-                    <datalist id="fiscais-datalist">
-                      {(users || []).map((u) => (
-                        <option key={u.id} value={u.nome_completo} />
-                      ))}
-                    </datalist>
+                    <div
+                      className="w-full bg-[#181818] border border-indigo-500/40 text-white rounded-lg px-2.5 py-2 text-xs font-semibold flex items-center gap-2"
+                      title="O parecer permanece vinculado à pessoa que já está com a demanda, sem retornar à Diretoria para nova distribuição"
+                    >
+                      <Lock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="truncate">{fiscalDesignado || 'Responsável não definido'}</span>
+                    </div>
+                    <p className="text-[10px] text-emerald-300/80 mt-1 leading-tight">
+                      {!isFiscalNaoAtribuido(processo.fiscal_responsavel)
+                        ? 'Mantido com quem já está com a demanda (não retorna para nova distribuição).'
+                        : 'Vinculado ao servidor atual ao salvar ou assinar o parecer.'}
+                    </p>
                   </div>
                 </div>
 
@@ -1791,6 +1805,7 @@ export const ProcessoDetalhesParecerModal: React.FC<ProcessoDetalhesParecerModal
             const tramitacoesAtualizadas = [...(processo.tramitacoes || []), novaTramitacao];
             const procAtualizado: ProcessoItem = {
               ...processo,
+              fiscal_responsavel: resolverFiscalMantido(processo) || fiscalDesignado,
               status: (novoStatus as any) || processo.status,
               tramitacoes: tramitacoesAtualizadas
             };

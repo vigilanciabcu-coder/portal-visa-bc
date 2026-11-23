@@ -29,6 +29,8 @@ interface SinncPainelInicioProps {
   metrics: SinncDashboardMetrics;
   onOpenTab: (tab: SinncWorkspaceTabId) => void;
   onSelectProcesso: (proc: ProcessoItem) => void;
+  onOpenNovaDemanda?: () => void;
+  onOpenDossiePorProcesso?: (proc: ProcessoItem) => void;
 }
 
 export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
@@ -36,6 +38,8 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
   metrics,
   onOpenTab,
   onSelectProcesso,
+  onOpenNovaDemanda,
+  onOpenDossiePorProcesso,
 }) => {
   const [expandedStrip, setExpandedStrip] = useState<'hoje' | '7dias' | null>(null);
 
@@ -147,16 +151,38 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
         <div className="w-8 h-8 rounded-md border border-slate-300/80 bg-[#f8fafc] flex items-center justify-center text-slate-600 shrink-0 mt-0.5">
           <LayoutGrid className="w-4 h-4" />
         </div>
-        <div className="space-y-0.5 min-w-0">
+        <div className="space-y-0.5 min-w-0 flex-1">
           <h1 className="text-[17px] font-semibold text-slate-800 tracking-tight leading-snug">
             Painel da Vigilância Sanitária
           </h1>
-          <p className="text-xs text-slate-500">
-            Visão geral das pendências, prazos e indicadores da Vigilância Sanitária
-          </p>
-          <p className="text-[11.5px] text-slate-500 tabular-nums pt-0.5">
-            Hoje: {todayFormatted} · {displayName} ({displayRole})
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p className="text-xs text-slate-500">
+                Visão geral das pendências, prazos e indicadores integrados pela Pasta VISA
+              </p>
+              <p className="text-[11.5px] text-slate-500 tabular-nums pt-0.5">
+                Hoje: {todayFormatted} · {displayName} ({displayRole}) · {metrics.pastasLocais.length} Pasta(s) vinculada(s)
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {onOpenNovaDemanda && (
+                <button
+                  type="button"
+                  onClick={onOpenNovaDemanda}
+                  className="px-3 py-1.5 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium cursor-pointer whitespace-nowrap"
+                >
+                  + Nova Demanda (Auto-Pasta)
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => onOpenTab('cadastros')}
+                className="px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium cursor-pointer whitespace-nowrap"
+              >
+                Abrir Pastas VISA
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -252,31 +278,62 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
             className="bg-[#f4f6f9] hover:bg-white border border-slate-200/90 rounded-lg px-3.5 py-3 text-left transition-colors cursor-pointer"
           >
             <div className="text-lg font-semibold text-slate-800 tabular-nums">
-              {metrics.mensagensPortalSemResposta}
+              {metrics.cumprimentosParaConferir.length > 0
+                ? `${metrics.cumprimentosParaConferir.length}`
+                : metrics.mensagensPortalSemResposta}
             </div>
             <div className="text-[11.5px] text-slate-500 mt-0.5 truncate">
-              mensagens do portal sem resposta
+              {metrics.cumprimentosParaConferir.length > 0
+                ? 'retornos p/ conferência'
+                : 'chamados no portal'}
             </div>
           </button>
 
-          <div className="bg-[#f4f6f9] border border-slate-200/90 rounded-lg px-3.5 py-3 text-left">
-            <div className="text-lg font-semibold text-slate-800 tabular-nums">
-              2,0 <span className="text-xs font-normal text-slate-500">dias</span>
+          <button
+            type="button"
+            onClick={() => onOpenTab('programas')}
+            className="bg-[#f4f6f9] hover:bg-white border border-slate-200/90 rounded-lg px-3.5 py-3 text-left transition-colors cursor-pointer"
+          >
+            <div className={`text-lg font-semibold tabular-nums ${metrics.amostrasInsatisfatorias > 0 ? 'text-[#a13c46]' : 'text-slate-800'}`}>
+              {metrics.amostrasInsatisfatorias}
             </div>
             <div className="text-[11.5px] text-slate-500 mt-0.5 truncate">
-              resposta entre profissionais (90 dias)
+              laudos não conformes (Lab)
             </div>
-          </div>
+          </button>
 
-          <div className="bg-[#f4f6f9] border border-slate-200/90 rounded-lg px-3.5 py-3 text-left">
+          <button
+            type="button"
+            onClick={() => onOpenTab('processos')}
+            className="bg-[#f4f6f9] hover:bg-white border border-slate-200/90 rounded-lg px-3.5 py-3 text-left transition-colors cursor-pointer"
+          >
             <div className="text-lg font-semibold text-slate-800 tabular-nums">
-              4,2 <span className="text-xs font-normal text-slate-500">dias</span>
+              {metrics.pasJuridicoLocais.length}
             </div>
             <div className="text-[11.5px] text-slate-500 mt-0.5 truncate">
-              resposta de requerentes
+              PAS jurídicos vinculados
             </div>
-          </div>
+          </button>
         </div>
+
+        {metrics.cumprimentosParaConferir.length > 0 && (
+          <div className="bg-amber-50/70 border border-amber-200 rounded-md px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-amber-900">
+            <span>
+              <strong>{metrics.cumprimentosParaConferir.length} cumprimento(s)</strong> enviado(s) pelo Portal Cidadão/Contador aguardando conferência do fiscal titular.
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const first = metrics.cumprimentosParaConferir[0];
+                if (onOpenDossiePorProcesso) onOpenDossiePorProcesso(first);
+                else onSelectProcesso(first);
+              }}
+              className="font-semibold text-[#285277] hover:underline cursor-pointer whitespace-nowrap"
+            >
+              Conferir na Pasta
+            </button>
+          </div>
+        )}
 
         {/* Grade inferior 3 colunas: Aguardando minha resposta | Minhas solicitações | Exigências */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-1">

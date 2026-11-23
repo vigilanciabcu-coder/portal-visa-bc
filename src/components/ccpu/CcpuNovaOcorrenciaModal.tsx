@@ -136,7 +136,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
   const [gpsFeedback, setGpsFeedback] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
 
   // Coleta
-  const [quantidade, setQuantidade] = useState<number>(1);
+  const [quantidade, setQuantidade] = useState<number>(0);
   const [statusEspecime, setStatusEspecime] = useState<StatusEspecimeCcpu>('VIVO');
   const [metodoColetaAcao, setMetodoColetaAcao] = useState(
     'Busca ativa noturna com lanterna ultravioleta (UV), pinça entomológica e vedação mecânica de grelhas'
@@ -344,7 +344,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
       identificacaoBueiroLocal: identificacaoFinal,
       lat,
       lng,
-      quantidade: Math.max(1, Number(quantidade) || 1),
+      quantidade: Math.max(0, Number(quantidade) || 0),
       statusEspecime,
       metodoColetaAcao: metodoColetaAcao.trim(),
       condicaoEstrutural: condicaoEstrutural.trim(),
@@ -698,9 +698,12 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                 </label>
                 <input
                   type="number"
-                  min="1"
+                  min="0"
                   value={quantidade}
-                  onChange={(e) => setQuantidade(parseInt(e.target.value) || 1)}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10);
+                    setQuantidade(Number.isNaN(parsed) ? 0 : Math.max(0, parsed));
+                  }}
                   required
                   className="w-[300px] max-w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-black outline-none"
                 />
@@ -719,6 +722,7 @@ export const CcpuNovaOcorrenciaModal: React.FC<CcpuNovaOcorrenciaModalProps> = (
                   <option value="MORTO">Animal Morto</option>
                   <option value="AMBOS">Vivos e Mortos</option>
                   <option value="APENAS_VESTIGIOS">Apenas Vestígios (Fezes / Marcas / Exoesqueleto)</option>
+                  <option value="NAO_ENCONTRADO">Não encontrado</option>
                 </select>
               </div>
             </div>

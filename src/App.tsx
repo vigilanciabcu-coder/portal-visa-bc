@@ -922,6 +922,9 @@ export default function App() {
           escala={escala}
           users={users}
           onSaveProcesso={handleSaveProcesso}
+          onSaveFiscalizacao={handleSaveFiscalizacao}
+          onSaveEscalaItem={handleSaveEscalaItem}
+          onSaveFeirante={handleSaveFeirante}
           onExitMinimalPortal={() => setCurrentView('home')}
           onNavigateClassic={(v) => setCurrentView(v as any)}
         />

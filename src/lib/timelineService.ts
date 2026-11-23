@@ -16,7 +16,8 @@ export function getEtapasPipelineProcesso(processo: ProcessoItem): EtapaPipeline
   const isIndeferido = sit.includes('INDEFERIDO') || sit.includes('ARQUIV');
   const isNotificado = sit.includes('NOTIFICADO') || sit.includes('PEND') || sit.includes('EXIG');
   const isVistoriado = sit.includes('VISTORIA') || (processo.pareceres && processo.pareceres.length > 0);
-  const isDistribuido = !!processo.fiscal_responsavel && !processo.fiscal_responsavel.toUpperCase().includes('NÃO ATRIBU');
+  const fiscalUpper = (processo.fiscal_responsavel || '').trim().toUpperCase();
+  const isDistribuido = !!fiscalUpper && !fiscalUpper.includes('NÃO ATRIBU') && !fiscalUpper.includes('NAO ATRIBU') && !fiscalUpper.includes('A DISTRIBUIR');
 
   return [
     {
@@ -74,7 +75,8 @@ export function getLinhaDoTempoProcesso(processo: ProcessoItem): TramitacaoItem[
   });
 
   // 2. EVENTO DE DISTRIBUIÇÃO AO FISCAL
-  if (processo.fiscal_responsavel && !processo.fiscal_responsavel.toUpperCase().includes('NÃO ATRIBU')) {
+  const fiscalDistUpper = (processo.fiscal_responsavel || '').trim().toUpperCase();
+  if (fiscalDistUpper && !fiscalDistUpper.includes('NÃO ATRIBU') && !fiscalDistUpper.includes('NAO ATRIBU') && !fiscalDistUpper.includes('A DISTRIBUIR')) {
     const dataDist = processo.data_distribuicao || processo.data_entregue_fiscal || processo.data_protocolo || '2026-01-06';
     eventos.push({
       id: `dist_${processo.id}`,

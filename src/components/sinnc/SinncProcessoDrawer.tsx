@@ -16,6 +16,10 @@ interface SinncProcessoDrawerProps {
   onClose: () => void;
   onSaveProcesso: (updated: ProcessoItem) => Promise<void> | void;
   onOpenClassicVistoria?: (proc: ProcessoItem) => void;
+  onOpenDossiePorProcesso?: (proc: ProcessoItem) => void;
+  onEmitirAlvaraDeProcesso?: (proc: ProcessoItem) => Promise<void> | void;
+  onInstaurarPasDeProcesso?: (proc: ProcessoItem) => Promise<void> | void;
+  onSolicitarLabDeProcesso?: (proc: ProcessoItem) => void;
 }
 
 export const SinncProcessoDrawer: React.FC<SinncProcessoDrawerProps> = ({
@@ -23,6 +27,10 @@ export const SinncProcessoDrawer: React.FC<SinncProcessoDrawerProps> = ({
   currentUser,
   onClose,
   onSaveProcesso,
+  onOpenDossiePorProcesso,
+  onEmitirAlvaraDeProcesso,
+  onInstaurarPasDeProcesso,
+  onSolicitarLabDeProcesso,
 }) => {
   const [tipoParecer, setTipoParecer] = useState<TipoParecerTecnico>('FAVORÁVEL (DEFERIMENTO)');
   const [novoStatus, setNovoStatus] = useState<ProcessoStatus>(processo?.status || 'EM ANÁLISE');
@@ -31,6 +39,8 @@ export const SinncProcessoDrawer: React.FC<SinncProcessoDrawerProps> = ({
   const [savedNotice, setSavedNotice] = useState(false);
 
   if (!processo) return null;
+
+  const pastaDisplay = processo.numero_pasta || processo.pasta || '';
 
   const handleEmitirParecer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,9 +79,11 @@ export const SinncProcessoDrawer: React.FC<SinncProcessoDrawerProps> = ({
         status_processo_momento: novoStatus,
       };
 
+      // Mantém fiscal_responsavel travado no titular atual (sem retorno para fila do Diretor)
       const updated: ProcessoItem = {
         ...processo,
         status: novoStatus,
+        fiscal_responsavel: processo.fiscal_responsavel || autorNome,
         pareceres: [novoParecer, ...(processo.pareceres || [])],
         tramitacoes: [novaTramitacao, ...(processo.tramitacoes || [])],
       };
@@ -97,7 +109,17 @@ export const SinncProcessoDrawer: React.FC<SinncProcessoDrawerProps> = ({
         {/* Top Drawer Bar */}
         <div className="px-6 py-4 border-b border-slate-200 bg-[#f8fafc] flex items-start justify-between gap-4 shrink-0">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-xs text-slate-500 font-mono tabular-nums">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 font-mono tabular-nums">
+              {pastaDisplay && onOpenDossiePorProcesso && (
+                <button
+                  type="button"
+                  onClick={() => onOpenDossiePorProcesso(processo)}
+                  className="px-2 py-0.5 rounded bg-[#e6eef6] text-[#285277] border border-[#c7d9ea] font-semibold hover:bg-[#d8e5f2] cursor-pointer"
+                  title="Abrir Dossiê 360° da Pasta"
+                >
+                  Pasta {pastaDisplay}
+                </button>
+              )}
               <span>Processo {processo.num_processo || processo.id}</span>
               <span aria-hidden="true">·</span>
               <span>{processo.setor || 'Vigilância Sanitária'}</span>
@@ -123,6 +145,46 @@ export const SinncProcessoDrawer: React.FC<SinncProcessoDrawerProps> = ({
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Ações Rápidas Integradas na Pasta */}
+          <div className="flex flex-wrap items-center gap-2 pb-4 border-b border-slate-200">
+            {onOpenDossiePorProcesso && (
+              <button
+                type="button"
+                onClick={() => onOpenDossiePorProcesso(processo)}
+                className="px-3 py-1.5 rounded border border-slate-300 bg-white hover:bg-slate-50 text-xs font-medium text-slate-700 cursor-pointer"
+              >
+                Abrir Dossiê 360° da Pasta
+              </button>
+            )}
+            {onSolicitarLabDeProcesso && (
+              <button
+                type="button"
+                onClick={() => onSolicitarLabDeProcesso(processo)}
+                className="px-3 py-1.5 rounded border border-slate-300 bg-white hover:bg-slate-50 text-xs font-medium text-slate-700 cursor-pointer"
+              >
+                Solicitar Coleta Lab
+              </button>
+            )}
+            {processo.status === 'DEFERIDO' && onEmitirAlvaraDeProcesso && (
+              <button
+                type="button"
+                onClick={() => onEmitirAlvaraDeProcesso(processo)}
+                className="px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-medium cursor-pointer"
+              >
+                Emitir / Renovar Alvará na Pasta
+              </button>
+            )}
+            {(processo.status === 'NOTIFICADO' || processo.status === 'PENDENTE DOCS') && !processo.pas && onInstaurarPasDeProcesso && (
+              <button
+                type="button"
+                onClick={() => onInstaurarPasDeProcesso(processo)}
+                className="px-3 py-1.5 rounded border border-red-300 bg-red-50 hover:bg-red-100 text-[#DC2626] text-xs font-medium cursor-pointer"
+              >
+                Instaurar PAS Jurídico
+              </button>
+            )}
+          </div>
+
           {/* Dados Principais */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-5 border-b border-slate-200">
             <div className="space-y-1">
@@ -151,7 +213,7 @@ export const SinncProcessoDrawer: React.FC<SinncProcessoDrawerProps> = ({
             <div className="space-y-1">
               <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1.5">
                 <FileCheck2 className="w-3.5 h-3.5 text-slate-400" />
-                Fiscal Responsável
+                Responsável pela Demanda (Travado no Titular)
               </span>
               <p className="text-xs font-medium text-slate-800">
                 {processo.fiscal_responsavel || 'Aguardando distribuição'}
