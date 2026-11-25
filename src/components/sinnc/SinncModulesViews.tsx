@@ -21,14 +21,20 @@ import {
   formatShortBrDate,
 } from './sinncTypes';
 import { saveContabilidadeToSupabase } from '../../lib/supabaseService';
+import { fetchCnpj } from '../../lib/cnpjService';
+import { BAIRROS_BC } from '../../data/mockData';
 import {
   ConsolidacaoRelatorio,
   cleanDoc,
   executarConsolidacaoLegadoHibrida,
   formatDoc,
+  gerarProximoNumeroPasta6Digitos,
   getDisplayPastaNumero,
+  isSixDigitPastaCode,
   isValidDocLength,
-  obterOuCriarPastaPorCpfCnpj,
+  loadAllPastasUnificadas,
+  matchesFuzzySearch,
+  savePastaVisaEnhanced,
   verificarPendenciasAbertasNaPasta,
 } from '../../lib/pastaVisaService';
 import { computePastaSemaforo, getLabRecordsForPasta } from '../../lib/interlaceServices';
@@ -40,6 +46,7 @@ import {
   SinncLaboratorioAestheticView,
   SinncMunicipeView,
 } from './SinncExtendedViews';
+import { SinncRelatoriosBiView } from './SinncRelatoriosBiView';
 import {
   ArrowUpRight,
   Award,
@@ -52,10 +59,12 @@ import {
   Plus,
   Printer,
   RefreshCw,
+  Save,
   Search,
   Shuffle,
   UserCheck,
   Download,
+  X,
 } from 'lucide-react';
 
 interface SinncModulesViewsProps {
@@ -340,11 +349,36 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
   const [certidaoQuery, setCertidaoQuery] = useState('');
   const [selectedFisc, setSelectedFisc] = useState<FiscalizacaoItem | null>(null);
 
-  // Resolver rápido de Pasta em Cadastros
+  // Resolver rápido de Pasta em Cadastros (abre janela de conferência/edição antes de salvar)
   const [quickDoc, setQuickDoc] = useState('');
   const [quickFisica, setQuickFisica] = useState('');
   const [resolvingPasta, setResolvingPasta] = useState(false);
   const [quickFeedback, setQuickFeedback] = useState<string | null>(null);
+  const [pastaDraft, setPastaDraft] = useState<{
+    isExisting: boolean;
+    existingId?: string;
+    limpoDoc: string;
+    cnpj_cpf: string;
+    numero_pasta: string;
+    pasta_referencia_anterior?: string;
+    origem_numeracao: 'FISICA_EXISTENTE' | 'DIGITAL_6_DIGITOS';
+    razao_social: string;
+    status_rf: string;
+    alvara_atualizado: string;
+    setor: string;
+    telefone: string;
+    email: string;
+    endereco: string;
+    bairro: string;
+    cnae_principal: string;
+    grau_risco: string;
+    observacoes: string;
+    criado_por?: string;
+    criado_em?: string;
+  } | null>(null);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [loadingDraftRf, setLoadingDraftRf] = useState(false);
+  const [draftError, setDraftError] = useState<string | null>(null);
 
   // Consolidação Passo 9 & SQL
   const [consolidacaoRes, setConsolidacaoRes] = useState<ConsolidacaoRelatorio | null>(null);
@@ -378,30 +412,6 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
     return String(pastaField || '').trim();
   };
 
-  // Exportação CSV real para Relatórios
-  const handleExportCsv = () => {
-    const header = ['Pasta_VISA', 'Protocolo', 'Razao_Social', 'CNPJ_CPF', 'Bairro', 'Setor', 'Status', 'Fiscal', 'Prazo'];
-    const rows = processos.map((p) => [
-      getPastaLabelForDoc(p.cnpj_cpf, p.numero_pasta || p.pasta) || 'SEM_PASTA',
-      p.num_processo || p.id,
-      (p.razao_social || '').replace(/;/g, ','),
-      p.cnpj_cpf || '',
-      p.bairro || '',
-      p.setor || '',
-      p.status || '',
-      p.fiscal_responsavel || '',
-      p.prazo_vistoria || p.validade || '',
-    ]);
-    const csv = [header.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `relatorio-visa-pastas-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const handleResolverOuCriarPasta = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValidDocLength(quickDoc)) {
@@ -410,22 +420,218 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
     }
     setResolvingPasta(true);
     setQuickFeedback(null);
+    setDraftError(null);
     try {
-      const res = await obterOuCriarPastaPorCpfCnpj(quickDoc, {
-        pasta_fisica_informada: quickFisica || undefined,
-        criado_por: currentUser?.nome_completo || 'Cadastro VISA',
+      const limpo = cleanDoc(quickDoc);
+      const formatted = formatDoc(limpo);
+      const allPastas = loadAllPastasUnificadas();
+      const existing =
+        allPastas.find((p) => cleanDoc(p.cpf_cnpj_limpo || p.cnpj_cpf) === limpo) ||
+        metrics.pastasLocais.find((p) => cleanDoc(p.cpf_cnpj_limpo || p.cnpj_cpf) === limpo);
+
+      if (existing) {
+        const numPasta = getDisplayPastaNumero(existing);
+        setPastaDraft({
+          isExisting: true,
+          existingId: existing.id,
+          limpoDoc: limpo,
+          cnpj_cpf: existing.cnpj_cpf || formatted,
+          numero_pasta: numPasta,
+          pasta_referencia_anterior: existing.pasta_referencia_anterior || quickFisica.trim() || undefined,
+          origem_numeracao:
+            existing.origem_numeracao ||
+            (isSixDigitPastaCode(numPasta) ? 'DIGITAL_6_DIGITOS' : 'FISICA_EXISTENTE'),
+          razao_social: existing.razao_social || '',
+          status_rf: existing.status_rf || 'ATIVA',
+          alvara_atualizado: existing.alvara_atualizado || 'NÃO',
+          setor: existing.setor || 'VIGILÂNCIA SANITÁRIA',
+          telefone: existing.telefone || '',
+          email: existing.email || '',
+          endereco: existing.endereco || '',
+          bairro: existing.bairro || 'Centro',
+          cnae_principal: existing.cnae_principal || '',
+          grau_risco: existing.grau_risco || '',
+          observacoes: existing.observacoes || '',
+          criado_por: existing.criado_por,
+          criado_em: existing.criado_em,
+        });
+        return;
+      }
+
+      // Novo registro: pré-carrega dados da RFB (se CNPJ) ou de processos/feiras/cidadãos locais (se CPF)
+      let razao = '';
+      let statusRf = 'ATIVA';
+      let endereco = '';
+      let bairro = 'Centro';
+      let telefone = '';
+      let email = '';
+      let cnae = '';
+      let grauRisco = '';
+
+      if (limpo.length === 14) {
+        try {
+          const rf = await fetchCnpj(limpo);
+          if (rf && rf.razao) {
+            razao = rf.razao;
+            statusRf = rf.situacao_cadastral || rf.situacao || statusRf;
+            endereco = `${rf.rua_api || ''} ${rf.num_api ? `, ${rf.num_api}` : ''}`.trim();
+            bairro = rf.bairro || bairro;
+            telefone = rf.telefone || '';
+            email = rf.email || '';
+            cnae = rf.cnaes?.[0] || rf.cnae || '';
+            grauRisco = rf.risco ? `${rf.risco} RISCO` : '';
+          }
+        } catch {
+          // Usuário poderá preencher manualmente no modal
+        }
+      } else {
+        // Para CPF, tenta aproveitar nome/contato caso já exista em processos, feirantes ou cidadãos
+        const procHint = processos.find((p) => cleanDoc(p.cpf_cnpj_limpo || p.cnpj_cpf) === limpo);
+        const feiraHint = feiras.find((f) => cleanDoc(f.cpf_cnpj_limpo || f.cpf || f.cnpj) === limpo);
+        let cidHint: { nome_completo?: string; telefone?: string; email?: string; endereco?: string; bairro?: string } | undefined;
+        try {
+          const rawCid = localStorage.getItem('visa_cidadaos');
+          if (rawCid) {
+            const cids = JSON.parse(rawCid);
+            if (Array.isArray(cids)) {
+              cidHint = cids.find((c: any) => cleanDoc(c.cpf) === limpo);
+            }
+          }
+        } catch {
+          // ignore
+        }
+        razao = cidHint?.nome_completo || procHint?.razao_social || feiraHint?.nome_pf || '';
+        telefone = cidHint?.telefone || procHint?.telefone || '';
+        email = cidHint?.email || procHint?.email || '';
+        endereco = cidHint?.endereco || procHint?.endereco || (feiraHint?.rua ? `${feiraHint.rua} ${feiraHint.num || ''}`.trim() : '');
+        bairro = cidHint?.bairro || procHint?.bairro || feiraHint?.bairro || 'Centro';
+      }
+
+      const fisicaInformada = quickFisica.trim();
+      const numeroPasta = fisicaInformada || (await gerarProximoNumeroPasta6Digitos(allPastas));
+      const origem: 'FISICA_EXISTENTE' | 'DIGITAL_6_DIGITOS' =
+        fisicaInformada && !isSixDigitPastaCode(fisicaInformada)
+          ? 'FISICA_EXISTENTE'
+          : 'DIGITAL_6_DIGITOS';
+
+      setPastaDraft({
+        isExisting: false,
+        limpoDoc: limpo,
+        cnpj_cpf: formatted,
+        numero_pasta: numeroPasta,
+        pasta_referencia_anterior: origem === 'FISICA_EXISTENTE' ? numeroPasta : undefined,
+        origem_numeracao: origem,
+        razao_social: razao,
+        status_rf: statusRf,
+        alvara_atualizado: 'NÃO',
+        setor: 'VIGILÂNCIA SANITÁRIA',
+        telefone,
+        email,
+        endereco,
+        bairro,
+        cnae_principal: cnae,
+        grau_risco: grauRisco,
+        observacoes: '',
       });
+    } finally {
+      setResolvingPasta(false);
+    }
+  };
+
+  const handleConsultarRfbNoModal = async () => {
+    if (!pastaDraft || pastaDraft.limpoDoc.length !== 14) return;
+    setLoadingDraftRf(true);
+    setDraftError(null);
+    try {
+      const rf = await fetchCnpj(pastaDraft.limpoDoc);
+      if (rf && rf.razao) {
+        setPastaDraft((prev) =>
+          prev
+            ? {
+                ...prev,
+                razao_social: rf.razao || prev.razao_social,
+                status_rf: rf.situacao_cadastral || rf.situacao || prev.status_rf,
+                endereco: `${rf.rua_api || ''} ${rf.num_api ? `, ${rf.num_api}` : ''}`.trim() || prev.endereco,
+                bairro: rf.bairro || prev.bairro,
+                telefone: rf.telefone || prev.telefone,
+                email: rf.email || prev.email,
+                cnae_principal: rf.cnaes?.[0] || rf.cnae || prev.cnae_principal,
+                grau_risco: rf.risco ? `${rf.risco} RISCO` : prev.grau_risco,
+              }
+            : prev
+        );
+      } else {
+        setDraftError('Não foi possível obter os dados na Receita Federal para este CNPJ. Preencha manualmente.');
+      }
+    } catch {
+      setDraftError('Erro ao consultar a Receita Federal. Você pode preencher ou editar os campos manualmente.');
+    } finally {
+      setLoadingDraftRf(false);
+    }
+  };
+
+  const handleSalvarPastaDraft = async (abrirDossieDepois: boolean) => {
+    if (!pastaDraft) return;
+    const nomeLimpo = pastaDraft.razao_social.trim();
+    if (!nomeLimpo) {
+      setDraftError(
+        pastaDraft.limpoDoc.length === 11
+          ? 'Informe o Nome Completo do contribuinte (CPF) antes de salvar.'
+          : 'Informe a Razão Social / Nome do estabelecimento antes de salvar.'
+      );
+      return;
+    }
+
+    setSavingDraft(true);
+    setDraftError(null);
+    try {
+      const numFinal = pastaDraft.numero_pasta.trim() || (await gerarProximoNumeroPasta6Digitos());
+      const origemFinal: 'FISICA_EXISTENTE' | 'DIGITAL_6_DIGITOS' = pastaDraft.isExisting
+        ? pastaDraft.origem_numeracao
+        : isSixDigitPastaCode(numFinal)
+        ? 'DIGITAL_6_DIGITOS'
+        : 'FISICA_EXISTENTE';
+
+      const nowIso = new Date().toISOString();
+      const pastaSalvar: PastaVisaItem = {
+        id:
+          pastaDraft.existingId ||
+          `pasta-${pastaDraft.limpoDoc || Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        cnpj_cpf: pastaDraft.cnpj_cpf,
+        cpf_cnpj_limpo: pastaDraft.limpoDoc,
+        pasta: numFinal,
+        numero_pasta: numFinal,
+        pasta_referencia_anterior:
+          pastaDraft.pasta_referencia_anterior ||
+          (origemFinal === 'FISICA_EXISTENTE' ? numFinal : undefined),
+        origem_numeracao: origemFinal,
+        razao_social: nomeLimpo,
+        status_rf: pastaDraft.status_rf || 'ATIVA',
+        alvara_atualizado: pastaDraft.alvara_atualizado || 'NÃO',
+        setor: pastaDraft.setor || 'VIGILÂNCIA SANITÁRIA',
+        telefone: pastaDraft.telefone.trim(),
+        email: pastaDraft.email.trim(),
+        endereco: pastaDraft.endereco.trim(),
+        bairro: pastaDraft.bairro.trim(),
+        cnae_principal: pastaDraft.cnae_principal.trim(),
+        grau_risco: pastaDraft.grau_risco.trim(),
+        observacoes: pastaDraft.observacoes.trim(),
+        criado_por: pastaDraft.criado_por || currentUser?.nome_completo || 'Cadastro VISA',
+        criado_em: pastaDraft.criado_em || nowIso,
+        atualizado_em: nowIso,
+      };
+
+      await savePastaVisaEnhanced(pastaSalvar);
+
       if (externalScope?.mode === 'CONTABILIDADE' && externalScope.contabilidade) {
-        const docLimpo = cleanDoc(quickDoc);
-        const docFmt = formatDoc(docLimpo);
         const curLinks = externalScope.contabilidade.cnpjs_vinculados || [];
-        if (!curLinks.some((d) => cleanDoc(d) === docLimpo)) {
+        if (!curLinks.some((d) => cleanDoc(d) === pastaDraft.limpoDoc)) {
           try {
             const raw = localStorage.getItem('visa_contabilidades_lab');
             const list: ContabilidadeProfile[] = raw ? JSON.parse(raw) : [];
             const updatedContab: ContabilidadeProfile = {
               ...externalScope.contabilidade,
-              cnpjs_vinculados: [docFmt, ...curLinks],
+              cnpjs_vinculados: [pastaDraft.cnpj_cpf, ...curLinks],
             };
             const nextList = list.some((c) => c.id === updatedContab.id)
               ? list.map((c) => (c.id === updatedContab.id ? updatedContab : c))
@@ -438,17 +644,21 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
           }
         }
       }
+
       onRefreshState();
       setQuickDoc('');
       setQuickFisica('');
       setQuickFeedback(
-        res.criadaAgora
-          ? `Pasta ${getDisplayPastaNumero(res.pasta)} criada (${res.pasta.origem_numeracao === 'FISICA_EXISTENTE' ? 'Física preservada' : '6 dígitos automática'}).`
-          : `Pasta existente localizada: ${getDisplayPastaNumero(res.pasta)}.`
+        pastaDraft.isExisting
+          ? `Pasta ${numFinal} (${nomeLimpo}) atualizada com sucesso.`
+          : `Pasta ${numFinal} (${nomeLimpo}) criada e salva (${origemFinal === 'FISICA_EXISTENTE' ? 'Física preservada' : '6 dígitos automática'}).`
       );
-      onOpenDossiePasta(res.pasta);
+      setPastaDraft(null);
+      if (abrirDossieDepois) {
+        onOpenDossiePasta(pastaSalvar);
+      }
     } finally {
-      setResolvingPasta(false);
+      setSavingDraft(false);
     }
   };
 
@@ -572,14 +782,18 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
       }
       if (!q) return true;
       const pastaCode = getPastaLabelForDoc(p.cnpj_cpf, p.numero_pasta || p.pasta);
-      return (
-        (p.num_processo || '').toLowerCase().includes(q) ||
-        (p.razao_social || '').toLowerCase().includes(q) ||
-        (p.cnpj_cpf || '').toLowerCase().includes(q) ||
-        pastaCode.toLowerCase().includes(q) ||
-        (p.assunto || '').toLowerCase().includes(q) ||
-        (p.fiscal_responsavel || '').toLowerCase().includes(q)
-      );
+      return matchesFuzzySearch(query, [
+        p.num_processo,
+        p.prot_1doc,
+        p.razao_social,
+        p.nome_fantasia,
+        p.cnpj_cpf,
+        pastaCode,
+        p.assunto,
+        p.setor,
+        p.bairro,
+        p.fiscal_responsavel,
+      ]);
     });
 
     const subtitleMap: Record<string, string> = externalScope?.isExternal
@@ -946,13 +1160,23 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
   // 4. CADASTROS (PASTAS VISA & IDENTIDADE ÚNICA OPÇÃO A HÍBRIDA)
   if (activeTab === 'cadastros') {
     const filtradas = metrics.pastasLocais.filter((pt) => {
-      if (!q) return true;
-      return (
-        getDisplayPastaNumero(pt).toLowerCase().includes(q) ||
-        (pt.razao_social || '').toLowerCase().includes(q) ||
-        (pt.cnpj_cpf || '').toLowerCase().includes(q) ||
-        (pt.setor || '').toLowerCase().includes(q)
-      );
+      if (!query.trim()) return true;
+      return matchesFuzzySearch(query, [
+        getDisplayPastaNumero(pt),
+        pt.pasta,
+        pt.pasta_referencia_anterior,
+        pt.razao_social,
+        pt.cnpj_cpf,
+        pt.cpf_cnpj_limpo,
+        pt.setor,
+        pt.bairro,
+        pt.endereco,
+        pt.cnae_principal,
+        pt.email,
+        pt.telefone,
+        pt.alvara_atualizado,
+        pt.observacoes,
+      ]);
     });
 
     return (
@@ -1007,7 +1231,7 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
                 className="px-4 py-2 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium cursor-pointer whitespace-nowrap shrink-0"
               >
                 {resolvingPasta
-                  ? 'Consultando RFB...'
+                  ? 'Carregando dados...'
                   : externalScope?.mode === 'CONTABILIDADE'
                   ? 'Vincular Cliente & Abrir Pasta'
                   : 'Abrir / Criar Pasta VISA'}
@@ -1019,7 +1243,7 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
           </form>
         )}
 
-        {renderSearchBar('Buscar por número da Pasta, razão social, CPF/CNPJ ou setor...')}
+        {renderSearchBar('Busca vaga: número da Pasta, nome/razão social, CPF/CNPJ, bairro ou setor (ignora pontos e acentos)...')}
 
         <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
@@ -1131,6 +1355,336 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
             </table>
           </div>
         </div>
+
+        {/* Modal de Conferência e Edição antes de Salvar a Pasta VISA */}
+        {pastaDraft && (
+          <div
+            className="fixed inset-0 z-50 bg-slate-900/45 backdrop-blur-[1px] flex items-center justify-center p-4 text-left"
+            onClick={() => !savingDraft && setPastaDraft(null)}
+          >
+            <div
+              className="bg-white border border-slate-200 rounded-lg max-w-2xl w-full max-h-[92vh] flex flex-col overflow-hidden shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-5 py-3.5 bg-[#f8fafc] border-b border-slate-200 flex items-center justify-between gap-3 shrink-0">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      {pastaDraft.isExisting
+                        ? 'Visualizar e Editar Pasta VISA Existente'
+                        : 'Conferir e Completar Dados da Nova Pasta VISA'}
+                    </h3>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                        pastaDraft.isExisting
+                          ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                          : 'bg-[#e6eef6] text-[#285277] border border-[#cfe0ee]'
+                      }`}
+                    >
+                      {pastaDraft.isExisting ? 'Pasta Existente' : 'Novo Cadastro'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-mono font-medium">
+                      {pastaDraft.limpoDoc.length === 11 ? 'CPF · Pessoa Física' : 'CNPJ · Pessoa Jurídica'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Confira, adicione ou edite as informações antes de gravar a Pasta VISA.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={savingDraft}
+                  onClick={() => setPastaDraft(null)}
+                  className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer shrink-0"
+                  title="Fechar janela"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-3.5 overflow-y-auto text-xs">
+                {draftError && (
+                  <div className="px-3 py-2 rounded-md border border-rose-200 bg-rose-50 text-rose-700 text-xs font-medium">
+                    {draftError}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  <div className="sm:col-span-5">
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                      {pastaDraft.limpoDoc.length === 11 ? 'CPF' : 'CNPJ'}
+                    </label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={pastaDraft.cnpj_cpf}
+                      className="w-full !text-xs !py-2 !px-2.5 font-mono bg-slate-100 text-slate-700"
+                    />
+                  </div>
+                  <div className="sm:col-span-4">
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                      Nº Pasta VISA {pastaDraft.isExisting ? '(preservado)' : '(6 dígitos ou física)'}
+                    </label>
+                    <input
+                      type="text"
+                      readOnly={pastaDraft.isExisting}
+                      value={pastaDraft.numero_pasta}
+                      onChange={(e) =>
+                        setPastaDraft((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                numero_pasta: e.target.value,
+                                origem_numeracao: isSixDigitPastaCode(e.target.value.trim())
+                                  ? 'DIGITAL_6_DIGITOS'
+                                  : 'FISICA_EXISTENTE',
+                              }
+                            : prev
+                        )
+                      }
+                      className={`w-full !text-xs !py-2 !px-2.5 font-mono font-semibold text-[#285277] ${
+                        pastaDraft.isExisting ? 'bg-slate-100' : ''
+                      }`}
+                    />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Origem</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={pastaDraft.origem_numeracao === 'FISICA_EXISTENTE' ? 'Física' : 'Digital 6 díg.'}
+                      className="w-full !text-xs !py-2 !px-2.5 bg-slate-100 text-slate-600"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-medium text-slate-700">
+                      {pastaDraft.limpoDoc.length === 11
+                        ? 'Nome Completo (Pessoa Física / CPF) *'
+                        : 'Razão Social / Nome do Estabelecimento *'}
+                    </label>
+                    {pastaDraft.limpoDoc.length === 14 && (
+                      <button
+                        type="button"
+                        onClick={handleConsultarRfbNoModal}
+                        disabled={loadingDraftRf}
+                        className="text-[11px] font-medium text-[#3b6d96] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${loadingDraftRf ? 'animate-spin' : ''}`} />
+                        <span>{loadingDraftRf ? 'Consultando RFB...' : 'Atualizar da Receita Federal'}</span>
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    autoFocus={!pastaDraft.razao_social}
+                    value={pastaDraft.razao_social}
+                    onChange={(e) =>
+                      setPastaDraft((prev) => (prev ? { ...prev, razao_social: e.target.value } : prev))
+                    }
+                    placeholder={
+                      pastaDraft.limpoDoc.length === 11
+                        ? 'Digite o nome completo da pessoa física...'
+                        : 'Digite a razão social ou nome empresarial...'
+                    }
+                    className="w-full !text-xs !py-2 !px-2.5"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Setor Sanitário</label>
+                    <select
+                      value={pastaDraft.setor}
+                      onChange={(e) =>
+                        setPastaDraft((prev) => (prev ? { ...prev, setor: e.target.value } : prev))
+                      }
+                      className="w-full !text-xs !py-2 !px-2"
+                    >
+                      <option value="VIGILÂNCIA SANITÁRIA">VIGILÂNCIA SANITÁRIA</option>
+                      <option value="ALIMENTOS">ALIMENTOS</option>
+                      <option value="SAÚDE">SAÚDE</option>
+                      <option value="FARMÁCIAS & MEDICAMENTOS">FARMÁCIAS & MEDICAMENTOS</option>
+                      <option value="SANEAMENTO & AMBIENTAL">SANEAMENTO & AMBIENTAL</option>
+                      <option value="EVENTOS & FEIRAS">EVENTOS & FEIRAS</option>
+                      <option value="HABITE-SE SANITÁRIO">HABITE-SE SANITÁRIO</option>
+                      <option value="GERAL">GERAL</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Situação Cadastral / RF</label>
+                    <select
+                      value={pastaDraft.status_rf}
+                      onChange={(e) =>
+                        setPastaDraft((prev) => (prev ? { ...prev, status_rf: e.target.value } : prev))
+                      }
+                      className="w-full !text-xs !py-2 !px-2"
+                    >
+                      <option value="ATIVA">ATIVA</option>
+                      <option value="REGULAR">REGULAR</option>
+                      <option value="EM ANÁLISE">EM ANÁLISE</option>
+                      <option value="SUSPENSA">SUSPENSA</option>
+                      <option value="BAIXADA">BAIXADA</option>
+                      <option value="INAPTA">INAPTA</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Alvará Sanitário</label>
+                    <select
+                      value={pastaDraft.alvara_atualizado}
+                      onChange={(e) =>
+                        setPastaDraft((prev) => (prev ? { ...prev, alvara_atualizado: e.target.value } : prev))
+                      }
+                      className="w-full !text-xs !py-2 !px-2"
+                    >
+                      <option value="NÃO">NÃO</option>
+                      <option value="SIM">SIM (Vigente)</option>
+                      <option value="EM ANÁLISE">EM ANÁLISE</option>
+                      <option value="EM RENOVAÇÃO">EM RENOVAÇÃO</option>
+                      <option value="VENCIDO">VENCIDO</option>
+                      <option value="ISENTO">ISENTO</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Telefone / WhatsApp</label>
+                    <input
+                      type="text"
+                      value={pastaDraft.telefone}
+                      onChange={(e) =>
+                        setPastaDraft((prev) => (prev ? { ...prev, telefone: e.target.value } : prev))
+                      }
+                      placeholder="(47) 99999-9999"
+                      className="w-full !text-xs !py-2 !px-2.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">E-mail</label>
+                    <input
+                      type="email"
+                      value={pastaDraft.email}
+                      onChange={(e) =>
+                        setPastaDraft((prev) => (prev ? { ...prev, email: e.target.value } : prev))
+                      }
+                      placeholder="contato@empresa.com.br"
+                      className="w-full !text-xs !py-2 !px-2.5"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  <div className="sm:col-span-7">
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Endereço Completo</label>
+                    <input
+                      type="text"
+                      value={pastaDraft.endereco}
+                      onChange={(e) =>
+                        setPastaDraft((prev) => (prev ? { ...prev, endereco: e.target.value } : prev))
+                      }
+                      placeholder="Rua / Avenida, número, sala..."
+                      className="w-full !text-xs !py-2 !px-2.5"
+                    />
+                  </div>
+                  <div className="sm:col-span-5">
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Bairro</label>
+                    <select
+                      value={pastaDraft.bairro}
+                      onChange={(e) =>
+                        setPastaDraft((prev) => (prev ? { ...prev, bairro: e.target.value } : prev))
+                      }
+                      className="w-full !text-xs !py-2 !px-2"
+                    >
+                      {pastaDraft.bairro && !BAIRROS_BC.includes(pastaDraft.bairro) && (
+                        <option value={pastaDraft.bairro}>{pastaDraft.bairro}</option>
+                      )}
+                      {BAIRROS_BC.map((b) => (
+                        <option key={b} value={b}>
+                          {b}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  <div className="sm:col-span-8">
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">CNAE / Atividade Principal</label>
+                    <input
+                      type="text"
+                      value={pastaDraft.cnae_principal}
+                      onChange={(e) =>
+                        setPastaDraft((prev) => (prev ? { ...prev, cnae_principal: e.target.value } : prev))
+                      }
+                      placeholder="Ex: 5611-2/01 - Restaurantes e similares"
+                      className="w-full !text-xs !py-2 !px-2.5"
+                    />
+                  </div>
+                  <div className="sm:col-span-4">
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Grau de Risco</label>
+                    <select
+                      value={pastaDraft.grau_risco}
+                      onChange={(e) =>
+                        setPastaDraft((prev) => (prev ? { ...prev, grau_risco: e.target.value } : prev))
+                      }
+                      className="w-full !text-xs !py-2 !px-2"
+                    >
+                      <option value="">Não definido</option>
+                      <option value="BAIXO RISCO">BAIXO RISCO</option>
+                      <option value="MÉDIO RISCO">MÉDIO RISCO</option>
+                      <option value="ALTO RISCO">ALTO RISCO</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-1">Observações da Pasta</label>
+                  <textarea
+                    rows={2}
+                    value={pastaDraft.observacoes}
+                    onChange={(e) =>
+                      setPastaDraft((prev) => (prev ? { ...prev, observacoes: e.target.value } : prev))
+                    }
+                    placeholder="Anotações cadastrais, histórico físico ou informações complementares..."
+                    className="w-full !text-xs !p-2.5"
+                  />
+                </div>
+              </div>
+
+              <div className="px-5 py-3 bg-[#f8fafc] border-t border-slate-200 flex flex-wrap items-center justify-end gap-2 shrink-0">
+                <button
+                  type="button"
+                  disabled={savingDraft}
+                  onClick={() => setPastaDraft(null)}
+                  className="px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={savingDraft}
+                  onClick={() => handleSalvarPastaDraft(false)}
+                  className="px-3.5 py-1.5 rounded-md border border-[#3b6d96] bg-white hover:bg-[#f4f8fc] text-[#285277] text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{savingDraft ? 'Salvando...' : 'Salvar Pasta'}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={savingDraft}
+                  onClick={() => handleSalvarPastaDraft(true)}
+                  className="px-4 py-1.5 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+                >
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  <span>{savingDraft ? 'Salvando...' : 'Salvar e Abrir Dossiê 360°'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1139,12 +1693,17 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
   if (activeTab === 'fiscalizacao') {
     const filtradas = fiscalizacoes.filter((f) => {
       if (statusFilter !== 'TODOS' && f.status !== statusFilter) return false;
-      if (!q) return true;
-      return (
-        (f.protocolo || '').toLowerCase().includes(q) ||
-        (f.estabelecimento?.razaoSocial || '').toLowerCase().includes(q) ||
-        (f.fiscalNome || '').toLowerCase().includes(q)
-      );
+      if (!query.trim()) return true;
+      return matchesFuzzySearch(query, [
+        f.protocolo,
+        f.numero_pasta,
+        f.estabelecimento?.razaoSocial,
+        f.estabelecimento?.nomeFantasia,
+        f.estabelecimento?.cnpjCpf,
+        f.estabelecimento?.bairro,
+        f.fiscalNome,
+        f.tipoVistoria,
+      ]);
     });
 
     return (
@@ -1264,12 +1823,18 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
   // 6. TEMPORADA E EVENTOS (FEIRAS + PASTA VISA)
   if (activeTab === 'temporada') {
     const filtrados = feiras.filter((f) => {
-      if (!q) return true;
-      return (
-        (f.nome_pf || '').toLowerCase().includes(q) ||
-        (f.feira || '').toLowerCase().includes(q) ||
-        (f.produtos || '').toLowerCase().includes(q)
-      );
+      if (!query.trim()) return true;
+      return matchesFuzzySearch(query, [
+        f.nome_pf,
+        f.razao,
+        f.feira,
+        f.produtos,
+        f.cpf,
+        f.cnpj,
+        f.num_prot,
+        f.numero_pasta,
+        f.pasta,
+      ]);
     });
 
     return (
@@ -1331,23 +1896,32 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
 
   // 7. CONSULTA DE ALVARÁ & CERTIDÕES E DECLARAÇÕES
   if (activeTab === 'consulta_alvara' || activeTab === 'certidoes') {
-    const cleanQ = certidaoQuery.trim().toLowerCase();
     const matchedAlvaras = metrics.alvarasLocais.filter(
       (a) =>
-        !cleanQ ||
-        (a.cnpj_cpf || '').toLowerCase().includes(cleanQ) ||
-        (a.razao_social || '').toLowerCase().includes(cleanQ) ||
-        (a.numero_pasta || a.pasta || '').toLowerCase().includes(cleanQ) ||
-        (a.numero_alvara || '').toLowerCase().includes(cleanQ)
+        !certidaoQuery.trim() ||
+        matchesFuzzySearch(certidaoQuery, [
+          a.cnpj_cpf,
+          a.razao_social,
+          a.numero_pasta,
+          a.pasta,
+          a.numero_alvara,
+          a.bairro,
+          a.status,
+        ])
     );
     const matchedProcs = processos.filter(
       (p) =>
         p.status === 'DEFERIDO' &&
-        (!cleanQ ||
-          (p.cnpj_cpf || '').toLowerCase().includes(cleanQ) ||
-          (p.razao_social || '').toLowerCase().includes(cleanQ) ||
-          (p.numero_pasta || p.pasta || '').toLowerCase().includes(cleanQ) ||
-          (p.num_processo || '').toLowerCase().includes(cleanQ))
+        (!certidaoQuery.trim() ||
+          matchesFuzzySearch(certidaoQuery, [
+            p.cnpj_cpf,
+            p.razao_social,
+            p.nome_fantasia,
+            p.numero_pasta,
+            p.pasta,
+            p.num_processo,
+            p.assunto,
+          ]))
     );
 
     const consultaCustomTitle = externalScope?.isExternal
@@ -1550,47 +2124,23 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
     );
   }
 
-  // 9. RELATÓRIOS
+  // 9. RELATÓRIOS & BI EXECUTIVO
   if (activeTab === 'relatorios') {
-    const porSetor = new Map<string, number>();
-    processos.forEach((p) => {
-      const s = p.setor || 'Geral';
-      porSetor.set(s, (porSetor.get(s) || 0) + 1);
-    });
-
     return (
-      <div className="space-y-5 text-left">
-        {renderSectionHeader(
-          'Consolidação quantitativa por setor e exportação unificada com número da Pasta VISA',
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            className="px-3.5 py-1.5 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Exportar CSV com Pasta VISA</span>
-          </button>
-        )}
-
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-[#f4f6f9] border-b border-slate-200 text-[11px] font-semibold text-slate-600">
-                <th className="py-2.5 px-4">Setor / Área Técnica</th>
-                <th className="py-2.5 px-4 text-right">Processos vinculados</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200/80 text-xs">
-              {Array.from(porSetor.entries()).map(([setor, total]) => (
-                <tr key={setor} className="hover:bg-[#f8fafc]">
-                  <td className="py-2.5 px-4 font-medium text-slate-800">{setor}</td>
-                  <td className="py-2.5 px-4 text-right font-mono tabular-nums text-slate-700">{total}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <SinncRelatoriosBiView
+        currentUser={currentUser}
+        externalScope={externalScope}
+        metrics={metrics}
+        processos={processos}
+        fiscalizacoes={fiscalizacoes}
+        amostrasLaboratorio={amostrasLaboratorio}
+        pontosColeta={pontosColeta}
+        users={users}
+        onSelectProcesso={onSelectProcesso}
+        onOpenDossiePorProcesso={onOpenDossiePorProcesso}
+        onOpenLaudoOficial={onOpenLaudoOficial}
+        compactDensity={compactDensity}
+      />
     );
   }
 

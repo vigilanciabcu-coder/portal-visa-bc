@@ -53,6 +53,7 @@ import {
   getDisplayPastaNumero,
   loadAllAlvarasUnificados,
   loadAllPastasUnificadas,
+  matchesFuzzySearch,
   obterOuCriarPastaPorCpfCnpj,
   syncAlvarasFromSupabaseUnificados,
   syncPastasFromSupabaseUnificadas,
@@ -592,27 +593,40 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
     refreshUnifiedState();
   };
 
-  // Resultados instantâneos da busca global superior (estritamente dentro do escopo permitido)
+  // Resultados instantâneos da busca global superior (estritamente dentro do escopo permitido, ignorando pontos, acentos e símbolos)
   const topSearchHits = useMemo(() => {
-    const tq = topSearchQuery.trim().toLowerCase();
+    const tq = topSearchQuery.trim();
     if (!tq) return { pastas: [] as PastaVisaItem[], processos: [] as ProcessoItem[] };
-    const tqDigits = tq.replace(/\D/g, '');
     return {
       pastas: scopedPastas
-        .filter(
-          (pt) =>
-            getDisplayPastaNumero(pt).toLowerCase().includes(tq) ||
-            (pt.razao_social || '').toLowerCase().includes(tq) ||
-            (pt.cnpj_cpf || '').toLowerCase().includes(tq) ||
-            (tqDigits && (pt.cpf_cnpj_limpo || '').includes(tqDigits))
+        .filter((pt) =>
+          matchesFuzzySearch(tq, [
+            getDisplayPastaNumero(pt),
+            pt.pasta,
+            pt.numero_pasta,
+            pt.pasta_referencia_anterior,
+            pt.razao_social,
+            pt.cnpj_cpf,
+            pt.cpf_cnpj_limpo,
+            pt.setor,
+            pt.bairro,
+            pt.endereco,
+            pt.cnae_principal,
+          ])
         )
         .slice(0, 5),
       processos: scopedProcessos
-        .filter(
-          (p) =>
-            (p.num_processo || '').toLowerCase().includes(tq) ||
-            (p.razao_social || '').toLowerCase().includes(tq) ||
-            (p.numero_pasta || p.pasta || '').toLowerCase().includes(tq)
+        .filter((p) =>
+          matchesFuzzySearch(tq, [
+            p.num_processo,
+            p.razao_social,
+            p.numero_pasta,
+            p.pasta,
+            p.cnpj_cpf,
+            p.assunto,
+            p.bairro,
+            p.setor,
+          ])
         )
         .slice(0, 5),
     };

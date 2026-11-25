@@ -25,6 +25,34 @@ export function cleanDoc(raw?: string | null): string {
   return String(raw || '').replace(/\D/g, '');
 }
 
+export function normalizeFuzzySearch(raw?: string | null): string {
+  return String(raw || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+export function matchesFuzzySearch(
+  queryRaw: string,
+  fields: (string | undefined | null)[]
+): boolean {
+  const qCompact = normalizeFuzzySearch(queryRaw);
+  if (!qCompact) return true;
+  const normFields = fields.map((f) => normalizeFuzzySearch(f)).filter(Boolean);
+  if (normFields.length === 0) return false;
+  if (normFields.some((f) => f.includes(qCompact))) return true;
+  const tokens = queryRaw
+    .trim()
+    .split(/\s+/)
+    .map((t) => normalizeFuzzySearch(t))
+    .filter(Boolean);
+  if (tokens.length > 1) {
+    return tokens.every((tok) => normFields.some((f) => f.includes(tok)));
+  }
+  return false;
+}
+
 export function isValidDocLength(raw?: string | null): boolean {
   const digits = cleanDoc(raw);
   return digits.length === 11 || digits.length === 14;
