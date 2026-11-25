@@ -317,12 +317,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           email: matched.email || 'contribuinte@bc.sc.gov.br',
           nome_completo: matched.nome_fantasia || matched.razao_social || 'Contribuinte / Empresário',
           cpf: matched.cnpj_cpf,
+          cnpj: matched.cnpj_cpf,
+          contribuinte_id: matched.id,
+          categoria_contribuinte: matched.categoria || 'EMPRESARIO',
           bairro: matched.bairro,
           telefone: matched.telefone,
           data_nascimento: '',
           cargo: `CONTRIBUINTE (${matched.categoria || 'EMPRESÁRIO'})`,
           tipo_usuario: 'CONTRIBUINTE',
-          nivel_acesso: 'VISA (FISCAL)'
+          nivel_acesso: 'CONTRIBUINTE'
         };
         onLoginSuccess(contribUser);
       } else {
@@ -373,7 +376,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           data_nascimento: '',
           cargo: 'CIDADÃO (USUÁRIO REGISTRADO)',
           tipo_usuario: 'CIDADAO',
-          nivel_acesso: 'VISA (FISCAL)'
+          nivel_acesso: 'CIDADAO'
         };
         onLoginSuccess(cidadaoUser);
       } else {

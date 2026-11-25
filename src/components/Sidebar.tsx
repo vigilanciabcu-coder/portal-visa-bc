@@ -1,5 +1,5 @@
 import React from 'react';
-import { PortalButton, UserProfile, userHasAccessToPage, isUserMaster } from '../types';
+import { PortalButton, UserProfile, userHasAccessToPage, isUserMaster, resolveEffectiveTipoUsuario } from '../types';
 import { ShieldCheck, Calendar, Microscope, Crown, User, Building2, Search, FileText, FileSpreadsheet, PhoneCall, FolderArchive, FileSignature, Users, Compass, Download, LayoutGrid } from 'lucide-react';
 
 interface SidebarProps {
@@ -30,33 +30,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
     currentUser?.cargo?.toUpperCase().includes('LAB');
 
   const todayDay = new Date().getDate();
-  const userType = currentUser?.tipo_usuario || 'SERVIDOR';
+  const userType = resolveEffectiveTipoUsuario(currentUser);
+  const isFeirante =
+    userType === 'CONTRIBUINTE' &&
+    (currentUser?.categoria_contribuinte === 'FEIRANTE' ||
+      (currentUser?.cargo || '').toUpperCase().includes('FEIRANTE'));
 
   const visibleButtons = buttons.filter((b) => {
     // Master tem acesso total a 100% de todos os botões do sistema
     if (isMaster) return true;
 
-    // 0. Verificação granular de permissão do servidor configurada pelo Master
-    // (Master possui acesso a 100% dos botões; Servidores acessam conforme páginas permitidas)
+    // 0. Verificação granular de permissão (externos e servidores)
     if (!userHasAccessToPage(currentUser, b.id)) {
       return false;
     }
 
-    // Verificação de perfis permitidos (tipo de usuário)
+    // Verificação de perfis permitidos (tipo de usuário efetivo)
     if (b.perfisPermitidos && b.perfisPermitidos.length > 0) {
       if (!b.perfisPermitidos.includes(userType)) {
         return false;
       }
     } else {
-      // Se não especificado e o usuário for Cidadão ou Contabilidade, oculta ferramentas exclusivas de servidores
+      // Se não especificado e o usuário for externo, oculta ferramentas exclusivas de servidores
       if (userType === 'CIDADAO') {
-        const publicIds = ['pref', '1doc', 'alva', 'cnpj', 'debi', 'leis', 'mapa', 'cidadao_view'];
+        const publicIds = ['portal_sinnc', 'pref', '1doc', 'alva', 'cnpj', 'debi', 'leis', 'cidadao_view', 'solicitar_servicos_municipe', 'repositorio_juridico', 'telefone_btn'];
         if (!publicIds.includes(b.id)) return false;
       } else if (userType === 'CONTABILIDADE') {
-        const contabIds = ['pref', '1doc', 'alva', 'cnpj', 'debi', 'domm', 'leis', 'mapa', 'regi', 'tproc_lab'];
+        const contabIds = ['portal_sinnc', 'pref', '1doc', 'alva', 'cnpj', 'debi', 'domm', 'leis', 'regi', 'tproc_lab', 'cidadao_view', 'solicitar_servicos_municipe', 'repositorio_juridico', 'telefone_btn'];
         if (!contabIds.includes(b.id)) return false;
       } else if (userType === 'CONTRIBUINTE') {
-        const contribIds = ['pref', '1doc', 'alva', 'cnpj', 'debi', 'leis', 'mapa', 'feir', 'cidadao_view', 'tproc_lab'];
+        const contribIds = ['portal_sinnc', 'pref', '1doc', 'alva', 'cnpj', 'debi', 'leis', 'cidadao_view', 'solicitar_servicos_municipe', 'repositorio_juridico', 'tproc_lab', 'telefone_btn'];
+        if (isFeirante) contribIds.push('feir');
         if (!contribIds.includes(b.id)) return false;
       }
     }
@@ -76,18 +80,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       return isLabUser && userType === 'SERVIDOR';
     }
 
-    // 3. Fiscalização e Feiras: Todos os servidores VISA e Master
+    // 3. Fiscalização e Feiras: Servidores VISA (ou Feiras se for Contribuinte Feirante)
     if (b.id === 'fisc' || b.id === 'feir' || b.view === 'fiscalizacao' || b.view === 'feiras') {
-      return userType === 'SERVIDOR' || (b.id === 'feir' && userType === 'CONTRIBUINTE');
+      return userType === 'SERVIDOR' || (b.id === 'feir' && isFeirante);
     }
 
     // 4. Pasta VISA: Apenas Administrativo e Master
     if (b.id === 'pasta_visa' || b.view === 'pasta_visa') {
       if (isMaster) return true;
+      if (userType !== 'SERVIDOR') return false;
       if (currentUser?.paginas_permitidas?.includes('pasta_visa')) return true;
       const cargo = (currentUser?.cargo || '').toUpperCase();
       const nivel = (currentUser?.nivel_acesso || '').toUpperCase();
-      return userType === 'SERVIDOR' && (cargo.includes('ADMINISTRATIV') || nivel.includes('ADMINISTRATIV') || cargo.includes('DIRETOR'));
+      return cargo.includes('ADMINISTRATIV') || nivel.includes('ADMINISTRATIV') || cargo.includes('DIRETOR');
     }
 
     if (b.somenteMaster || (b.nome.toLowerCase().includes('teste') && b.id !== 'tlab')) {

@@ -110,8 +110,8 @@ const PORTAL_BUTTONS: PortalButton[] = [
   { id: 'pref', nome: 'Prefeitura', url: 'https://www.bc.sc.gov.br/', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/brasao__1_-removebg-preview%20(1).avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'demandas_fiscal', nome: 'Minhas Demandas (Fiscal)', url: '', img: 'demandas-fiscal', acao: 'view', view: 'demandas_fiscal', badgetext: 'FISCAL', perfisPermitidos: ['SERVIDOR'] },
   { id: 'demandas_diretor', nome: 'Painel da Diretoria (Demandas)', url: '', img: 'demandas-diretor', acao: 'view', view: 'demandas_diretor', badgetext: 'DIRETORIA', perfisPermitidos: ['SERVIDOR'] },
-  { id: 'ccpu_btn', nome: 'CCPU - Controle de Pragas', url: '', img: 'ccpu', acao: 'view', view: 'ccpu', badgetext: 'ZOONOSES', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
-  { id: 'alvara_visa', nome: 'ALVARÁ', url: '', img: 'alvara', acao: 'view', view: 'alvara_visa', badgetext: 'OFICIAL', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
+  { id: 'ccpu_btn', nome: 'CCPU - Controle de Pragas', url: '', img: 'ccpu', acao: 'view', view: 'ccpu', badgetext: 'ZOONOSES', perfisPermitidos: ['SERVIDOR'] },
+  { id: 'alvara_visa', nome: 'ALVARÁ', url: '', img: 'alvara', acao: 'view', view: 'alvara_visa', badgetext: 'OFICIAL', perfisPermitidos: ['SERVIDOR'] },
   { id: 'pasta_visa', nome: 'PASTA VISA', url: '', img: 'folder-archive', acao: 'view', view: 'pasta_visa', badgetext: 'ADM', perfisPermitidos: ['SERVIDOR'] },
   { id: '1doc', nome: '1Doc', url: 'https://bc.1doc.com.br/b.php?pg=o/login&n=3', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/1Doc.avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'agen', nome: 'AGENDA', url: '', img: 'calendar', acao: 'view', view: 'agenda', perfisPermitidos: ['SERVIDOR'] },
@@ -131,7 +131,7 @@ const PORTAL_BUTTONS: PortalButton[] = [
   { id: 'tlab', nome: 'Laboratório', url: '', img: 'lab-icon', acao: 'view', view: 'laboratorio', perfisPermitidos: ['SERVIDOR'] },
   { id: 'leis', nome: 'Leis', url: 'https://leis.org/prefeitura/sc/balneario-camboriu', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/leismunicipais.avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
   { id: 'repositorio_juridico', nome: 'Repositório Jurídico & Regularidade', url: '', img: 'scale', acao: 'view', view: 'repositorio_juridico', badgetext: 'JURÍDICO', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
-  { id: 'mapa', nome: 'GEO VISA & Mapa', url: '', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/mapa.avif', acao: 'view', view: 'geo_visa', badgetext: 'ROTAS', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
+  { id: 'mapa', nome: 'GEO VISA & Mapa', url: '', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/mapa.avif', acao: 'view', view: 'geo_visa', badgetext: 'ROTAS', perfisPermitidos: ['SERVIDOR'] },
   { id: 'regi', nome: 'Regin', url: 'http://200.19.203.151:8080/SiarcoWeb/loginAction.do', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/regin.avif', acao: 'link', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE'] },
   { id: 'rhwb', nome: 'RH Web', url: 'https://folhaweb.bc.sc.gov.br/e-servidor/web/#/login', img: 'https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/rhweb.avif', acao: 'link', perfisPermitidos: ['SERVIDOR'] },
   { id: 'telefone_btn', nome: 'Telefones & Ramais', url: '', img: 'phone-icon', acao: 'view', view: 'telefone', badgetext: 'RAMAIS', perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'] },
@@ -1034,6 +1034,7 @@ export default function App() {
               {currentView === 'feiras' && (
                 <FeirasView
                   feiras={feiras}
+                  currentUser={currentUser}
                   onSaveFeirante={handleSaveFeirante}
                   onDeleteFeirante={handleDeleteFeirante}
                   onSyncFeirantesFromSheets={handleSyncFeirantesFromSheets}
@@ -1353,13 +1354,15 @@ export default function App() {
             email: novoContribuinte.email || 'contribuinte@bc.sc.gov.br',
             nome_completo: novoContribuinte.nome_fantasia || novoContribuinte.razao_social || 'Contribuinte / Empresário',
             cpf: novoContribuinte.cnpj_cpf,
+            cnpj: novoContribuinte.cnpj_cpf,
+            contribuinte_id: novoContribuinte.id,
             bairro: novoContribuinte.bairro,
             telefone: novoContribuinte.telefone,
             data_nascimento: '',
             cargo: `CONTRIBUINTE (${novoContribuinte.categoria || 'EMPRESÁRIO'})`,
             tipo_usuario: 'CONTRIBUINTE',
-            categoria_contribuinte: novoContribuinte.categoria,
-            nivel_acesso: 'VISA (FISCAL)'
+            categoria_contribuinte: novoContribuinte.categoria || 'EMPRESARIO',
+            nivel_acesso: 'CONTRIBUINTE'
           };
           setCurrentUser(contribUser);
           // Redireciona para o menu principal "Serviços e Módulos Operacionais"

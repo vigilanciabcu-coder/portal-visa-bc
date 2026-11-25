@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ContabilidadeProfile,
   EscalaItem,
   FeiranteItem,
   FiscalizacaoItem,
@@ -17,8 +18,10 @@ import {
   obterOuCriarPastaPorCpfCnpj,
 } from '../../lib/pastaVisaService';
 import { saveHabiteSeRegistro } from '../../lib/interlaceServices';
+import { saveContabilidadeToSupabase } from '../../lib/supabaseService';
 import { fetchCnpj } from '../../lib/cnpjService';
 import { BAIRROS_BC } from '../../data/mockData';
+import { ExternalUserScope } from './sinncTypes';
 import { Search, X } from 'lucide-react';
 
 export type SinncWorkflowModalKind =
@@ -32,6 +35,7 @@ interface SinncDemoWorkflowModalsProps {
   modalKind: SinncWorkflowModalKind;
   initialPasta?: PastaVisaItem | null;
   currentUser: UserProfile | null;
+  externalScope?: ExternalUserScope;
   users: UserProfile[];
   onClose: () => void;
   onSaveProcesso: (item: ProcessoItem) => Promise<void> | void;
@@ -45,6 +49,7 @@ export const SinncDemoWorkflowModals: React.FC<SinncDemoWorkflowModalsProps> = (
   modalKind,
   initialPasta,
   currentUser,
+  externalScope,
   users,
   onClose,
   onSaveProcesso,
@@ -53,8 +58,12 @@ export const SinncDemoWorkflowModals: React.FC<SinncDemoWorkflowModalsProps> = (
   onSaveFeirante,
   onCreatedPasta,
 }) => {
-  const [origem, setOrigem] = useState<'PORTAL_MUNICIPE' | 'PORTAL_CONTADOR' | 'DENUNCIA_ANONIMA' | 'RECEPCAO_VISA'>('PORTAL_MUNICIPE');
-  const [doc, setDoc] = useState(initialPasta?.cnpj_cpf || '');
+  const isSingleDocExternal = externalScope?.mode === 'CIDADAO' || externalScope?.mode === 'CONTRIBUINTE';
+  const lockedExternalDoc = isSingleDocExternal && externalScope?.primaryDoc ? formatDoc(externalScope.primaryDoc) : '';
+  const [origem, setOrigem] = useState<'PORTAL_MUNICIPE' | 'PORTAL_CONTADOR' | 'DENUNCIA_ANONIMA' | 'RECEPCAO_VISA'>(
+    externalScope?.mode === 'CONTABILIDADE' ? 'PORTAL_CONTADOR' : 'PORTAL_MUNICIPE'
+  );
+  const [doc, setDoc] = useState(initialPasta?.cnpj_cpf || lockedExternalDoc || '');
   const [pastaFisicaOpcional, setPastaFisicaOpcional] = useState('');
   const [razao, setRazao] = useState(initialPasta?.razao_social || '');
   const [assunto, setAssunto] = useState('Solicitação de Alvará Sanitário Inicial');
@@ -85,7 +94,47 @@ export const SinncDemoWorkflowModals: React.FC<SinncDemoWorkflowModalsProps> = (
   const [codigoBox, setCodigoBox] = useState('BOX-01');
   const [produtosFeira, setProdutosFeira] = useState('Alimentos artesanais / Hortifruti');
 
+  useEffect(() => {
+    if (!modalKind) return;
+    if (externalScope?.mode === 'CONTABILIDADE') {
+      setOrigem('PORTAL_CONTADOR');
+    } else if (isSingleDocExternal) {
+      setOrigem('PORTAL_MUNICIPE');
+    }
+    const nextDoc =
+      lockedExternalDoc ||
+      initialPasta?.cnpj_cpf ||
+      (externalScope?.mode === 'CONTABILIDADE' && externalScope.primaryDoc ? formatDoc(externalScope.primaryDoc) : '');
+    setDoc(nextDoc);
+    setRazao(initialPasta?.razao_social || (isSingleDocExternal ? currentUser?.nome_completo || '' : ''));
+    if (initialPasta?.bairro) setBairro(initialPasta.bairro);
+    if (initialPasta?.endereco) setEndereco(initialPasta.endereco);
+  }, [modalKind, initialPasta, externalScope?.mode, externalScope?.primaryDoc, lockedExternalDoc, isSingleDocExternal, currentUser?.nome_completo]);
+
   if (!modalKind) return null;
+
+  const autoLinkCnpjToContabilidade = async (docLimpo: string) => {
+    if (externalScope?.mode !== 'CONTABILIDADE' || !externalScope.contabilidade || !isValidDocLength(docLimpo)) return;
+    const formatted = formatDoc(docLimpo);
+    const currentLinks = externalScope.contabilidade.cnpjs_vinculados || [];
+    if (currentLinks.some((d) => cleanDoc(d) === docLimpo)) return;
+    try {
+      const raw = localStorage.getItem('visa_contabilidades_lab');
+      const list: ContabilidadeProfile[] = raw ? JSON.parse(raw) : [];
+      const updatedContab: ContabilidadeProfile = {
+        ...externalScope.contabilidade,
+        cnpjs_vinculados: [formatted, ...currentLinks],
+      };
+      const nextList = list.some((c) => c.id === updatedContab.id)
+        ? list.map((c) => (c.id === updatedContab.id ? updatedContab : c))
+        : [updatedContab, ...list];
+      localStorage.setItem('visa_contabilidades_lab', JSON.stringify(nextList));
+      await saveContabilidadeToSupabase(updatedContab);
+      window.dispatchEvent(new Event('visa_contabilidades_updated'));
+    } catch {
+      // ignore local update errors
+    }
+  };
 
   const fiscaisLista = users.filter(
     (u) => !u.tipo_usuario || u.tipo_usuario === 'SERVIDOR'
@@ -172,6 +221,9 @@ export const SinncDemoWorkflowModals: React.FC<SinncDemoWorkflowModalsProps> = (
       };
 
       await onSaveProcesso(novoProc);
+      if (limpo) {
+        await autoLinkCnpjToContabilidade(limpo);
+      }
       onClose();
     } finally {
       setSaving(false);
@@ -317,6 +369,7 @@ export const SinncDemoWorkflowModals: React.FC<SinncDemoWorkflowModalsProps> = (
         observacoes: `Edificação: ${nomeEdificacao} · RT: ${rtNome} (${rtRegistro}) · Área: ${areaM2 || '—'} m²`,
       };
       await onSaveProcesso(procHabite);
+      await autoLinkCnpjToContabilidade(limpo);
       onClose();
     } finally {
       setSaving(false);
@@ -362,6 +415,7 @@ export const SinncDemoWorkflowModals: React.FC<SinncDemoWorkflowModalsProps> = (
       if (onSaveFeirante) {
         await onSaveFeirante(item);
       }
+      await autoLinkCnpjToContabilidade(limpo);
       onClose();
     } finally {
       setSaving(false);
@@ -391,9 +445,15 @@ export const SinncDemoWorkflowModals: React.FC<SinncDemoWorkflowModalsProps> = (
               <div>
                 <label className="block text-[11px] font-medium text-slate-600 mb-1">Canal de Entrada</label>
                 <select value={origem} onChange={(e) => setOrigem(e.target.value as any)} className="w-full !text-xs !py-2 !px-2.5">
-                  <option value="PORTAL_MUNICIPE">Portal do Cidadão</option>
-                  <option value="PORTAL_CONTADOR">Portal do Contador</option>
-                  <option value="RECEPCAO_VISA">Recepção / Novo Processo</option>
+                  {(!externalScope?.isExternal || isSingleDocExternal) && (
+                    <option value="PORTAL_MUNICIPE">Portal do Cidadão / Contribuinte</option>
+                  )}
+                  {(!externalScope?.isExternal || externalScope.mode === 'CONTABILIDADE') && (
+                    <option value="PORTAL_CONTADOR">Portal do Contador</option>
+                  )}
+                  {!externalScope?.isExternal && (
+                    <option value="RECEPCAO_VISA">Recepção / Novo Processo</option>
+                  )}
                   <option value="DENUNCIA_ANONIMA">Denúncia (Anônima ou Identificada)</option>
                 </select>
               </div>
@@ -414,14 +474,32 @@ export const SinncDemoWorkflowModals: React.FC<SinncDemoWorkflowModalsProps> = (
               <div className="sm:col-span-6">
                 <label className="block text-[11px] font-medium text-slate-600 mb-1">
                   CPF ou CNPJ {origem === 'DENUNCIA_ANONIMA' ? '(opcional se anônima)' : '*'}
+                  {isSingleDocExternal && origem !== 'DENUNCIA_ANONIMA' ? ' (travado no usuário logado)' : ''}
                 </label>
+                {externalScope?.mode === 'CONTABILIDADE' && (externalScope.contabilidade?.cnpjs_vinculados?.length || 0) > 0 && (
+                  <select
+                    value={externalScope.contabilidade?.cnpjs_vinculados.find((c) => cleanDoc(c) === cleanDoc(doc)) || ''}
+                    onChange={(e) => {
+                      if (e.target.value) setDoc(e.target.value);
+                    }}
+                    className="w-full !text-xs !py-1.5 !px-2 mb-1.5 bg-[#f8fafc] font-mono"
+                  >
+                    <option value="">Selecionar cliente da carteira ou digitar CNPJ abaixo...</option>
+                    {externalScope.contabilidade?.cnpjs_vinculados.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                )}
                 <div className="flex gap-1.5">
                   <input
                     type="text"
                     value={doc}
+                    readOnly={Boolean(isSingleDocExternal && lockedExternalDoc && origem !== 'DENUNCIA_ANONIMA')}
                     onChange={(e) => setDoc(e.target.value)}
                     placeholder="Somente dígitos ou formatado"
-                    className="w-full !text-xs !py-2 !px-2.5 font-mono"
+                    className={`w-full !text-xs !py-2 !px-2.5 font-mono ${
+                      isSingleDocExternal && lockedExternalDoc && origem !== 'DENUNCIA_ANONIMA' ? 'bg-slate-100 text-slate-600' : ''
+                    }`}
                     required={origem !== 'DENUNCIA_ANONIMA'}
                   />
                   <button
@@ -580,7 +658,14 @@ export const SinncDemoWorkflowModals: React.FC<SinncDemoWorkflowModalsProps> = (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-medium text-slate-600 mb-1">CPF / CNPJ do Titular *</label>
-                <input type="text" value={doc} onChange={(e) => setDoc(e.target.value)} required className="w-full !text-xs !py-2 !px-2.5 font-mono" />
+                <input
+                  type="text"
+                  value={doc}
+                  readOnly={Boolean(isSingleDocExternal && lockedExternalDoc)}
+                  onChange={(e) => setDoc(e.target.value)}
+                  required
+                  className={`w-full !text-xs !py-2 !px-2.5 font-mono ${isSingleDocExternal && lockedExternalDoc ? 'bg-slate-100 text-slate-600' : ''}`}
+                />
               </div>
               <div>
                 <label className="block text-[11px] font-medium text-slate-600 mb-1">Titular / Construtora *</label>
@@ -640,7 +725,14 @@ export const SinncDemoWorkflowModals: React.FC<SinncDemoWorkflowModalsProps> = (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-medium text-slate-600 mb-1">CPF ou MEI/CNPJ do Feirante *</label>
-                <input type="text" value={doc} onChange={(e) => setDoc(e.target.value)} required className="w-full !text-xs !py-2 !px-2.5 font-mono" />
+                <input
+                  type="text"
+                  value={doc}
+                  readOnly={Boolean(isSingleDocExternal && lockedExternalDoc)}
+                  onChange={(e) => setDoc(e.target.value)}
+                  required
+                  className={`w-full !text-xs !py-2 !px-2.5 font-mono ${isSingleDocExternal && lockedExternalDoc ? 'bg-slate-100 text-slate-600' : ''}`}
+                />
               </div>
               <div>
                 <label className="block text-[11px] font-medium text-slate-600 mb-1">Código Físico Box / Banca *</label>

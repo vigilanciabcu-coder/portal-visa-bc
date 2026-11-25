@@ -66,7 +66,7 @@ export const PORTAL_BUTTONS_CONFIG: PortalButtonDef[] = [
     acao: 'view',
     view: 'alvara_visa',
     badgetext: 'OFICIAL',
-    perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'],
+    perfisPermitidos: ['SERVIDOR'],
     categoria_portal: 'OPERACIONAL',
     destaque: true
   },
@@ -112,7 +112,7 @@ export const PORTAL_BUTTONS_CONFIG: PortalButtonDef[] = [
     acao: 'view',
     view: 'geo_visa',
     badgetext: 'ROTAS',
-    perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'],
+    perfisPermitidos: ['SERVIDOR'],
     categoria_portal: 'OPERACIONAL'
   },
   {
@@ -124,7 +124,7 @@ export const PORTAL_BUTTONS_CONFIG: PortalButtonDef[] = [
     acao: 'view',
     view: 'ccpu',
     badgetext: 'ZOONOSES',
-    perfisPermitidos: ['SERVIDOR', 'CONTABILIDADE', 'CIDADAO', 'CONTRIBUINTE'],
+    perfisPermitidos: ['SERVIDOR'],
     categoria_portal: 'OPERACIONAL',
     destaque: true
   },

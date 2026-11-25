@@ -21,6 +21,7 @@ import {
   UserSetor,
 } from '../../types';
 import {
+  ExternalUserScope,
   SinncDashboardMetrics,
   diffDaysFromToday,
   formatShortBrDate,
@@ -105,6 +106,7 @@ function saveLocalArray<T>(key: string, items: T[]) {
 // ============================================================================
 interface SinncMunicipeViewProps {
   currentUser: UserProfile | null;
+  externalScope?: ExternalUserScope;
   metrics: SinncDashboardMetrics;
   processos: ProcessoItem[];
   onSelectProcesso: (proc: ProcessoItem) => void;
@@ -119,6 +121,7 @@ interface SinncMunicipeViewProps {
 
 export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
   currentUser,
+  externalScope,
   metrics,
   processos,
   onSelectProcesso,
@@ -130,8 +133,13 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
   onNavigateClassic,
   compactDensity,
 }) => {
+  const isExternal = Boolean(externalScope?.isExternal);
+  const isContribuinte = externalScope?.mode === 'CONTRIBUINTE';
+  const isFeirante =
+    currentUser?.categoria_contribuinte === 'FEIRANTE' ||
+    (currentUser?.cargo || '').toUpperCase().includes('FEIRANTE');
   const [subTab, setSubTab] = useState<'acompanhamento' | 'servicos' | 'alvaras' | 'perfil'>('acompanhamento');
-  const [buscaDoc, setBuscaDoc] = useState<string>(currentUser?.cpf || currentUser?.cnpj || '');
+  const [buscaDoc, setBuscaDoc] = useState<string>(isExternal ? '' : (currentUser?.cpf || currentUser?.cnpj || ''));
   const [selectedProcId, setSelectedProcId] = useState<string | null>(null);
   const [respostaTexto, setRespostaTexto] = useState('');
   const [anexosResposta, setAnexosResposta] = useState<string[]>([]);
@@ -141,7 +149,9 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
   // Cadastro de Munícipe / Contribuinte
   const [cidadaos, setCidadaos] = useState<CidadaoProfile[]>(() => safeReadLocalArray<CidadaoProfile>(LS_CIDADAO));
   const [perfilNome, setPerfilNome] = useState(currentUser?.nome_completo || '');
-  const [perfilCpfCnpj, setPerfilCpfCnpj] = useState(currentUser?.cpf || currentUser?.cnpj || '');
+  const [perfilCpfCnpj, setPerfilCpfCnpj] = useState(
+    (externalScope?.primaryDoc ? formatDoc(externalScope.primaryDoc) : '') || currentUser?.cpf || currentUser?.cnpj || ''
+  );
   const [perfilEmail, setPerfilEmail] = useState(currentUser?.email || '');
   const [perfilTelefone, setPerfilTelefone] = useState(currentUser?.telefone || '');
   const [perfilBairro, setPerfilBairro] = useState(currentUser?.bairro || '');
@@ -150,19 +160,31 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
   const [salvandoPerfil, setSalvandoPerfil] = useState(false);
 
   useEffect(() => {
+    if (isExternal) return;
     void fetchCidadaosFromSupabase().then((remote) => {
       if (remote && remote.length > 0) {
         setCidadaos(remote);
         saveLocalArray(LS_CIDADAO, remote);
       }
     });
-  }, []);
+  }, [isExternal]);
 
   const rowPad = compactDensity ? 'py-2 px-3' : 'py-2.5 px-3.5';
   const buscaNorm = buscaDoc.trim().toLowerCase();
   const buscaDigits = cleanDoc(buscaDoc);
 
   const pastaEncontrada = useMemo(() => {
+    if (isExternal) {
+      if (!buscaNorm) return metrics.pastasLocais[0] || null;
+      return (
+        metrics.pastasLocais.find(
+          (pt) =>
+            (buscaDigits && cleanDoc(pt.cpf_cnpj_limpo || pt.cnpj_cpf) === buscaDigits) ||
+            getDisplayPastaNumero(pt).toLowerCase() === buscaNorm ||
+            (pt.razao_social || '').toLowerCase().includes(buscaNorm)
+        ) || metrics.pastasLocais[0] || null
+      );
+    }
     if (!buscaNorm) return null;
     return (
       metrics.pastasLocais.find(
@@ -171,10 +193,11 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
           getDisplayPastaNumero(pt).toLowerCase() === buscaNorm
       ) || null
     );
-  }, [metrics.pastasLocais, buscaNorm, buscaDigits]);
+  }, [metrics.pastasLocais, buscaNorm, buscaDigits, isExternal]);
 
   const processosMunicipe = useMemo(() => {
     if (!buscaNorm) {
+      if (isExternal) return processos;
       return processos.filter(
         (p) =>
           p.origem_solicitacao === 'PORTAL_MUNICIPE' ||
@@ -189,10 +212,12 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
         (buscaDigits.length >= 3 && pDigits.includes(buscaDigits)) ||
         (p.num_processo || '').toLowerCase().includes(buscaNorm) ||
         (p.numero_pasta || p.pasta || '').toLowerCase().includes(buscaNorm) ||
+        (p.assunto || '').toLowerCase().includes(buscaNorm) ||
+        (p.status || '').toLowerCase().includes(buscaNorm) ||
         (p.razao_social || '').toLowerCase().includes(buscaNorm)
       );
     });
-  }, [processos, buscaNorm, buscaDigits]);
+  }, [processos, buscaNorm, buscaDigits, isExternal]);
 
   const alvarasMunicipe = useMemo(() => {
     if (!buscaNorm) return metrics.alvarasLocais;
@@ -306,10 +331,16 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200/80">
         <div>
           <h1 className="text-[17px] font-semibold text-slate-800 tracking-tight">
-            Portal do Munícipe &amp; Contribuinte
+            {isContribuinte
+              ? 'Área do Contribuinte & Empresa'
+              : externalScope?.mode === 'CIDADAO'
+              ? 'Portal do Munícipe'
+              : 'Portal do Munícipe & Contribuinte'}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Acompanhamento de processos, resposta a notificações, consulta de alvarás e autoatendimento vinculados à Pasta VISA
+            {isExternal
+              ? 'Acompanhamento exclusivo dos seus processos, notificações, alvarás e solicitações vinculados à sua conta'
+              : 'Acompanhamento de processos, resposta a notificações, consulta de alvarás e autoatendimento vinculados à Pasta VISA'}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -321,16 +352,32 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
             <Plus className="w-3.5 h-3.5" />
             <span>Nova Solicitação</span>
           </button>
-          <button
-            type="button"
-            onClick={() => onNavigateClassic('cidadao')}
-            className="px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-          >
-            <span>Portal clássico</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </button>
+          {!isExternal && (
+            <button
+              type="button"
+              onClick={() => onNavigateClassic('cidadao')}
+              className="px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            >
+              <span>Portal clássico</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
+
+      {isExternal && (
+        <div className="px-3.5 py-2 rounded-md border border-[#cfe0ee] bg-[#f4f8fc] text-xs text-[#285277] flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 font-medium">
+            <Lock className="w-3.5 h-3.5 shrink-0" />
+            <span>
+              Sessão protegida: exibindo exclusivamente os dados do documento{' '}
+              <span className="font-mono font-semibold">
+                {externalScope?.primaryDoc ? formatDoc(externalScope.primaryDoc) : currentUser?.email || 'vinculado'}
+              </span>
+            </span>
+          </span>
+        </div>
+      )}
 
       {feedback && (
         <div className="px-3.5 py-2.5 rounded-md border border-emerald-200 bg-emerald-50 text-xs font-medium text-emerald-800">
@@ -346,7 +393,11 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
             type="text"
             value={buscaDoc}
             onChange={(e) => setBuscaDoc(e.target.value)}
-            placeholder="Digite CPF, CNPJ, Pasta (000001) ou protocolo..."
+            placeholder={
+              isExternal
+                ? 'Filtrar meus processos por protocolo, assunto ou status...'
+                : 'Digite CPF, CNPJ, Pasta (000001) ou protocolo...'
+            }
             className="!pl-8 !py-1.5 !px-3 !text-xs !font-normal !rounded-md !border-slate-300 !bg-white"
           />
         </div>
@@ -356,7 +407,7 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
             { id: 'acompanhamento', label: `Processos & Notificações (${processosMunicipe.length})` },
             { id: 'servicos', label: 'Solicitar Serviços' },
             { id: 'alvaras', label: `Meus Alvarás (${alvarasMunicipe.length})` },
-            { id: 'perfil', label: 'Cadastro de Munícipe' },
+            { id: 'perfil', label: isContribuinte ? 'Dados da Empresa' : 'Cadastro de Munícipe' },
           ].map((t) => (
             <button
               key={t.id}
@@ -549,12 +600,16 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
               actionLabel: 'Requerer Habite-se',
               onClick: () => onOpenWorkflowModal('novo_habite_se', pastaEncontrada),
             },
-            {
-              title: 'Feirantes & Ambulantes',
-              desc: 'Regularização de box/banca mantendo vínculo único por CPF ou MEI na Pasta VISA.',
-              actionLabel: 'Vincular permissão',
-              onClick: () => onOpenWorkflowModal('novo_feirante', pastaEncontrada),
-            },
+            ...(!isExternal || isFeirante
+              ? [
+                  {
+                    title: 'Feirantes & Ambulantes',
+                    desc: 'Regularização de box/banca mantendo vínculo único por CPF ou MEI na Pasta VISA.',
+                    actionLabel: 'Vincular permissão',
+                    onClick: () => onOpenWorkflowModal('novo_feirante', pastaEncontrada),
+                  },
+                ]
+              : []),
             {
               title: 'Denúncia Sanitária / Ouvidoria',
               desc: 'Registro de ocorrência sanitária para triagem e vinculação ao estabelecimento alvo.',
@@ -627,7 +682,9 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
       {subTab === 'perfil' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <form onSubmit={handleSalvarPerfilMunicipe} className="lg:col-span-7 bg-white border border-slate-200 rounded-lg p-4 space-y-3 text-xs">
-            <h3 className="text-xs font-semibold text-slate-800">Cadastro Rápido de Munícipe / Contribuinte</h3>
+            <h3 className="text-xs font-semibold text-slate-800">
+              {isContribuinte ? 'Dados Cadastrais da Empresa / Contribuinte' : 'Cadastro Rápido de Munícipe / Contribuinte'}
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-medium text-slate-600 mb-1">Nome Completo / Razão Social *</label>
@@ -644,10 +701,13 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
                 <input
                   type="text"
                   required
+                  readOnly={Boolean(isExternal && externalScope?.primaryDoc)}
                   value={perfilCpfCnpj}
                   onChange={(e) => setPerfilCpfCnpj(e.target.value)}
                   placeholder="Somente números ou formatado"
-                  className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs font-mono"
+                  className={`w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs font-mono ${
+                    isExternal && externalScope?.primaryDoc ? 'bg-slate-100 text-slate-600' : ''
+                  }`}
                 />
               </div>
               <div>
@@ -705,34 +765,65 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
             </button>
           </form>
 
-          <div className="lg:col-span-5 bg-white border border-slate-200 rounded-lg overflow-hidden">
-            <div className="px-4 py-2.5 bg-[#f4f6f9] border-b border-slate-200 text-xs font-semibold text-slate-700">
-              Munícipes Cadastrados ({cidadaos.length})
+          {isExternal ? (
+            <div className="lg:col-span-5 bg-white border border-slate-200 rounded-lg p-4 space-y-3 text-xs">
+              <div className="font-semibold text-slate-800 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-[#3b6d96]" />
+                <span>Resumo da Conta Vinculada</span>
+              </div>
+              <div className="space-y-2 text-slate-600">
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span>Titular</span>
+                  <span className="font-medium text-slate-800">{currentUser?.nome_completo || '—'}</span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span>Documento</span>
+                  <span className="font-mono text-slate-800">
+                    {externalScope?.primaryDoc ? formatDoc(externalScope.primaryDoc) : '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span>Pasta(s) VISA</span>
+                  <span className="font-mono font-semibold text-[#285277]">{metrics.pastasLocais.length}</span>
+                </div>
+                <div className="flex justify-between py-1.5">
+                  <span>Processos / Alvarás</span>
+                  <span className="font-mono text-slate-800">
+                    {processos.length} proc. · {metrics.alvarasLocais.length} alvará(s)
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="divide-y divide-slate-200/80 max-h-80 overflow-y-auto text-xs">
-              {cidadaos.length === 0 ? (
-                <p className="p-6 text-center text-slate-400">Nenhum munícipe registrado localmente.</p>
-              ) : (
-                cidadaos.slice(0, 20).map((cid) => (
-                  <button
-                    key={cid.id}
-                    type="button"
-                    onClick={() => {
-                      setBuscaDoc(cid.cpf);
-                      setSubTab('acompanhamento');
-                    }}
-                    className="w-full px-4 py-2.5 text-left hover:bg-[#f8fafc] flex items-center justify-between gap-2 cursor-pointer"
-                  >
-                    <div className="min-w-0">
-                      <div className="font-medium text-slate-800 truncate">{cid.nome_completo}</div>
-                      <div className="text-[11px] font-mono text-slate-500">{cid.cpf} · {cid.email}</div>
-                    </div>
-                    <span className="text-[11px] text-[#3b6d96] font-medium shrink-0">Filtrar</span>
-                  </button>
-                ))
-              )}
+          ) : (
+            <div className="lg:col-span-5 bg-white border border-slate-200 rounded-lg overflow-hidden">
+              <div className="px-4 py-2.5 bg-[#f4f6f9] border-b border-slate-200 text-xs font-semibold text-slate-700">
+                Munícipes Cadastrados ({cidadaos.length})
+              </div>
+              <div className="divide-y divide-slate-200/80 max-h-80 overflow-y-auto text-xs">
+                {cidadaos.length === 0 ? (
+                  <p className="p-6 text-center text-slate-400">Nenhum munícipe registrado localmente.</p>
+                ) : (
+                  cidadaos.slice(0, 20).map((cid) => (
+                    <button
+                      key={cid.id}
+                      type="button"
+                      onClick={() => {
+                        setBuscaDoc(cid.cpf);
+                        setSubTab('acompanhamento');
+                      }}
+                      className="w-full px-4 py-2.5 text-left hover:bg-[#f8fafc] flex items-center justify-between gap-2 cursor-pointer"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-medium text-slate-800 truncate">{cid.nome_completo}</div>
+                        <div className="text-[11px] font-mono text-slate-500">{cid.cpf} · {cid.email}</div>
+                      </div>
+                      <span className="text-[11px] text-[#3b6d96] font-medium shrink-0">Filtrar</span>
+                    </button>
+                  ))
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
@@ -744,6 +835,7 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
 // ============================================================================
 interface SinncContadorViewProps {
   currentUser: UserProfile | null;
+  externalScope?: ExternalUserScope;
   metrics: SinncDashboardMetrics;
   processos: ProcessoItem[];
   onSelectProcesso: (proc: ProcessoItem) => void;
@@ -756,6 +848,7 @@ interface SinncContadorViewProps {
 
 export const SinncContadorView: React.FC<SinncContadorViewProps> = ({
   currentUser,
+  externalScope,
   metrics,
   processos,
   onSelectProcesso,
@@ -765,6 +858,7 @@ export const SinncContadorView: React.FC<SinncContadorViewProps> = ({
   onNavigateClassic,
   compactDensity,
 }) => {
+  const isExternalContador = externalScope?.mode === 'CONTABILIDADE';
   const [contabilidades, setContabilidades] = useState<ContabilidadeProfile[]>(() =>
     safeReadLocalArray<ContabilidadeProfile>(LS_CONTABILIDADES)
   );
@@ -808,18 +902,24 @@ export const SinncContadorView: React.FC<SinncContadorViewProps> = ({
   }, [currentUser?.contabilidade_id]);
 
   const activeContab = useMemo(() => {
+    if (isExternalContador && externalScope?.contabilidade) {
+      return (
+        contabilidades.find((c) => c.id === externalScope.contabilidade?.id) ||
+        externalScope.contabilidade
+      );
+    }
     return (
       contabilidades.find((c) => c.id === selectedContabId) ||
       contabilidades.find((c) => c.id === currentUser?.contabilidade_id) ||
-      contabilidades[0] ||
+      (isExternalContador ? null : contabilidades[0]) ||
       null
     );
-  }, [contabilidades, selectedContabId, currentUser?.contabilidade_id]);
+  }, [contabilidades, selectedContabId, currentUser?.contabilidade_id, isExternalContador, externalScope?.contabilidade]);
 
   const carteiraDocs = useMemo(() => {
     const rawList = activeContab?.cnpjs_vinculados || [];
-    if (rawList.length > 0) return rawList;
-    // Fallback útil para visualização: empresas vindas pelo Portal do Contador
+    if (isExternalContador || rawList.length > 0) return rawList;
+    // Fallback apenas para visão interna da VISA quando nenhum escritório tem vínculos ainda
     const fromPortal = Array.from(
       new Set(
         processos
@@ -828,16 +928,28 @@ export const SinncContadorView: React.FC<SinncContadorViewProps> = ({
       )
     );
     return fromPortal;
-  }, [activeContab, processos]);
+  }, [activeContab, processos, isExternalContador]);
+
+  const cleanCarteiraSet = useMemo(
+    () => new Set(carteiraDocs.map((d) => cleanDoc(d)).filter(Boolean)),
+    [carteiraDocs]
+  );
 
   const processosCarteira = useMemo(() => {
-    const cleanSet = new Set(carteiraDocs.map((d) => cleanDoc(d)).filter(Boolean));
+    if (isExternalContador) {
+      return processos.filter((p) => p.cnpj_cpf && cleanCarteiraSet.has(cleanDoc(p.cnpj_cpf)));
+    }
     return processos.filter(
       (p) =>
         p.origem_solicitacao === 'PORTAL_CONTADOR' ||
-        (p.cnpj_cpf && cleanSet.has(cleanDoc(p.cnpj_cpf)))
+        (p.cnpj_cpf && cleanCarteiraSet.has(cleanDoc(p.cnpj_cpf)))
     );
-  }, [processos, carteiraDocs]);
+  }, [processos, cleanCarteiraSet, isExternalContador]);
+
+  const documentosVisiveis = useMemo(() => {
+    if (!isExternalContador) return documentos;
+    return documentos.filter((d) => cleanCarteiraSet.has(cleanDoc(d.cnpj_empresa)));
+  }, [documentos, isExternalContador, cleanCarteiraSet]);
 
   const rowPad = compactDensity ? 'py-2 px-3' : 'py-2.5 px-3.5';
 
@@ -855,10 +967,13 @@ export const SinncContadorView: React.FC<SinncContadorViewProps> = ({
     if (activeContab) {
       const updatedCnpjs = Array.from(new Set([docFormatado, ...(activeContab.cnpjs_vinculados || [])]));
       const updatedContab: ContabilidadeProfile = { ...activeContab, cnpjs_vinculados: updatedCnpjs };
-      const updatedList = contabilidades.map((c) => (c.id === activeContab.id ? updatedContab : c));
+      const updatedList = contabilidades.some((c) => c.id === activeContab.id)
+        ? contabilidades.map((c) => (c.id === activeContab.id ? updatedContab : c))
+        : [updatedContab, ...contabilidades];
       setContabilidades(updatedList);
       saveLocalArray(LS_CONTABILIDADES, updatedList);
       await saveContabilidadeToSupabase(updatedContab);
+      window.dispatchEvent(new Event('visa_contabilidades_updated'));
     }
     onRefreshState();
     setNovoClienteDoc('');
@@ -946,14 +1061,16 @@ export const SinncContadorView: React.FC<SinncContadorViewProps> = ({
             <Plus className="w-3.5 h-3.5" />
             <span>Nova Demanda (Cliente)</span>
           </button>
-          <button
-            type="button"
-            onClick={() => onNavigateClassic('portal_contador')}
-            className="px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-          >
-            <span>Portal clássico</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </button>
+          {!externalScope?.isExternal && (
+            <button
+              type="button"
+              onClick={() => onNavigateClassic('portal_contador')}
+              className="px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            >
+              <span>Portal clássico</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -967,29 +1084,39 @@ export const SinncContadorView: React.FC<SinncContadorViewProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs">
           <span className="font-medium text-slate-600 whitespace-nowrap">Escritório ativo:</span>
-          <select
-            value={activeContab?.id || ''}
-            onChange={(e) => setSelectedContabId(e.target.value)}
-            className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 min-w-[240px]"
-          >
-            {contabilidades.length === 0 ? (
-              <option value="">Nenhum escritório cadastrado</option>
-            ) : (
-              contabilidades.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.razao_social} ({c.crc || c.cnpj})
-                </option>
-              ))
-            )}
-          </select>
+          {isExternalContador ? (
+            <div className="inline-flex items-center gap-1.5 rounded-md border border-[#cfe0ee] bg-[#f4f8fc] px-2.5 py-1.5 text-xs font-medium text-[#285277]">
+              <Lock className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                {activeContab?.razao_social || currentUser?.nome_completo}
+                {activeContab?.crc || activeContab?.cnpj ? ` (${activeContab?.crc || activeContab?.cnpj})` : ''}
+              </span>
+            </div>
+          ) : (
+            <select
+              value={activeContab?.id || ''}
+              onChange={(e) => setSelectedContabId(e.target.value)}
+              className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 min-w-[240px]"
+            >
+              {contabilidades.length === 0 ? (
+                <option value="">Nenhum escritório cadastrado</option>
+              ) : (
+                contabilidades.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.razao_social} ({c.crc || c.cnpj})
+                  </option>
+                ))
+              )}
+            </select>
+          )}
         </div>
 
         <div className="flex items-center gap-1 p-1 bg-[#f4f6f9] border border-slate-200 rounded-md overflow-x-auto">
           {[
             { id: 'carteira', label: `Carteira de Clientes (${carteiraDocs.length})` },
             { id: 'processos', label: `Processos (${processosCarteira.length})` },
-            { id: 'documentos', label: `Documentos (${documentos.length})` },
-            { id: 'escritorio', label: '+ Novo Escritório' },
+            { id: 'documentos', label: `Documentos (${documentosVisiveis.length})` },
+            ...(!isExternalContador ? [{ id: 'escritorio', label: '+ Novo Escritório' }] : []),
           ].map((t) => (
             <button
               key={t.id}
@@ -1080,6 +1207,13 @@ export const SinncContadorView: React.FC<SinncContadorViewProps> = ({
                           </button>
                           <button
                             type="button"
+                            onClick={() => onOpenWorkflowModal('nova_demanda', pasta || null)}
+                            className="text-emerald-700 font-medium hover:underline cursor-pointer"
+                          >
+                            + Demanda
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => {
                               setDocCnpj(doc);
                               setSubTab('documentos');
@@ -1150,14 +1284,28 @@ export const SinncContadorView: React.FC<SinncContadorViewProps> = ({
             <h3 className="text-xs font-semibold text-slate-800">Protocolar Documento Contábil / Sanitário</h3>
             <div>
               <label className="block text-[11px] font-medium text-slate-600 mb-1">CNPJ da Empresa *</label>
-              <input
-                type="text"
-                required
-                value={docCnpj}
-                onChange={(e) => setDocCnpj(e.target.value)}
-                placeholder="00.000.000/0001-00"
-                className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs font-mono"
-              />
+              {isExternalContador ? (
+                <select
+                  required
+                  value={docCnpj}
+                  onChange={(e) => setDocCnpj(e.target.value)}
+                  className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs font-mono bg-white"
+                >
+                  <option value="">Selecione uma empresa da sua carteira...</option>
+                  {carteiraDocs.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  required
+                  value={docCnpj}
+                  onChange={(e) => setDocCnpj(e.target.value)}
+                  placeholder="00.000.000/0001-00"
+                  className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-xs font-mono"
+                />
+              )}
             </div>
             <div>
               <label className="block text-[11px] font-medium text-slate-600 mb-1">Tipo de Documento</label>
@@ -1204,13 +1352,13 @@ export const SinncContadorView: React.FC<SinncContadorViewProps> = ({
 
           <div className="lg:col-span-7 bg-white border border-slate-200 rounded-lg overflow-hidden">
             <div className="px-4 py-2.5 bg-[#f4f6f9] border-b border-slate-200 text-xs font-semibold text-slate-700">
-              Documentos Enviados ({documentos.length})
+              Documentos Enviados ({documentosVisiveis.length})
             </div>
             <div className="divide-y divide-slate-200/80 text-xs">
-              {documentos.length === 0 ? (
+              {documentosVisiveis.length === 0 ? (
                 <p className="p-6 text-center text-slate-400">Nenhum documento enviado ainda.</p>
               ) : (
-                documentos.slice(0, 30).map((d) => (
+                documentosVisiveis.slice(0, 30).map((d) => (
                   <div key={d.id} className="px-4 py-2.5 flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <div className="font-medium text-slate-800 truncate">{d.tipo_documento} · {d.nome_arquivo}</div>
@@ -1270,6 +1418,7 @@ interface SinncLaboratorioAestheticViewProps {
   metrics: SinncDashboardMetrics;
   amostrasLaboratorio: AmostraLaboratorioItem[];
   pontosColeta: PontoColetaLaboratorio[];
+  isExternal?: boolean;
   onOpenDossiePorDoc: (doc: string, razaoFallback?: string) => void;
   onOpenSolicitarLab: (pasta?: PastaVisaItem | null) => void;
   onOpenTermoColeta?: (amostra?: AmostraLaboratorioItem | null, solicitacao?: SolicitacaoLaudoPotabilidadeItem | null) => void;
@@ -1282,6 +1431,7 @@ export const SinncLaboratorioAestheticView: React.FC<SinncLaboratorioAestheticVi
   metrics,
   amostrasLaboratorio,
   pontosColeta,
+  isExternal = false,
   onOpenDossiePorDoc,
   onOpenSolicitarLab,
   onOpenTermoColeta,
@@ -1343,7 +1493,9 @@ export const SinncLaboratorioAestheticView: React.FC<SinncLaboratorioAestheticVi
             Laboratório Municipal de Água &amp; Potabilidade
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Painel integrado à Pasta VISA · Janelas, termos de coleta e laudos oficiais preservados sem alterações
+            {isExternal
+              ? 'Solicitações e laudos de potabilidade vinculados exclusivamente à sua conta'
+              : 'Painel integrado à Pasta VISA · Janelas, termos de coleta e laudos oficiais preservados sem alterações'}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -1355,14 +1507,16 @@ export const SinncLaboratorioAestheticView: React.FC<SinncLaboratorioAestheticVi
             <Droplet className="w-3.5 h-3.5" />
             <span>Solicitar Coleta / Potabilidade</span>
           </button>
-          <button
-            type="button"
-            onClick={() => onNavigateClassic('laboratorio')}
-            className="px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-          >
-            <span>Abrir Laboratório original</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </button>
+          {!isExternal && (
+            <button
+              type="button"
+              onClick={() => onNavigateClassic('laboratorio')}
+              className="px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            >
+              <span>Abrir Laboratório original</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -1371,8 +1525,8 @@ export const SinncLaboratorioAestheticView: React.FC<SinncLaboratorioAestheticVi
         {[
           { label: 'Total de amostras', value: amostrasLaboratorio.length, sub: 'Registros físico-químicos e microbiológicos' },
           { label: 'Aguardando coleta / análise', value: metrics.amostrasAguardando, sub: 'Em andamento no laboratório' },
-          { label: 'Resultados não conformes', value: metrics.amostrasInsatisfatorias, sub: 'Requerem ação fiscal na Pasta', danger: metrics.amostrasInsatisfatorias > 0 },
-          { label: 'Solicitações de potabilidade', value: metrics.solicitacoesLabLocais.length, sub: `${pontosColeta.length} ponto(s) monitorado(s)` },
+          { label: 'Resultados não conformes', value: metrics.amostrasInsatisfatorias, sub: isExternal ? 'Acompanhe análises fora do padrão' : 'Requerem ação fiscal na Pasta', danger: metrics.amostrasInsatisfatorias > 0 },
+          { label: 'Solicitações de potabilidade', value: metrics.solicitacoesLabLocais.length, sub: isExternal ? 'Protocolos de coleta solicitados' : `${pontosColeta.length} ponto(s) monitorado(s)` },
         ].map((k) => (
           <div key={k.label} className="bg-[#f4f6f9] border border-slate-200/90 rounded-lg p-3.5">
             <div className="text-[11.5px] font-medium text-slate-600">{k.label}</div>
@@ -1402,7 +1556,7 @@ export const SinncLaboratorioAestheticView: React.FC<SinncLaboratorioAestheticVi
             {[
               { id: 'amostras', label: `Amostras (${amostrasLaboratorio.length})` },
               { id: 'solicitacoes', label: `Solicitações (${metrics.solicitacoesLabLocais.length})` },
-              { id: 'pontos', label: `Pontos de Coleta (${pontosColeta.length})` },
+              ...(!isExternal ? [{ id: 'pontos', label: `Pontos de Coleta (${pontosColeta.length})` }] : []),
             ].map((t) => (
               <button
                 key={t.id}

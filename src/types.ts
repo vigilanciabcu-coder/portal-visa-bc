@@ -213,8 +213,50 @@ export const PRESET_PAGINAS = {
   TODAS: MODULOS_SISTEMA.map((m) => m.id)
 };
 
+export function resolveEffectiveTipoUsuario(user: UserProfile | null | undefined): TipoUsuario {
+  if (!user) return 'SERVIDOR';
+  if (
+    user.tipo_usuario === 'CIDADAO' ||
+    user.tipo_usuario === 'CONTRIBUINTE' ||
+    user.tipo_usuario === 'CONTABILIDADE'
+  ) {
+    return user.tipo_usuario;
+  }
+  const cargoNorm = (user.cargo || '')
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  const isStaffCargo =
+    cargoNorm.includes('FISCAL') ||
+    cargoNorm.includes('AGENTE') ||
+    cargoNorm.includes('DIRETOR') ||
+    cargoNorm.includes('MASTER') ||
+    cargoNorm.includes('ADMINISTRATIV') ||
+    cargoNorm.includes('SUPERVISOR');
+
+  if (!isStaffCargo) {
+    if (
+      cargoNorm.startsWith('CONTRIBUINTE') ||
+      cargoNorm.includes('EMPRESARIO') ||
+      cargoNorm.includes('FEIRANTE') ||
+      Boolean(user.contribuinte_id) ||
+      Boolean(user.categoria_contribuinte)
+    ) {
+      return 'CONTRIBUINTE';
+    }
+    if (cargoNorm.startsWith('CIDAD') || cargoNorm.includes('MUNICIPE')) {
+      return 'CIDADAO';
+    }
+    if (cargoNorm.includes('CONTABIL') || Boolean(user.contabilidade_id)) {
+      return 'CONTABILIDADE';
+    }
+  }
+  return 'SERVIDOR';
+}
+
 export function isUserMaster(user: UserProfile | null | undefined): boolean {
   if (!user) return false;
+  if (resolveEffectiveTipoUsuario(user) !== 'SERVIDOR') return false;
   const cargo = (user.cargo || '').toUpperCase();
   const nivel = (user.nivel_acesso || '').toUpperCase();
   const email = (user.email || '').toLowerCase();
@@ -237,6 +279,7 @@ export function isUserMaster(user: UserProfile | null | undefined): boolean {
 
 export function isUserDiretor(user: UserProfile | null | undefined): boolean {
   if (!user) return false;
+  if (resolveEffectiveTipoUsuario(user) !== 'SERVIDOR') return false;
   if (isUserMaster(user)) return true;
   const cargo = (user.cargo || '').toUpperCase();
   const nivel = (user.nivel_acesso || '').toUpperCase();
@@ -253,6 +296,7 @@ export function isUserDiretor(user: UserProfile | null | undefined): boolean {
 
 export function isUserAdministrativo(user: UserProfile | null | undefined): boolean {
   if (!user) return false;
+  if (resolveEffectiveTipoUsuario(user) !== 'SERVIDOR') return false;
   if (isUserMaster(user)) return true;
   const cargo = (user.cargo || '').toUpperCase();
   const nivel = (user.nivel_acesso || '').toUpperCase();
@@ -267,6 +311,7 @@ export function isUserAdministrativo(user: UserProfile | null | undefined): bool
 
 export function isUserDiretorOuAdministrativo(user: UserProfile | null | undefined): boolean {
   if (!user) return false;
+  if (resolveEffectiveTipoUsuario(user) !== 'SERVIDOR') return false;
   if (isUserMaster(user) || isUserDiretor(user) || isUserAdministrativo(user)) return true;
   if (Array.isArray(user.paginas_permitidas) && user.paginas_permitidas.includes('ccpu_estoque')) {
     return true;
@@ -276,6 +321,7 @@ export function isUserDiretorOuAdministrativo(user: UserProfile | null | undefin
 
 export function isUserFiscal(user: UserProfile | null | undefined): boolean {
   if (!user) return false;
+  if (resolveEffectiveTipoUsuario(user) !== 'SERVIDOR') return false;
   const cargo = (user.cargo || '').toUpperCase();
   const nivel = (user.nivel_acesso || '').toUpperCase();
   return (
@@ -381,6 +427,78 @@ export function userHasAccessToPage(user: UserProfile | null | undefined, pageOr
     return false;
   }
 
+  const effectiveType = resolveEffectiveTipoUsuario(user);
+
+  // Usuários externos (Munícipe, Contribuinte/Empresário, Contabilidade) têm acesso estritamente limitado às próprias ferramentas
+  if (effectiveType === 'CIDADAO') {
+    return [
+      'portal_sinnc',
+      'portal_sinnc_btn',
+      'cidadao_view',
+      'cidadao',
+      'solicitar_servicos_municipe',
+      'repositorio_juridico',
+      'pref',
+      '1doc',
+      'alva',
+      'cnpj',
+      'debi',
+      'leis',
+      'telefone_btn',
+      'telefone',
+    ].includes(pageOrButtonId);
+  }
+
+  if (effectiveType === 'CONTRIBUINTE') {
+    const isFeirante =
+      user.categoria_contribuinte === 'FEIRANTE' ||
+      (user.cargo || '').toUpperCase().includes('FEIRANTE');
+    const allowed = [
+      'portal_sinnc',
+      'portal_sinnc_btn',
+      'tproc_lab',
+      'processos_lab',
+      'cidadao_view',
+      'cidadao',
+      'solicitar_servicos_municipe',
+      'repositorio_juridico',
+      'pref',
+      '1doc',
+      'alva',
+      'cnpj',
+      'debi',
+      'leis',
+      'telefone_btn',
+      'telefone',
+    ];
+    if (isFeirante) allowed.push('feir', 'feiras');
+    return allowed.includes(pageOrButtonId);
+  }
+
+  if (effectiveType === 'CONTABILIDADE') {
+    return [
+      'portal_sinnc',
+      'portal_sinnc_btn',
+      'tproc_lab',
+      'processos_lab',
+      'portal_contador',
+      'cidadao_view',
+      'cidadao',
+      'solicitar_servicos_municipe',
+      'repositorio_juridico',
+      'pref',
+      '1doc',
+      'alva',
+      'cnpj',
+      'debi',
+      'domm',
+      'regi',
+      'leis',
+      'telefone_btn',
+      'telefone',
+    ].includes(pageOrButtonId);
+  }
+
   // Se o usuário possui lista explícita de páginas permitidas configurada pelo Master
   if (user.paginas_permitidas && Array.isArray(user.paginas_permitidas)) {
     // Permite por id direto ou mapeando views equivalentes
@@ -394,9 +512,7 @@ export function userHasAccessToPage(user: UserProfile | null | undefined, pageOr
     if (pageOrButtonId === 'tlab' && user.paginas_permitidas.includes('laboratorio')) return true;
     if (pageOrButtonId === 'laboratorio' && user.paginas_permitidas.includes('laboratorio')) return true;
     if (pageOrButtonId === 'tproc_lab' || pageOrButtonId === 'processos_lab') {
-      if (!isUserMaster(user) && (user.tipo_usuario === 'SERVIDOR' || !user.tipo_usuario)) {
-        return false;
-      }
+      if (!isUserMaster(user)) return false;
       return user.paginas_permitidas.includes('processos_lab');
     }
     if (pageOrButtonId === 'cnae_btn' && user.paginas_permitidas.includes('cnae')) return true;
@@ -418,28 +534,24 @@ export function userHasAccessToPage(user: UserProfile | null | undefined, pageOr
     return false;
   }
 
-  // Se não foi configurado individualmente ainda, aplica as permissões base por perfil
-  if (user.tipo_usuario === 'SERVIDOR' || !user.tipo_usuario) {
-    if (pageOrButtonId === 'tproc_lab' || pageOrButtonId === 'processos_lab') {
-      return isUserMaster(user);
-    }
-    if (pageOrButtonId === 'demandas_diretor') {
-      return isUserDiretor(user) || isUserMaster(user);
-    }
-    if (pageOrButtonId === 'ccpu_estoque') {
-      return isUserDiretorOuAdministrativo(user);
-    }
-    if (pageOrButtonId === 'laboratorio' || pageOrButtonId === 'tlab') {
-      return (user.nivel_acesso === 'VISA (LABORATÓRIO)' || (user.setor || '').toUpperCase().includes('LAB'));
-    }
-    if (pageOrButtonId === 'pasta_visa') {
-      const cargo = (user.cargo || '').toUpperCase();
-      const nivel = (user.nivel_acesso || '').toUpperCase();
-      return cargo.includes('ADMINISTRATIV') || nivel.includes('ADMINISTRATIV') || cargo.includes('DIRETOR') || isUserMaster(user);
-    }
-    return true;
+  // Se não foi configurado individualmente ainda, aplica as permissões base do servidor
+  if (pageOrButtonId === 'tproc_lab' || pageOrButtonId === 'processos_lab') {
+    return isUserMaster(user);
   }
-
+  if (pageOrButtonId === 'demandas_diretor') {
+    return isUserDiretor(user) || isUserMaster(user);
+  }
+  if (pageOrButtonId === 'ccpu_estoque') {
+    return isUserDiretorOuAdministrativo(user);
+  }
+  if (pageOrButtonId === 'laboratorio' || pageOrButtonId === 'tlab') {
+    return (user.nivel_acesso === 'VISA (LABORATÓRIO)' || (user.setor || '').toUpperCase().includes('LAB'));
+  }
+  if (pageOrButtonId === 'pasta_visa') {
+    const cargo = (user.cargo || '').toUpperCase();
+    const nivel = (user.nivel_acesso || '').toUpperCase();
+    return cargo.includes('ADMINISTRATIV') || nivel.includes('ADMINISTRATIV') || cargo.includes('DIRETOR') || isUserMaster(user);
+  }
   return true;
 }
 

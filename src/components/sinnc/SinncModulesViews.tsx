@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  ContabilidadeProfile,
   FeiranteItem,
   FiscalizacaoItem,
   PastaVisaItem,
@@ -12,12 +13,14 @@ import {
   SolicitacaoLaudoPotabilidadeItem,
 } from '../../types';
 import {
+  ExternalUserScope,
   SinncDashboardMetrics,
   SinncWorkspaceTabId,
   SINNC_MODULE_LABELS,
   diffDaysFromToday,
   formatShortBrDate,
 } from './sinncTypes';
+import { saveContabilidadeToSupabase } from '../../lib/supabaseService';
 import {
   ConsolidacaoRelatorio,
   cleanDoc,
@@ -58,6 +61,7 @@ import {
 interface SinncModulesViewsProps {
   activeTab: Exclude<SinncWorkspaceTabId, 'painel'>;
   currentUser: UserProfile | null;
+  externalScope?: ExternalUserScope;
   metrics: SinncDashboardMetrics;
   processos: ProcessoItem[];
   fiscalizacoes: FiscalizacaoItem[];
@@ -306,6 +310,7 @@ CREATE POLICY "Permitir Acesso Completo PAS Juridico"
 export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
   activeTab,
   currentUser,
+  externalScope,
   metrics,
   processos,
   fiscalizacoes,
@@ -410,6 +415,29 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
         pasta_fisica_informada: quickFisica || undefined,
         criado_por: currentUser?.nome_completo || 'Cadastro VISA',
       });
+      if (externalScope?.mode === 'CONTABILIDADE' && externalScope.contabilidade) {
+        const docLimpo = cleanDoc(quickDoc);
+        const docFmt = formatDoc(docLimpo);
+        const curLinks = externalScope.contabilidade.cnpjs_vinculados || [];
+        if (!curLinks.some((d) => cleanDoc(d) === docLimpo)) {
+          try {
+            const raw = localStorage.getItem('visa_contabilidades_lab');
+            const list: ContabilidadeProfile[] = raw ? JSON.parse(raw) : [];
+            const updatedContab: ContabilidadeProfile = {
+              ...externalScope.contabilidade,
+              cnpjs_vinculados: [docFmt, ...curLinks],
+            };
+            const nextList = list.some((c) => c.id === updatedContab.id)
+              ? list.map((c) => (c.id === updatedContab.id ? updatedContab : c))
+              : [updatedContab, ...list];
+            localStorage.setItem('visa_contabilidades_lab', JSON.stringify(nextList));
+            await saveContabilidadeToSupabase(updatedContab);
+            window.dispatchEvent(new Event('visa_contabilidades_updated'));
+          } catch {
+            // ignore storage errors
+          }
+        }
+      }
       onRefreshState();
       setQuickDoc('');
       setQuickFisica('');
@@ -465,11 +493,11 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
     }
   };
 
-  const renderSectionHeader = (subtitle: string, rightAction?: React.ReactNode) => (
+  const renderSectionHeader = (subtitle: string, rightAction?: React.ReactNode, customTitle?: string) => (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200/80">
       <div>
         <h1 className="text-[17px] font-semibold text-slate-800 tracking-tight">
-          {SINNC_MODULE_LABELS[activeTab]}
+          {customTitle || SINNC_MODULE_LABELS[activeTab]}
         </h1>
         <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
       </div>
@@ -554,12 +582,37 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
       );
     });
 
-    const subtitleMap: Record<string, string> = {
-      tarefas: 'Pendências sob responsabilidade técnica vinculadas à Pasta VISA',
-      processos: 'Processos sanitários, pareceres e PAS jurídicos entrelaçados pela Pasta',
-      licenciamento: 'Pedidos de alvará inicial, renovação e Habite-se sanitário (LC 40/2019)',
-      atendimento: 'Entradas do Portal do Cidadão, Portal do Contador, Denúncias e Cumprimentos',
-    };
+    const subtitleMap: Record<string, string> = externalScope?.isExternal
+      ? {
+          tarefas: 'Pendências sob sua responsabilidade vinculadas à sua conta',
+          processos:
+            externalScope.mode === 'CONTABILIDADE'
+              ? 'Processos sanitários e protocolos das empresas vinculadas à sua carteira'
+              : 'Seus processos sanitários, protocolos e andamentos na Vigilância Sanitária',
+          licenciamento:
+            externalScope.mode === 'CONTABILIDADE'
+              ? 'Pedidos de alvará inicial, renovação e Habite-se das empresas da carteira'
+              : 'Seus pedidos de alvará inicial, renovação e Habite-se sanitário (LC 40/2019)',
+          atendimento: 'Suas solicitações e retornos enviados pelo portal',
+        }
+      : {
+          tarefas: 'Pendências sob responsabilidade técnica vinculadas à Pasta VISA',
+          processos: 'Processos sanitários, pareceres e PAS jurídicos entrelaçados pela Pasta',
+          licenciamento: 'Pedidos de alvará inicial, renovação e Habite-se sanitário (LC 40/2019)',
+          atendimento: 'Entradas do Portal do Cidadão, Portal do Contador, Denúncias e Cumprimentos',
+        };
+
+    const customProcTitle = externalScope?.isExternal
+      ? activeTab === 'processos'
+        ? externalScope.mode === 'CONTABILIDADE'
+          ? 'Processos da Carteira'
+          : 'Meus Processos'
+        : activeTab === 'licenciamento'
+        ? externalScope.mode === 'CONTABILIDADE'
+          ? 'Alvarás & Licenciamentos da Carteira'
+          : 'Meus Alvarás & Licenciamentos'
+        : undefined
+      : undefined;
 
     return (
       <div className="space-y-4 text-left">
@@ -572,7 +625,7 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
               className="px-3 py-1.5 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Nova Demanda / Portal</span>
+              <span>{externalScope?.isExternal ? 'Nova Solicitação' : 'Nova Demanda / Portal'}</span>
             </button>
             {activeTab === 'licenciamento' && (
               <button
@@ -584,7 +637,8 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
                 <span>Novo Habite-se</span>
               </button>
             )}
-          </>
+          </>,
+          customProcTitle
         )}
 
         {renderSearchBar('Filtrar por Pasta VISA, protocolo, razão social, CNPJ ou fiscal...', [
@@ -904,48 +958,66 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
     return (
       <div className="space-y-4 text-left">
         {renderSectionHeader(
-          `Pastas VISA cadastradas (${metrics.pastasLocais.length}) — 1 CPF/CNPJ = 1 Pasta (Opção A Híbrida)`
+          externalScope?.isExternal
+            ? `Pastas VISA vinculadas à sua conta (${metrics.pastasLocais.length})`
+            : `Pastas VISA cadastradas (${metrics.pastasLocais.length}) — 1 CPF/CNPJ = 1 Pasta (Opção A Híbrida)`,
+          undefined,
+          externalScope?.isExternal
+            ? externalScope.mode === 'CONTABILIDADE'
+              ? 'Pastas da Carteira'
+              : 'Minha Pasta VISA'
+            : undefined
         )}
 
-        {/* Resolvedor instantâneo Opção A Híbrida */}
-        <form onSubmit={handleResolverOuCriarPasta} className="bg-white border border-slate-200 rounded-lg p-4 space-y-2.5">
-          <div className="flex flex-col lg:flex-row lg:items-end gap-3">
-            <div className="flex-1">
-              <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                Localizar ou Gerar Pasta VISA por CPF ou CNPJ
-              </label>
-              <input
-                type="text"
-                value={quickDoc}
-                onChange={(e) => setQuickDoc(e.target.value)}
-                placeholder="Digite CPF (11 dígitos) ou CNPJ (14 dígitos)"
-                className="w-full !text-xs !py-2 !px-3 font-mono"
-              />
+        {/* Resolvedor instantâneo Opção A Híbrida (interno ou vínculo de novo cliente pela Contabilidade) */}
+        {(!externalScope?.isExternal || externalScope.mode === 'CONTABILIDADE') && (
+          <form onSubmit={handleResolverOuCriarPasta} className="bg-white border border-slate-200 rounded-lg p-4 space-y-2.5">
+            <div className="flex flex-col lg:flex-row lg:items-end gap-3">
+              <div className="flex-1">
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                  {externalScope?.mode === 'CONTABILIDADE'
+                    ? 'Vincular novo cliente à sua carteira e abrir/gerar Pasta VISA'
+                    : 'Localizar ou Gerar Pasta VISA por CPF ou CNPJ'}
+                </label>
+                <input
+                  type="text"
+                  value={quickDoc}
+                  onChange={(e) => setQuickDoc(e.target.value)}
+                  placeholder="Digite CPF (11 dígitos) ou CNPJ (14 dígitos)"
+                  className="w-full !text-xs !py-2 !px-3 font-mono"
+                />
+              </div>
+              {!externalScope?.isExternal && (
+                <div className="lg:w-64">
+                  <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                    Nº Pasta Física Existente (se houver)
+                  </label>
+                  <input
+                    type="text"
+                    value={quickFisica}
+                    onChange={(e) => setQuickFisica(e.target.value)}
+                    placeholder="Ex: 1042/2024 (vazio = 6 dígitos)"
+                    className="w-full !text-xs !py-2 !px-3 font-mono"
+                  />
+                </div>
+              )}
+              <button
+                type="submit"
+                disabled={resolvingPasta}
+                className="px-4 py-2 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium cursor-pointer whitespace-nowrap shrink-0"
+              >
+                {resolvingPasta
+                  ? 'Consultando RFB...'
+                  : externalScope?.mode === 'CONTABILIDADE'
+                  ? 'Vincular Cliente & Abrir Pasta'
+                  : 'Abrir / Criar Pasta VISA'}
+              </button>
             </div>
-            <div className="lg:w-64">
-              <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                Nº Pasta Física Existente (se houver)
-              </label>
-              <input
-                type="text"
-                value={quickFisica}
-                onChange={(e) => setQuickFisica(e.target.value)}
-                placeholder="Ex: 1042/2024 (vazio = 6 dígitos)"
-                className="w-full !text-xs !py-2 !px-3 font-mono"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={resolvingPasta}
-              className="px-4 py-2 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium cursor-pointer whitespace-nowrap shrink-0"
-            >
-              {resolvingPasta ? 'Consultando RFB...' : 'Abrir / Criar Pasta VISA'}
-            </button>
-          </div>
-          {quickFeedback && (
-            <p className="text-xs font-medium text-[#285277]">{quickFeedback}</p>
-          )}
-        </form>
+            {quickFeedback && (
+              <p className="text-xs font-medium text-[#285277]">{quickFeedback}</p>
+            )}
+          </form>
+        )}
 
         {renderSearchBar('Buscar por número da Pasta, razão social, CPF/CNPJ ou setor...')}
 
@@ -967,7 +1039,22 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
                 {filtradas.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-slate-400">
-                      Nenhuma Pasta encontrada. Digite um CPF/CNPJ acima ou execute a Consolidação em Gestão.
+                      {externalScope?.isExternal ? (
+                        <div className="space-y-2">
+                          <p>Nenhuma Pasta VISA vinculada ao seu documento foi localizada até o momento.</p>
+                          {externalScope.primaryDoc && externalScope.mode !== 'CONTABILIDADE' && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenDossiePorDoc(externalScope.primaryDoc!, currentUser?.nome_completo)}
+                              className="px-3 py-1.5 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium cursor-pointer"
+                            >
+                              Gerar / Abrir Minha Pasta VISA
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        'Nenhuma Pasta encontrada. Digite um CPF/CNPJ acima ou execute a Consolidação em Gestão.'
+                      )}
                     </td>
                   </tr>
                 ) : (
@@ -1063,25 +1150,29 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
     return (
       <div className="space-y-4 text-left">
         {renderSectionHeader(
-          'Vistorias in loco e notificações com criação automática de lembrete na Agenda',
-          <>
-            <button
-              type="button"
-              onClick={() => onOpenWorkflowModal('nova_vistoria')}
-              className="px-3 py-1.5 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium flex items-center gap-1 cursor-pointer whitespace-nowrap"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Registrar Vistoria / Notificar</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigateClassic('fiscalizacao')}
-              className="px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-xs font-medium text-slate-700 flex items-center gap-1 cursor-pointer whitespace-nowrap"
-            >
-              <span>Módulo clássico</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
-          </>
+          externalScope?.isExternal
+            ? 'Vistorias e notificações sanitárias vinculadas à sua conta'
+            : 'Vistorias in loco e notificações com criação automática de lembrete na Agenda',
+          !externalScope?.isExternal ? (
+            <>
+              <button
+                type="button"
+                onClick={() => onOpenWorkflowModal('nova_vistoria')}
+                className="px-3 py-1.5 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium flex items-center gap-1 cursor-pointer whitespace-nowrap"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Registrar Vistoria / Notificar</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigateClassic('fiscalizacao')}
+                className="px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-xs font-medium text-slate-700 flex items-center gap-1 cursor-pointer whitespace-nowrap"
+              >
+                <span>Módulo clássico</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </button>
+            </>
+          ) : undefined
         )}
         {renderSearchBar('Filtrar por protocolo, estabelecimento ou fiscal...', [
           { id: 'TODOS', label: 'Todas' },
@@ -1259,10 +1350,22 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
           (p.num_processo || '').toLowerCase().includes(cleanQ))
     );
 
+    const consultaCustomTitle = externalScope?.isExternal
+      ? activeTab === 'certidoes'
+        ? 'Minhas Certidões e Regularidade'
+        : externalScope.mode === 'CONTABILIDADE'
+        ? 'Alvarás da Carteira'
+        : 'Meus Alvarás Sanitários'
+      : undefined;
+
     return (
       <div className="space-y-5 text-left">
         {renderSectionHeader(
-          activeTab === 'certidoes'
+          externalScope?.isExternal
+            ? activeTab === 'certidoes'
+              ? 'Verificação de regularidade sanitária dos registros vinculados à sua conta'
+              : 'Consulta direta dos alvarás sanitários emitidos para sua conta'
+            : activeTab === 'certidoes'
             ? 'Verificação de regularidade sanitária integrada à Pasta VISA'
             : 'Consulta direta de alvarás sanitários emitidos e vigentes',
           <button
@@ -1272,7 +1375,8 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
           >
             <Printer className="w-3.5 h-3.5" />
             <span>Imprimir consulta</span>
-          </button>
+          </button>,
+          consultaCustomTitle
         )}
 
         <div className="relative max-w-lg">
@@ -1672,6 +1776,7 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
     return (
       <SinncMunicipeView
         currentUser={currentUser}
+        externalScope={externalScope}
         metrics={metrics}
         processos={processos}
         onSelectProcesso={onSelectProcesso}
@@ -1690,6 +1795,7 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
     return (
       <SinncContadorView
         currentUser={currentUser}
+        externalScope={externalScope}
         metrics={metrics}
         processos={processos}
         onSelectProcesso={onSelectProcesso}
@@ -1708,6 +1814,7 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
         metrics={metrics}
         amostrasLaboratorio={amostrasLaboratorio}
         pontosColeta={pontosColeta}
+        isExternal={Boolean(externalScope?.isExternal)}
         onOpenDossiePorDoc={onOpenDossiePorDoc}
         onOpenSolicitarLab={onOpenSolicitarLab}
         onOpenTermoColeta={onOpenTermoColeta}

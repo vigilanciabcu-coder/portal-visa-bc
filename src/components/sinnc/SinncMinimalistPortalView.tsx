@@ -27,6 +27,9 @@ import {
 import {
   AlvaraSanitarioItem,
   AmostraLaboratorioItem,
+  CidadaoProfile,
+  ContabilidadeProfile,
+  ContribuinteProfile,
   HabiteSeRegistroItem,
   PasJuridicoItem,
   PastaVisaItem,
@@ -40,9 +43,13 @@ import {
   SINNC_MODULE_LABELS,
   SinncPortalDataProps,
   computeSinncMetrics,
+  docMatchesExternalScope,
+  resolveUserExternalScope,
+  safeReadLocalArray,
 } from './sinncTypes';
 import {
   cleanDoc,
+  formatDoc,
   getDisplayPastaNumero,
   loadAllAlvarasUnificados,
   loadAllPastasUnificadas,
@@ -63,6 +70,12 @@ import {
   getSolicitacoesPotabilidade,
   subscribeSolicitacoesPotabilidade,
 } from '../../lib/potabilidadeService';
+import {
+  fetchCidadaosFromSupabase,
+  fetchContabilidadesFromSupabase,
+  fetchContribuintesFromSupabase,
+} from '../../lib/supabaseService';
+import { INITIAL_CIDADAOS, INITIAL_CONTABILIDADES, INITIAL_CONTRIBUINTES } from '../../data/mockData';
 import { SinncPainelInicio } from './SinncPainelInicio';
 import { SinncModulesViews } from './SinncModulesViews';
 import { SinncProcessoDrawer } from './SinncProcessoDrawer';
@@ -71,6 +84,8 @@ import { SinncDemoWorkflowModals, SinncWorkflowModalKind } from './SinncDemoWork
 import { SolicitacaoLaudoPotabilidadeModule } from '../SolicitacaoLaudoPotabilidadeModule';
 import { RelatorioColetaAguaModal } from '../RelatorioColetaAguaModal';
 import { LaudoOficialAguaModal } from '../LaudoOficialAguaModal';
+
+import { resolveEffectiveTipoUsuario } from '../../types';
 
 export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
   currentUser,
@@ -90,7 +105,14 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
   onExitMinimalPortal,
   onNavigateClassic,
 }) => {
-  const [activeTab, setActiveTab] = useState<SinncWorkspaceTabId>('painel');
+  const [activeTab, setActiveTab] = useState<SinncWorkspaceTabId>(() => {
+    const eff = resolveEffectiveTipoUsuario(currentUser);
+    if (eff === 'CONTABILIDADE') return 'contador';
+    if (eff === 'CIDADAO' || eff === 'CONTRIBUINTE') {
+      return 'municipe';
+    }
+    return 'painel';
+  });
   const [openExtraTabs, setOpenExtraTabs] = useState<Exclude<SinncNavId, 'painel'>[]>([]);
   const [selectedProcesso, setSelectedProcesso] = useState<ProcessoItem | null>(null);
   const [selectedPasta, setSelectedPasta] = useState<PastaVisaItem | null>(null);
@@ -116,6 +138,20 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
     solicitacao?: SolicitacaoLaudoPotabilidadeItem | null;
   } | null>(null);
 
+  // Perfis externos para resolução de escopo (Munícipe, Contribuinte, Contabilidade)
+  const [contabilidades, setContabilidades] = useState<ContabilidadeProfile[]>(() => {
+    const local = safeReadLocalArray<ContabilidadeProfile>('visa_contabilidades_lab');
+    return local.length > 0 ? local : INITIAL_CONTABILIDADES;
+  });
+  const [contribuintes, setContribuintes] = useState<ContribuinteProfile[]>(() => {
+    const local = safeReadLocalArray<ContribuinteProfile>('visa_contribuintes');
+    return local.length > 0 ? local : INITIAL_CONTRIBUINTES;
+  });
+  const [cidadaos, setCidadaos] = useState<CidadaoProfile[]>(() => {
+    const local = safeReadLocalArray<CidadaoProfile>('visa_cidadaos');
+    return local.length > 0 ? local : INITIAL_CIDADAOS;
+  });
+
   // Estados unificados sincronizados
   const [pastas, setPastas] = useState<PastaVisaItem[]>(() => loadAllPastasUnificadas());
   const [alvaras, setAlvaras] = useState<AlvaraSanitarioItem[]>(() => loadAllAlvarasUnificados());
@@ -131,6 +167,12 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
     setHabiteSeList(loadHabiteSeRegistros());
     setPasList(loadPasJuridico());
     setSolicitacoesLab(getSolicitacoesPotabilidade());
+    const localContab = safeReadLocalArray<ContabilidadeProfile>('visa_contabilidades_lab');
+    if (localContab.length > 0) setContabilidades(localContab);
+    const localContrib = safeReadLocalArray<ContribuinteProfile>('visa_contribuintes');
+    if (localContrib.length > 0) setContribuintes(localContrib);
+    const localCid = safeReadLocalArray<CidadaoProfile>('visa_cidadaos');
+    if (localCid.length > 0) setCidadaos(localCid);
   };
 
   useEffect(() => {
@@ -141,6 +183,15 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
     void fetchSolicitacoesPotabilidadeFromSupabase().then((res) => {
       if (res) setSolicitacoesLab(res);
     });
+    void fetchContabilidadesFromSupabase().then((res) => {
+      if (res && res.length > 0) setContabilidades(res);
+    });
+    void fetchContribuintesFromSupabase().then((res) => {
+      if (res && res.length > 0) setContribuintes(res);
+    });
+    void fetchCidadaosFromSupabase().then((res) => {
+      if (res && res.length > 0) setCidadaos(res);
+    });
 
     const unsubLab = subscribeSolicitacoesPotabilidade(() => {
       setSolicitacoesLab(getSolicitacoesPotabilidade());
@@ -150,48 +201,230 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
     window.addEventListener('visa_alvara_updated', onCustomSync);
     window.addEventListener('visa_habite_se_updated', onCustomSync);
     window.addEventListener('visa_pas_updated', onCustomSync);
+    window.addEventListener('visa_contabilidades_updated', onCustomSync);
+    window.addEventListener('visa_contribuintes_updated', onCustomSync);
     return () => {
       unsubLab();
       window.removeEventListener('visa_pasta_updated', onCustomSync);
       window.removeEventListener('visa_alvara_updated', onCustomSync);
       window.removeEventListener('visa_habite_se_updated', onCustomSync);
       window.removeEventListener('visa_pas_updated', onCustomSync);
+      window.removeEventListener('visa_contabilidades_updated', onCustomSync);
+      window.removeEventListener('visa_contribuintes_updated', onCustomSync);
     };
   }, []);
+
+  const externalScope = useMemo(
+    () => resolveUserExternalScope(currentUser, contabilidades, contribuintes, cidadaos),
+    [currentUser, contabilidades, contribuintes, cidadaos]
+  );
+
+  const isFeirante =
+    currentUser?.categoria_contribuinte === 'FEIRANTE' ||
+    (currentUser?.cargo || '').toUpperCase().includes('FEIRANTE');
+
+  // Conjuntos de abas e botões laterais estritamente permitidos para usuários externos
+  const allowedExternalTabs = useMemo<Set<SinncWorkspaceTabId> | null>(() => {
+    if (!externalScope.isExternal) return null;
+    if (externalScope.mode === 'CIDADAO') {
+      return new Set<SinncWorkspaceTabId>([
+        'painel',
+        'municipe',
+        'cadastros',
+        'processos',
+        'consulta_alvara',
+        'certidoes',
+      ]);
+    }
+    if (externalScope.mode === 'CONTRIBUINTE') {
+      const tabs: SinncWorkspaceTabId[] = [
+        'painel',
+        'municipe',
+        'cadastros',
+        'processos',
+        'licenciamento',
+        'laboratorio',
+        'consulta_alvara',
+        'certidoes',
+      ];
+      if (isFeirante) tabs.push('temporada');
+      return new Set<SinncWorkspaceTabId>(tabs);
+    }
+    // CONTABILIDADE
+    return new Set<SinncWorkspaceTabId>([
+      'painel',
+      'contador',
+      'cadastros',
+      'processos',
+      'licenciamento',
+      'laboratorio',
+      'temporada',
+      'consulta_alvara',
+      'certidoes',
+    ]);
+  }, [externalScope.isExternal, externalScope.mode, isFeirante]);
+
+  // Ao trocar de usuário/perfil, redefine a tela inicial e limpa seleções anteriores
+  useEffect(() => {
+    setSelectedPasta(null);
+    setSelectedProcesso(null);
+    setOpenExtraTabs([]);
+    if (externalScope.mode === 'CONTABILIDADE') {
+      setActiveTab('contador');
+    } else if (externalScope.mode === 'CIDADAO' || externalScope.mode === 'CONTRIBUINTE') {
+      setActiveTab('municipe');
+    } else {
+      setActiveTab('painel');
+    }
+  }, [currentUser?.id, externalScope.mode]);
+
+  // Filtragem estrita de dados por perfil externo (Munícipe = próprio CPF; Contribuinte = próprio CNPJ/CPF; Contabilidade = carteira)
+  const scopedPastas = useMemo(() => {
+    if (!externalScope.isExternal) return pastas;
+    return pastas.filter((pt) => docMatchesExternalScope(pt.cpf_cnpj_limpo || pt.cnpj_cpf, externalScope));
+  }, [pastas, externalScope]);
+
+  const scopedAlvaras = useMemo(() => {
+    if (!externalScope.isExternal) return alvaras;
+    return alvaras.filter((a) => docMatchesExternalScope(a.cpf_cnpj_limpo || a.cnpj_cpf, externalScope));
+  }, [alvaras, externalScope]);
+
+  const scopedProcessos = useMemo(() => {
+    if (!externalScope.isExternal) return processos;
+    const userEmail = currentUser?.email?.trim().toLowerCase() || '';
+    return processos.filter((p) => {
+      if (docMatchesExternalScope(p.cpf_cnpj_limpo || p.cnpj_cpf, externalScope)) return true;
+      if (externalScope.mode === 'CIDADAO' && userEmail) {
+        return (
+          p.email?.trim().toLowerCase() === userEmail ||
+          p.solicitante_contato?.trim().toLowerCase() === userEmail
+        );
+      }
+      return false;
+    });
+  }, [processos, externalScope, currentUser?.email]);
+
+  const scopedFiscalizacoes = useMemo(() => {
+    if (!externalScope.isExternal) return fiscalizacoes;
+    return fiscalizacoes.filter((f) =>
+      docMatchesExternalScope(f.cpf_cnpj_limpo || f.estabelecimento?.cnpjCpf, externalScope)
+    );
+  }, [fiscalizacoes, externalScope]);
+
+  const scopedAmostras = useMemo(() => {
+    if (!externalScope.isExternal) return amostrasLaboratorio;
+    if (externalScope.mode === 'CIDADAO') return [];
+    return amostrasLaboratorio.filter((a) => docMatchesExternalScope(a.cnpj_cpf, externalScope));
+  }, [amostrasLaboratorio, externalScope]);
+
+  const scopedSolicitacoesLab = useMemo(() => {
+    if (!externalScope.isExternal) return solicitacoesLab;
+    if (externalScope.mode === 'CIDADAO') return [];
+    return solicitacoesLab.filter((s) => docMatchesExternalScope(s.cnpj_cpf, externalScope));
+  }, [solicitacoesLab, externalScope]);
+
+  const scopedFeiras = useMemo(() => {
+    if (!externalScope.isExternal) return feiras;
+    return feiras.filter((f) =>
+      docMatchesExternalScope(f.cpf_cnpj_limpo || f.cnpj || f.cpf, externalScope)
+    );
+  }, [feiras, externalScope]);
+
+  const scopedEscala = useMemo(
+    () => (externalScope.isExternal ? [] : escala),
+    [externalScope.isExternal, escala]
+  );
+
+  const scopedHabiteSe = useMemo(() => {
+    if (!externalScope.isExternal) return habiteSeList;
+    return habiteSeList.filter((h) => docMatchesExternalScope(h.cpf_cnpj_limpo || h.cnpj_cpf, externalScope));
+  }, [habiteSeList, externalScope]);
+
+  const scopedPas = useMemo(() => {
+    if (!externalScope.isExternal) return pasList;
+    return pasList.filter((p) => docMatchesExternalScope(p.cpf_cnpj_limpo || p.cnpj_cpf, externalScope));
+  }, [pasList, externalScope]);
+
+  const scopedPontosColeta = useMemo(
+    () => (externalScope.isExternal ? [] : pontosColeta),
+    [externalScope.isExternal, pontosColeta]
+  );
+
+  const scopedUsers = useMemo(
+    () => (externalScope.isExternal ? (currentUser ? [currentUser] : []) : users),
+    [externalScope.isExternal, currentUser, users]
+  );
 
   const metrics = useMemo(
     () =>
       computeSinncMetrics(
         currentUser,
-        processos,
-        fiscalizacoes,
-        amostrasLaboratorio,
-        feiras,
-        escala,
-        pastas,
-        alvaras,
-        habiteSeList,
-        pasList,
-        solicitacoesLab
+        scopedProcessos,
+        scopedFiscalizacoes,
+        scopedAmostras,
+        scopedFeiras,
+        scopedEscala,
+        scopedPastas,
+        scopedAlvaras,
+        scopedHabiteSe,
+        scopedPas,
+        scopedSolicitacoesLab,
+        externalScope.isExternal
       ),
     [
       currentUser,
-      processos,
-      fiscalizacoes,
-      amostrasLaboratorio,
-      feiras,
-      escala,
-      pastas,
-      alvaras,
-      habiteSeList,
-      pasList,
-      solicitacoesLab,
+      scopedProcessos,
+      scopedFiscalizacoes,
+      scopedAmostras,
+      scopedFeiras,
+      scopedEscala,
+      scopedPastas,
+      scopedAlvaras,
+      scopedHabiteSe,
+      scopedPas,
+      scopedSolicitacoesLab,
+      externalScope.isExternal,
     ]
   );
 
+  const visiblePinnedTabs = useMemo(() => {
+    const base = allowedExternalTabs
+      ? SINNC_PINNED_TABS.filter((t) => allowedExternalTabs.has(t.id))
+      : SINNC_PINNED_TABS;
+    if (!externalScope.isExternal) return base;
+    return base.map((t) => {
+      if (t.id === 'painel') {
+        return {
+          ...t,
+          label:
+            externalScope.mode === 'CONTABILIDADE'
+              ? 'Painel da Carteira'
+              : 'Meu Painel',
+        };
+      }
+      if (t.id === 'consulta_alvara') {
+        return {
+          ...t,
+          label:
+            externalScope.mode === 'CONTABILIDADE'
+              ? 'Alvarás da Carteira'
+              : 'Meus Alvarás',
+        };
+      }
+      if (t.id === 'certidoes') {
+        return { ...t, label: 'Minhas Certidões' };
+      }
+      if (t.id === 'temporada') {
+        return { ...t, label: 'Feiras e Eventos' };
+      }
+      return t;
+    });
+  }, [allowedExternalTabs, externalScope.isExternal, externalScope.mode]);
+
   const handleOpenTab = (tabId: SinncWorkspaceTabId) => {
+    if (allowedExternalTabs && !allowedExternalTabs.has(tabId)) return;
     setSelectedPasta(null);
-    const isPinned = SINNC_PINNED_TABS.some((t) => t.id === tabId);
+    const isPinned = visiblePinnedTabs.some((t) => t.id === tabId);
     if (!isPinned && tabId !== 'painel') {
       const moduleId = tabId as Exclude<SinncNavId, 'painel'>;
       setOpenExtraTabs((prev) => (prev.includes(moduleId) ? prev : [...prev, moduleId]));
@@ -207,10 +440,13 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
     }
   };
 
-  // Abre (ou cria) o Dossiê 360° da Pasta a partir de um Processo ou CPF/CNPJ
+  // Abre (ou cria) o Dossiê 360° da Pasta a partir de um Processo ou CPF/CNPJ (respeitando escopo externo)
   const handleOpenDossiePorDoc = async (doc: string, razaoFallback?: string) => {
     const limpo = cleanDoc(doc);
-    const existing = pastas.find((p) => cleanDoc(p.cpf_cnpj_limpo || p.cnpj_cpf) === limpo);
+    if (externalScope.isExternal && (!limpo || !externalScope.allowedDocs.includes(limpo))) {
+      return;
+    }
+    const existing = scopedPastas.find((p) => cleanDoc(p.cpf_cnpj_limpo || p.cnpj_cpf) === limpo);
     if (existing) {
       setSelectedProcesso(null);
       setSelectedPasta(existing);
@@ -230,7 +466,10 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
   const handleOpenDossiePorProcesso = async (proc: ProcessoItem) => {
     const pastaNum = String(proc.numero_pasta || proc.pasta || '').trim();
     const limpo = cleanDoc(proc.cpf_cnpj_limpo || proc.cnpj_cpf);
-    const existing = pastas.find(
+    if (externalScope.isExternal && (!limpo || !externalScope.allowedDocs.includes(limpo))) {
+      return;
+    }
+    const existing = scopedPastas.find(
       (p) =>
         (limpo && cleanDoc(p.cpf_cnpj_limpo || p.cnpj_cpf) === limpo) ||
         (pastaNum && getDisplayPastaNumero(p) === pastaNum)
@@ -256,13 +495,32 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
   };
 
   const handleSolicitarLab = (pasta?: PastaVisaItem | null) => {
-    setLabSolicitarPasta(pasta || null);
+    if (pasta) {
+      setLabSolicitarPasta(pasta);
+    } else if (externalScope.isExternal) {
+      setLabSolicitarPasta(
+        scopedPastas[0] ||
+          (externalScope.primaryDoc
+            ? {
+                id: 'temp-ext',
+                cnpj_cpf: formatDoc(externalScope.primaryDoc),
+                pasta: '',
+                razao_social: currentUser?.nome_completo || '',
+                status_rf: 'ATIVA',
+                alvara_atualizado: 'EM RENOVAÇÃO',
+                setor: 'VIGILÂNCIA SANITÁRIA',
+              }
+            : null)
+      );
+    } else {
+      setLabSolicitarPasta(null);
+    }
     setLabSolicitarOpen(true);
   };
 
   const handleSolicitarLabDeProcesso = async (proc: ProcessoItem) => {
     const limpo = cleanDoc(proc.cpf_cnpj_limpo || proc.cnpj_cpf);
-    const existing = pastas.find((p) => cleanDoc(p.cpf_cnpj_limpo || p.cnpj_cpf) === limpo);
+    const existing = scopedPastas.find((p) => cleanDoc(p.cpf_cnpj_limpo || p.cnpj_cpf) === limpo);
     if (existing) {
       handleSolicitarLab(existing);
     } else {
@@ -284,6 +542,7 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
   };
 
   const handleEmitirAlvaraDeProcesso = async (proc: ProcessoItem) => {
+    if (externalScope.isExternal) return;
     const limpo = cleanDoc(proc.cpf_cnpj_limpo || proc.cnpj_cpf);
     let pastaAlvo = pastas.find((p) => cleanDoc(p.cpf_cnpj_limpo || p.cnpj_cpf) === limpo);
     if (!pastaAlvo && (limpo.length === 11 || limpo.length === 14)) {
@@ -308,6 +567,7 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
   };
 
   const handleInstaurarPasDeProcesso = async (proc: ProcessoItem) => {
+    if (externalScope.isExternal) return;
     const limpo = cleanDoc(proc.cpf_cnpj_limpo || proc.cnpj_cpf);
     let pastaAlvo = pastas.find((p) => cleanDoc(p.cpf_cnpj_limpo || p.cnpj_cpf) === limpo);
     if (!pastaAlvo && (limpo.length === 11 || limpo.length === 14)) {
@@ -332,13 +592,13 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
     refreshUnifiedState();
   };
 
-  // Resultados instantâneos da busca global superior
+  // Resultados instantâneos da busca global superior (estritamente dentro do escopo permitido)
   const topSearchHits = useMemo(() => {
     const tq = topSearchQuery.trim().toLowerCase();
     if (!tq) return { pastas: [] as PastaVisaItem[], processos: [] as ProcessoItem[] };
     const tqDigits = tq.replace(/\D/g, '');
     return {
-      pastas: pastas
+      pastas: scopedPastas
         .filter(
           (pt) =>
             getDisplayPastaNumero(pt).toLowerCase().includes(tq) ||
@@ -347,7 +607,7 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
             (tqDigits && (pt.cpf_cnpj_limpo || '').includes(tqDigits))
         )
         .slice(0, 5),
-      processos: processos
+      processos: scopedProcessos
         .filter(
           (p) =>
             (p.num_processo || '').toLowerCase().includes(tq) ||
@@ -356,9 +616,9 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
         )
         .slice(0, 5),
     };
-  }, [topSearchQuery, pastas, processos]);
+  }, [topSearchQuery, scopedPastas, scopedProcessos]);
 
-  const navItems: {
+  const allNavItems: {
     id: SinncNavId;
     label: string;
     icon: React.ReactNode;
@@ -380,13 +640,18 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
     },
     {
       id: 'cadastros',
-      label: 'Pastas',
+      label:
+        externalScope.mode === 'CONTABILIDADE'
+          ? 'Empresas'
+          : externalScope.isExternal
+          ? 'Minha Pasta'
+          : 'Pastas',
       icon: <Database className="w-4 h-4 stroke-[1.75]" />,
-      count: pastas.length,
+      count: scopedPastas.length,
     },
     {
       id: 'licenciamento',
-      label: 'Licenças',
+      label: externalScope.isExternal ? 'Alvarás' : 'Licenças',
       icon: <FileCheck2 className="w-4 h-4 stroke-[1.75]" />,
       count: metrics.licenciamentosAndamento.length,
     },
@@ -394,15 +659,15 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
       id: 'fiscalizacao',
       label: 'Fiscalização',
       icon: <ShieldCheck className="w-4 h-4 stroke-[1.75]" />,
-      count: fiscalizacoes.length,
+      count: scopedFiscalizacoes.length,
     },
     {
       id: 'processos',
       label: 'Processos',
       icon: <FolderKanban className="w-4 h-4 stroke-[1.75]" />,
-      count: processos.length,
+      count: scopedProcessos.length,
     },
-    { id: 'municipe', label: 'Munícipe', icon: <User className="w-4 h-4 stroke-[1.75]" /> },
+    { id: 'municipe', label: externalScope.mode === 'CONTRIBUINTE' ? 'Minha Empresa' : 'Munícipe', icon: <User className="w-4 h-4 stroke-[1.75]" /> },
     { id: 'contador', label: 'Contador', icon: <Calculator className="w-4 h-4 stroke-[1.75]" /> },
     {
       id: 'laboratorio',
@@ -421,6 +686,11 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
     { id: 'configuracoes', label: 'Config', icon: <Settings className="w-4 h-4 stroke-[1.75]" /> },
   ];
 
+  const navItems = useMemo(
+    () => (allowedExternalTabs ? allNavItems.filter((item) => allowedExternalTabs.has(item.id)) : allNavItems),
+    [allowedExternalTabs, allNavItems]
+  );
+
   const getTabIcon = (id: SinncWorkspaceTabId) => {
     if (id === 'painel') return <Home className="w-3 h-3 text-slate-500" />;
     if (id === 'temporada') return <Calendar className="w-3 h-3 text-slate-500" />;
@@ -431,13 +701,13 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
 
   const syncedSelectedProcesso = useMemo(() => {
     if (!selectedProcesso) return null;
-    return processos.find((p) => p.id === selectedProcesso.id) || selectedProcesso;
-  }, [selectedProcesso, processos]);
+    return scopedProcessos.find((p) => p.id === selectedProcesso.id) || null;
+  }, [selectedProcesso, scopedProcessos]);
 
   const syncedSelectedPasta = useMemo(() => {
     if (!selectedPasta) return null;
-    return pastas.find((p) => p.id === selectedPasta.id) || selectedPasta;
-  }, [selectedPasta, pastas]);
+    return scopedPastas.find((p) => p.id === selectedPasta.id) || null;
+  }, [selectedPasta, scopedPastas]);
 
   return (
     <div className="sinnc-portal h-screen h-[100dvh] w-full flex flex-col bg-[#eef1f5] text-slate-800 overflow-hidden select-none sm:select-auto">
@@ -452,11 +722,24 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
           </div>
           <span className="h-3.5 w-px bg-white/25 shrink-0 hidden sm:inline-block" aria-hidden="true" />
           <span className="text-xs font-medium text-white/95 truncate hidden md:inline">
-            Vigilância Sanitária · Modelo Full
+            {externalScope.mode === 'CONTRIBUINTE'
+              ? 'Área do Contribuinte · Minha Empresa'
+              : externalScope.mode === 'CIDADAO'
+              ? 'Portal do Munícipe · Autoatendimento'
+              : externalScope.mode === 'CONTABILIDADE'
+              ? 'Portal da Contabilidade · Carteira de Clientes'
+              : 'Vigilância Sanitária · Modelo Full'}
           </span>
         </div>
 
-        {/* Busca Global na Barra Superior */}
+        {/* Busca Global na Barra Superior (restrita para internos e carteira contábil) */}
+        {externalScope.mode === 'CONTRIBUINTE' || externalScope.mode === 'CIDADAO' ? (
+          <div className="flex-1 max-w-md hidden sm:flex items-center justify-center">
+            <span className="text-[11px] text-white/85 truncate">
+              Acesso exclusivo · {currentUser?.nome_completo}
+            </span>
+          </div>
+        ) : (
         <div className="relative flex-1 max-w-md">
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
@@ -468,7 +751,11 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
               setTopSearchQuery(e.target.value);
               setTopSearchOpen(true);
             }}
-            placeholder="Busca rápida: Pasta (000001 / física), CPF/CNPJ ou protocolo..."
+            placeholder={
+              externalScope.mode === 'CONTABILIDADE'
+                ? 'Buscar na carteira: empresa, CNPJ ou protocolo...'
+                : 'Busca rápida: Pasta (000001 / física), CPF/CNPJ ou protocolo...'
+            }
             className="w-full !pl-8 !pr-3 !py-1 !text-xs !rounded !border-0 !bg-white !text-slate-900 placeholder:text-slate-400"
           />
           {topSearchOpen && topSearchQuery.trim().length > 0 && (
@@ -525,10 +812,17 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
             </div>
           )}
         </div>
+        )}
 
         <div className="flex items-center gap-2.5 shrink-0">
-          <span className="hidden lg:inline-block text-[11px] text-white/90 px-2 py-0.5 rounded bg-white/10 whitespace-nowrap">
-            {currentUser?.cargo || 'Coordenação'}
+          <span className="hidden lg:inline-block text-[11px] text-white/95 px-2.5 py-0.5 rounded bg-white/15 whitespace-nowrap">
+            {externalScope.mode === 'CIDADAO'
+              ? `Munícipe · ${externalScope.primaryDoc ? formatDoc(externalScope.primaryDoc) : currentUser?.nome_completo || 'CPF'}`
+              : externalScope.mode === 'CONTRIBUINTE'
+              ? `Contribuinte · ${externalScope.primaryDoc ? formatDoc(externalScope.primaryDoc) : currentUser?.nome_completo || 'CNPJ'}`
+              : externalScope.mode === 'CONTABILIDADE'
+              ? `Contabilidade · ${externalScope.allowedDocs.length} empresa(s)`
+              : currentUser?.cargo || 'Coordenação'}
           </span>
           <button
             type="button"
@@ -582,7 +876,7 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Barra de Abas Horizontais do Workspace */}
           <div className="h-9 bg-[#f4f6f9] border-b border-slate-200 flex items-end px-3 gap-1 overflow-x-auto no-scrollbar shrink-0">
-            {SINNC_PINNED_TABS.map((tab) => {
+            {visiblePinnedTabs.map((tab) => {
               const isActive = !syncedSelectedPasta && activeTab === tab.id;
               return (
                 <button
@@ -616,7 +910,9 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
                       : 'bg-transparent border-transparent text-slate-500 hover:text-slate-800 hover:bg-white/50'
                   }`}
                 >
-                  <span>{SINNC_MODULE_LABELS[tabId]}</span>
+                  <span>
+                    {navItems.find((n) => n.id === tabId)?.label || SINNC_MODULE_LABELS[tabId]}
+                  </span>
                   <button
                     type="button"
                     onClick={(e) => handleCloseExtraTab(e, tabId)}
@@ -652,15 +948,16 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
                 <SinncPastaDossie360
                   pasta={syncedSelectedPasta}
                   currentUser={currentUser}
-                  processos={processos}
-                  fiscalizacoes={fiscalizacoes}
-                  amostrasLaboratorio={amostrasLaboratorio}
-                  solicitacoesLab={solicitacoesLab}
-                  alvaras={alvaras}
-                  feiras={feiras}
-                  escala={escala}
-                  habiteSeList={habiteSeList}
-                  pasList={pasList}
+                  externalScope={externalScope}
+                  processos={scopedProcessos}
+                  fiscalizacoes={scopedFiscalizacoes}
+                  amostrasLaboratorio={scopedAmostras}
+                  solicitacoesLab={scopedSolicitacoesLab}
+                  alvaras={scopedAlvaras}
+                  feiras={scopedFeiras}
+                  escala={scopedEscala}
+                  habiteSeList={scopedHabiteSe}
+                  pasList={scopedPas}
                   onClose={() => setSelectedPasta(null)}
                   onSelectProcesso={(proc) => setSelectedProcesso(proc)}
                   onSaveProcesso={onSaveProcesso}
@@ -670,6 +967,7 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
                     setWorkflowModal('nova_demanda');
                   }}
                   onOpenNovaVistoriaPasta={(pt) => {
+                    if (externalScope.isExternal) return;
                     setWorkflowInitialPasta(pt);
                     setWorkflowModal('nova_vistoria');
                   }}
@@ -680,11 +978,12 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
               ) : activeTab === 'painel' ? (
                 <SinncPainelInicio
                   currentUser={currentUser}
+                  externalScope={externalScope}
                   metrics={metrics}
                   onOpenTab={handleOpenTab}
                   onSelectProcesso={(proc) => setSelectedProcesso(proc)}
                   onOpenNovaDemanda={() => {
-                    setWorkflowInitialPasta(null);
+                    setWorkflowInitialPasta(scopedPastas[0] || null);
                     setWorkflowModal('nova_demanda');
                   }}
                   onOpenDossiePorProcesso={handleOpenDossiePorProcesso}
@@ -693,20 +992,22 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
                 <SinncModulesViews
                   activeTab={activeTab}
                   currentUser={currentUser}
+                  externalScope={externalScope}
                   metrics={metrics}
-                  processos={processos}
-                  fiscalizacoes={fiscalizacoes}
-                  amostrasLaboratorio={amostrasLaboratorio}
-                  pontosColeta={pontosColeta}
-                  feiras={feiras}
-                  escala={escala}
-                  users={users}
+                  processos={scopedProcessos}
+                  fiscalizacoes={scopedFiscalizacoes}
+                  amostrasLaboratorio={scopedAmostras}
+                  pontosColeta={scopedPontosColeta}
+                  feiras={scopedFeiras}
+                  escala={scopedEscala}
+                  users={scopedUsers}
                   onSelectProcesso={(proc) => setSelectedProcesso(proc)}
                   onSaveProcesso={onSaveProcesso}
                   onOpenDossiePasta={(pt) => setSelectedPasta(pt)}
                   onOpenDossiePorProcesso={handleOpenDossiePorProcesso}
                   onOpenDossiePorDoc={handleOpenDossiePorDoc}
                   onOpenWorkflowModal={(kind, pt) => {
+                    if (externalScope.isExternal && kind === 'nova_vistoria') return;
                     setWorkflowInitialPasta(pt || null);
                     setWorkflowModal(kind);
                   }}
@@ -728,7 +1029,7 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
           <footer className="h-7 bg-[#f8fafc] border-t border-slate-200 px-4 flex items-center justify-between gap-4 text-[10.5px] text-slate-500 shrink-0">
             <span className="truncate">VISA-BC · Entrelaçamento Pasta VISA (Opção A Híbrida)</span>
             <span className="hidden sm:inline truncate">
-              Profissional: {currentUser?.nome_completo || 'Coordenação VISA'}
+              {externalScope.isExternal ? externalScope.label : `Profissional: ${currentUser?.nome_completo || 'Coordenação VISA'}`}
             </span>
             <span className="truncate">
               Divisão de Vigilância Sanitária · Balneário Camboriú
@@ -741,6 +1042,7 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
       <SinncProcessoDrawer
         processo={syncedSelectedProcesso}
         currentUser={currentUser}
+        externalScope={externalScope}
         onClose={() => setSelectedProcesso(null)}
         onSaveProcesso={onSaveProcesso}
         onOpenDossiePorProcesso={handleOpenDossiePorProcesso}
@@ -754,7 +1056,8 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
         modalKind={workflowModal}
         initialPasta={workflowInitialPasta}
         currentUser={currentUser}
-        users={users}
+        externalScope={externalScope}
+        users={scopedUsers}
         onClose={() => {
           setWorkflowModal(null);
           setWorkflowInitialPasta(null);

@@ -18,14 +18,17 @@ import {
 } from 'lucide-react';
 import { ProcessoItem, UserProfile } from '../../types';
 import {
+  ExternalUserScope,
   SinncDashboardMetrics,
   SinncWorkspaceTabId,
   diffDaysFromToday,
   formatShortBrDate,
 } from './sinncTypes';
+import { formatDoc } from '../../lib/pastaVisaService';
 
 interface SinncPainelInicioProps {
   currentUser: UserProfile | null;
+  externalScope?: ExternalUserScope;
   metrics: SinncDashboardMetrics;
   onOpenTab: (tab: SinncWorkspaceTabId) => void;
   onSelectProcesso: (proc: ProcessoItem) => void;
@@ -35,6 +38,7 @@ interface SinncPainelInicioProps {
 
 export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
   currentUser,
+  externalScope,
   metrics,
   onOpenTab,
   onSelectProcesso,
@@ -44,10 +48,22 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
   const [expandedStrip, setExpandedStrip] = useState<'hoje' | '7dias' | null>(null);
 
   const todayFormatted = new Date().toLocaleDateString('pt-BR');
+  const isExternal = Boolean(externalScope?.isExternal);
   const displayName = currentUser?.nome_completo || 'Mariana Costa Ribeiro';
-  const displayRole = currentUser?.cargo || 'Coordenação';
+  const displayRole =
+    externalScope?.mode === 'CIDADAO'
+      ? 'Munícipe'
+      : externalScope?.mode === 'CONTRIBUINTE'
+      ? 'Contribuinte / Empresa'
+      : externalScope?.mode === 'CONTABILIDADE'
+      ? 'Escritório Contábil'
+      : currentUser?.cargo || 'Coordenação';
 
-  const kpiCards: {
+  const isFeirante =
+    currentUser?.categoria_contribuinte === 'FEIRANTE' ||
+    (currentUser?.cargo || '').toUpperCase().includes('FEIRANTE');
+
+  const allKpiCards: {
     id: string;
     label: string;
     value: number;
@@ -57,35 +73,46 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
   }[] = [
     {
       id: 'tarefas',
-      label: 'Minhas tarefas',
+      label: isExternal ? 'Meus processos pendentes' : 'Minhas tarefas',
       value: metrics.minhasTarefas.length,
-      subtext: `${metrics.tarefasAtrasadas} atrasada(s) · ${metrics.naFilaEquipe} na fila da equipe`,
+      subtext: isExternal
+        ? `${metrics.aguardandoMinhaResposta.length} em análise ou vistoria`
+        : `${metrics.tarefasAtrasadas} atrasada(s) · ${metrics.naFilaEquipe} na fila da equipe`,
       icon: <CheckSquare className="w-3.5 h-3.5" />,
-      targetTab: 'tarefas',
+      targetTab: isExternal ? 'processos' : 'tarefas',
     },
     {
       id: 'empresas',
-      label: 'Empresas e estabelecimentos ativos',
-      value: metrics.estabelecimentosAtivos,
-      subtext: `${metrics.interditados} interditado(s)`,
+      label:
+        externalScope?.mode === 'CONTABILIDADE'
+          ? 'Empresas da carteira'
+          : isExternal
+          ? 'Minha Pasta VISA'
+          : 'Empresas e estabelecimentos ativos',
+      value: isExternal ? metrics.pastasLocais.length : metrics.estabelecimentosAtivos,
+      subtext: isExternal
+        ? metrics.pastasLocais.length === 1
+          ? '1 Pasta vinculada ao seu cadastro'
+          : `${metrics.pastasLocais.length} Pasta(s) vinculada(s)`
+        : `${metrics.interditados} interditado(s)`,
       icon: <Building2 className="w-3.5 h-3.5" />,
       targetTab: 'cadastros',
     },
     {
       id: 'alvaras_vencidos',
-      label: 'Alvarás vencidos',
+      label: isExternal ? 'Alvarás vencidos' : 'Alvarás vencidos',
       value: metrics.alvarasVencidos,
       subtext: `${metrics.alvarasVencendo30d} vencem em até 30 dias`,
       icon: <FileWarning className="w-3.5 h-3.5" />,
-      targetTab: 'licenciamento',
+      targetTab: isExternal ? 'consulta_alvara' : 'licenciamento',
     },
     {
       id: 'licenciamentos',
-      label: 'Licenciamentos em andamento',
+      label: isExternal ? 'Meus licenciamentos' : 'Licenciamentos em andamento',
       value: metrics.licenciamentosAndamento.length,
       subtext: `${metrics.licenciamentosForaPrazo} fora do prazo`,
       icon: <ClipboardList className="w-3.5 h-3.5" />,
-      targetTab: 'licenciamento',
+      targetTab: externalScope?.mode === 'CIDADAO' ? 'processos' : 'licenciamento',
     },
     {
       id: 'inspecoes',
@@ -97,15 +124,15 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
     },
     {
       id: 'processos_adm',
-      label: 'Processos administrativos',
-      value: metrics.processosPas.length,
+      label: isExternal ? 'Meus processos' : 'Processos administrativos',
+      value: isExternal ? metrics.processosPas.length : metrics.processosPas.length,
       subtext: `${metrics.pasVencidos} com prazo vencido`,
       icon: <FolderKanban className="w-3.5 h-3.5" />,
       targetTab: 'processos',
     },
     {
       id: 'amostras',
-      label: 'Amostras aguardando',
+      label: isExternal ? 'Potabilidade (Lab)' : 'Amostras aguardando',
       value: metrics.amostrasAguardando,
       subtext: `${metrics.amostrasInsatisfatorias} insatisfatória(s) no total`,
       icon: <FlaskConical className="w-3.5 h-3.5" />,
@@ -128,6 +155,14 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
       targetTab: 'temporada',
     },
   ];
+
+  const kpiCards = allKpiCards.filter((c) => {
+    if (!isExternal) return true;
+    if (c.id === 'surtos' || c.id === 'inspecoes') return false;
+    if (externalScope?.mode === 'CIDADAO' && (c.id === 'amostras' || c.id === 'temporarias' || c.id === 'licenciamentos')) return false;
+    if (externalScope?.mode === 'CONTRIBUINTE' && c.id === 'temporarias' && !isFeirante) return false;
+    return true;
+  });
 
   const getDelayLabel = (proc: ProcessoItem) => {
     const diff = diffDaysFromToday(proc.prazo_vistoria || proc.venc_1doc || proc.agendado_para);
@@ -153,15 +188,32 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
         </div>
         <div className="space-y-0.5 min-w-0 flex-1">
           <h1 className="text-[17px] font-semibold text-slate-800 tracking-tight leading-snug">
-            Painel da Vigilância Sanitária
+            {externalScope?.mode === 'CIDADAO'
+              ? 'Meu Painel · Portal do Munícipe'
+              : externalScope?.mode === 'CONTRIBUINTE'
+              ? 'Área do Contribuinte · Minha Empresa'
+              : externalScope?.mode === 'CONTABILIDADE'
+              ? 'Portal da Contabilidade · Carteira de Empresas'
+              : 'Painel da Vigilância Sanitária'}
           </h1>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <p className="text-xs text-slate-500">
-                Visão geral das pendências, prazos e indicadores integrados pela Pasta VISA
+                {externalScope?.mode === 'CIDADAO'
+                  ? `Acesso exclusivo ao seu CPF (${externalScope.primaryDoc ? formatDoc(externalScope.primaryDoc) : currentUser?.email || 'pessoal'})`
+                  : externalScope?.mode === 'CONTRIBUINTE'
+                  ? `Dados exclusivos da sua empresa (${externalScope.primaryDoc ? formatDoc(externalScope.primaryDoc) : currentUser?.email || 'CNPJ'})`
+                  : externalScope?.mode === 'CONTABILIDADE'
+                  ? `Carteira contábil restrita (${externalScope.allowedDocs.length} CNPJ/CPF vinculado(s))`
+                  : 'Visão geral das pendências, prazos e indicadores integrados pela Pasta VISA'}
               </p>
               <p className="text-[11.5px] text-slate-500 tabular-nums pt-0.5">
-                Hoje: {todayFormatted} · {displayName} ({displayRole}) · {metrics.pastasLocais.length} Pasta(s) vinculada(s)
+                Hoje: {todayFormatted} · {displayName} ({displayRole}) ·{' '}
+                {externalScope?.mode === 'CONTRIBUINTE' || externalScope?.mode === 'CIDADAO'
+                  ? metrics.pastasLocais.length === 1
+                    ? '1 Pasta vinculada'
+                    : `${metrics.pastasLocais.length} Pasta(s) vinculada(s)`
+                  : `${metrics.pastasLocais.length} Pasta(s) vinculada(s)`}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -171,7 +223,7 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
                   onClick={onOpenNovaDemanda}
                   className="px-3 py-1.5 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium cursor-pointer whitespace-nowrap"
                 >
-                  + Nova Demanda (Auto-Pasta)
+                  {isExternal ? '+ Nova Solicitação' : '+ Nova Demanda (Auto-Pasta)'}
                 </button>
               )}
               <button
@@ -179,7 +231,7 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
                 onClick={() => onOpenTab('cadastros')}
                 className="px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium cursor-pointer whitespace-nowrap"
               >
-                Abrir Pastas VISA
+                {externalScope?.mode === 'CONTABILIDADE' ? 'Pastas da Carteira' : isExternal ? 'Minha Pasta VISA' : 'Abrir Pastas VISA'}
               </button>
             </div>
           </div>
@@ -223,29 +275,47 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
         </div>
       </section>
 
-      {/* Seção 2: Análises e pareceres */}
+      {/* Seção 2: Análises e pareceres / Acompanhamento da conta */}
       <section className="space-y-4">
         <div className="border-t border-slate-200/80 pt-4">
           <h2 className="text-xs font-semibold text-slate-800">
-            Análises e pareceres –{' '}
-            <span className="font-normal text-slate-500">
-              o que depende de você e do requerente
-            </span>
+            {isExternal ? (
+              <>
+                Acompanhamento da conta –{' '}
+                <span className="font-normal text-slate-500">
+                  seus protocolos, exigências e prazos sanitários
+                </span>
+              </>
+            ) : (
+              <>
+                Análises e pareceres –{' '}
+                <span className="font-normal text-slate-500">
+                  o que depende de você e do requerente
+                </span>
+              </>
+            )}
           </h2>
         </div>
 
-        {/* 5 cards de síntese */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        {/* Cards de síntese */}
+        <div
+          className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${
+            externalScope?.mode === 'CIDADAO' ||
+            (externalScope?.mode === 'CONTRIBUINTE' && metrics.pasJuridicoLocais.length === 0)
+              ? 'lg:grid-cols-4'
+              : 'lg:grid-cols-5'
+          } gap-3`}
+        >
           <button
             type="button"
-            onClick={() => onOpenTab('tarefas')}
+            onClick={() => onOpenTab(isExternal ? (externalScope?.mode === 'CONTABILIDADE' ? 'contador' : 'municipe') : 'tarefas')}
             className="bg-[#f4f6f9] hover:bg-white border border-slate-200/90 rounded-lg px-3.5 py-3 text-left transition-colors cursor-pointer"
           >
             <div className="text-lg font-semibold text-slate-800 tabular-nums">
               {metrics.aguardandoMinhaResposta.length}
             </div>
             <div className="text-[11.5px] text-slate-500 mt-0.5 truncate">
-              aguardando minha resposta
+              {isExternal ? 'processos em andamento' : 'aguardando minha resposta'}
             </div>
           </button>
 
@@ -274,7 +344,7 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
 
           <button
             type="button"
-            onClick={() => onOpenTab('municipe')}
+            onClick={() => onOpenTab(externalScope?.mode === 'CONTABILIDADE' ? 'contador' : 'municipe')}
             className="bg-[#f4f6f9] hover:bg-white border border-slate-200/90 rounded-lg px-3.5 py-3 text-left transition-colors cursor-pointer"
           >
             <div className="text-lg font-semibold text-slate-800 tabular-nums">
@@ -284,39 +354,44 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
             </div>
             <div className="text-[11.5px] text-slate-500 mt-0.5 truncate">
               {metrics.cumprimentosParaConferir.length > 0
-                ? 'retornos p/ conferência'
-                : 'chamados no portal'}
+                ? isExternal ? 'cumprimentos enviados' : 'retornos p/ conferência'
+                : isExternal ? 'minhas solicitações abertas' : 'chamados no portal'}
             </div>
           </button>
 
-          <button
-            type="button"
-            onClick={() => onOpenTab('laboratorio')}
-            className="bg-[#f4f6f9] hover:bg-white border border-slate-200/90 rounded-lg px-3.5 py-3 text-left transition-colors cursor-pointer"
-          >
-            <div className={`text-lg font-semibold tabular-nums ${metrics.amostrasInsatisfatorias > 0 ? 'text-[#a13c46]' : 'text-slate-800'}`}>
-              {metrics.amostrasInsatisfatorias}
-            </div>
-            <div className="text-[11.5px] text-slate-500 mt-0.5 truncate">
-              laudos não conformes (Lab)
-            </div>
-          </button>
+          {externalScope?.mode !== 'CIDADAO' && (
+            <button
+              type="button"
+              onClick={() => onOpenTab('laboratorio')}
+              className="bg-[#f4f6f9] hover:bg-white border border-slate-200/90 rounded-lg px-3.5 py-3 text-left transition-colors cursor-pointer"
+            >
+              <div className={`text-lg font-semibold tabular-nums ${metrics.amostrasInsatisfatorias > 0 ? 'text-[#a13c46]' : 'text-slate-800'}`}>
+                {metrics.amostrasInsatisfatorias}
+              </div>
+              <div className="text-[11.5px] text-slate-500 mt-0.5 truncate">
+                {isExternal ? 'meus laudos não conformes' : 'laudos não conformes (Lab)'}
+              </div>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => onOpenTab('processos')}
-            className="bg-[#f4f6f9] hover:bg-white border border-slate-200/90 rounded-lg px-3.5 py-3 text-left transition-colors cursor-pointer"
-          >
-            <div className="text-lg font-semibold text-slate-800 tabular-nums">
-              {metrics.pasJuridicoLocais.length}
-            </div>
-            <div className="text-[11.5px] text-slate-500 mt-0.5 truncate">
-              PAS jurídicos vinculados
-            </div>
-          </button>
+          {(!isExternal || externalScope?.mode === 'CONTABILIDADE' || metrics.pasJuridicoLocais.length > 0) &&
+            externalScope?.mode !== 'CIDADAO' && (
+            <button
+              type="button"
+              onClick={() => onOpenTab('processos')}
+              className="bg-[#f4f6f9] hover:bg-white border border-slate-200/90 rounded-lg px-3.5 py-3 text-left transition-colors cursor-pointer"
+            >
+              <div className="text-lg font-semibold text-slate-800 tabular-nums">
+                {metrics.pasJuridicoLocais.length}
+              </div>
+              <div className="text-[11.5px] text-slate-500 mt-0.5 truncate">
+                PAS jurídicos vinculados
+              </div>
+            </button>
+          )}
         </div>
 
-        {metrics.cumprimentosParaConferir.length > 0 && (
+        {!isExternal && metrics.cumprimentosParaConferir.length > 0 && (
           <div className="bg-amber-50/70 border border-amber-200 rounded-md px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-amber-900">
             <span>
               <strong>{metrics.cumprimentosParaConferir.length} cumprimento(s)</strong> enviado(s) pelo Portal Cidadão/Contador aguardando conferência do fiscal titular.
@@ -341,12 +416,12 @@ export const SinncPainelInicio: React.FC<SinncPainelInicioProps> = ({
           <div className="lg:col-span-5 space-y-2">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-semibold text-slate-700 tabular-nums">
-                Aguardando minha resposta ({metrics.aguardandoMinhaResposta.length})
+                {isExternal ? 'Aguardando minha resposta / adequação' : 'Aguardando minha resposta'} ({metrics.aguardandoMinhaResposta.length})
               </h3>
               {metrics.aguardandoMinhaResposta.length > 5 && (
                 <button
                   type="button"
-                  onClick={() => onOpenTab('tarefas')}
+                  onClick={() => onOpenTab(isExternal ? 'processos' : 'tarefas')}
                   className="text-[11px] font-medium text-[#3b6d96] hover:underline cursor-pointer"
                 >
                   Ver todos

@@ -8,11 +8,12 @@ import {
   TramitacaoItem,
 } from '../../types';
 import { X, FileCheck2, Clock, MapPin, Building2, Send, CheckCircle2 } from 'lucide-react';
-import { formatShortBrDate } from './sinncTypes';
+import { ExternalUserScope, formatShortBrDate } from './sinncTypes';
 
 interface SinncProcessoDrawerProps {
   processo: ProcessoItem | null;
   currentUser: UserProfile | null;
+  externalScope?: ExternalUserScope;
   onClose: () => void;
   onSaveProcesso: (updated: ProcessoItem) => Promise<void> | void;
   onOpenClassicVistoria?: (proc: ProcessoItem) => void;
@@ -25,6 +26,7 @@ interface SinncProcessoDrawerProps {
 export const SinncProcessoDrawer: React.FC<SinncProcessoDrawerProps> = ({
   processo,
   currentUser,
+  externalScope,
   onClose,
   onSaveProcesso,
   onOpenDossiePorProcesso,
@@ -35,10 +37,13 @@ export const SinncProcessoDrawer: React.FC<SinncProcessoDrawerProps> = ({
   const [tipoParecer, setTipoParecer] = useState<TipoParecerTecnico>('FAVORÁVEL (DEFERIMENTO)');
   const [novoStatus, setNovoStatus] = useState<ProcessoStatus>(processo?.status || 'EM ANÁLISE');
   const [parecerTexto, setParecerTexto] = useState('');
+  const [cumprimentoTexto, setCumprimentoTexto] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
 
   if (!processo) return null;
+
+  const isExternal = Boolean(externalScope?.isExternal);
 
   const pastaDisplay = processo.numero_pasta || processo.pasta || '';
 
@@ -90,6 +95,42 @@ export const SinncProcessoDrawer: React.FC<SinncProcessoDrawerProps> = ({
 
       await onSaveProcesso(updated);
       setParecerTexto('');
+      setSavedNotice(true);
+      setTimeout(() => setSavedNotice(false), 3000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEnviarCumprimentoExterno = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cumprimentoTexto.trim()) return;
+    setSaving(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const respNome = currentUser?.nome_completo || processo.razao_social || 'Contribuinte';
+      const tram: TramitacaoItem = {
+        id: `tram-ext-${Date.now()}`,
+        data_hora: nowIso,
+        tipo: 'CUMPRIMENTO_EXIGENCIA',
+        titulo: 'Cumprimento enviado pelo requerente',
+        descricao: cumprimentoTexto.trim(),
+        responsavel_nome: respNome,
+        status_processo_momento: 'EM ANÁLISE',
+      };
+      const updated: ProcessoItem = {
+        ...processo,
+        status: 'EM ANÁLISE',
+        cumprimento_cidadao: {
+          data_envio: nowIso.slice(0, 10),
+          responsavel: respNome,
+          descricao: cumprimentoTexto.trim(),
+          status: 'AGUARDANDO_CONFERENCIA',
+        },
+        tramitacoes: [tram, ...(processo.tramitacoes || [])],
+      };
+      await onSaveProcesso(updated);
+      setCumprimentoTexto('');
       setSavedNotice(true);
       setTimeout(() => setSavedNotice(false), 3000);
     } finally {
@@ -153,10 +194,10 @@ export const SinncProcessoDrawer: React.FC<SinncProcessoDrawerProps> = ({
                 onClick={() => onOpenDossiePorProcesso(processo)}
                 className="px-3 py-1.5 rounded border border-slate-300 bg-white hover:bg-slate-50 text-xs font-medium text-slate-700 cursor-pointer"
               >
-                Abrir Dossiê 360° da Pasta
+                Abrir Dossiê da Pasta
               </button>
             )}
-            {onSolicitarLabDeProcesso && (
+            {onSolicitarLabDeProcesso && externalScope?.mode !== 'CIDADAO' && (
               <button
                 type="button"
                 onClick={() => onSolicitarLabDeProcesso(processo)}
@@ -165,7 +206,7 @@ export const SinncProcessoDrawer: React.FC<SinncProcessoDrawerProps> = ({
                 Solicitar Coleta Lab
               </button>
             )}
-            {processo.status === 'DEFERIDO' && onEmitirAlvaraDeProcesso && (
+            {!isExternal && processo.status === 'DEFERIDO' && onEmitirAlvaraDeProcesso && (
               <button
                 type="button"
                 onClick={() => onEmitirAlvaraDeProcesso(processo)}
@@ -174,7 +215,7 @@ export const SinncProcessoDrawer: React.FC<SinncProcessoDrawerProps> = ({
                 Emitir / Renovar Alvará na Pasta
               </button>
             )}
-            {(processo.status === 'NOTIFICADO' || processo.status === 'PENDENTE DOCS') && !processo.pas && onInstaurarPasDeProcesso && (
+            {!isExternal && (processo.status === 'NOTIFICADO' || processo.status === 'PENDENTE DOCS') && !processo.pas && onInstaurarPasDeProcesso && (
               <button
                 type="button"
                 onClick={() => onInstaurarPasDeProcesso(processo)}
@@ -238,74 +279,106 @@ export const SinncProcessoDrawer: React.FC<SinncProcessoDrawerProps> = ({
             </div>
           )}
 
-          {/* Novo Parecer / Despacho */}
-          <form onSubmit={handleEmitirParecer} className="space-y-3 pb-5 border-b border-slate-200">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold text-slate-800">Registrar parecer ou despacho técnico</h3>
-              {savedNotice && (
-                <span className="text-xs font-medium text-emerald-700 flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Parecer registrado
-                </span>
-              )}
-            </div>
+          {/* Novo Parecer / Despacho (Interno) OU Cumprimento de Exigência (Externo) */}
+          {!isExternal ? (
+            <form onSubmit={handleEmitirParecer} className="space-y-3 pb-5 border-b border-slate-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold text-slate-800">Registrar parecer ou despacho técnico</h3>
+                {savedNotice && (
+                  <span className="text-xs font-medium text-emerald-700 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Parecer registrado
+                  </span>
+                )}
+              </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-medium text-slate-600 mb-1">Tipo de manifestação</label>
-                <select
-                  value={tipoParecer}
-                  onChange={(e) => setTipoParecer(e.target.value as TipoParecerTecnico)}
-                  className="!text-xs !font-medium !py-2 !px-2.5 !rounded-md !border-slate-300"
-                >
-                  <option value="FAVORÁVEL (DEFERIMENTO)">Favorável (Deferimento)</option>
-                  <option value="FAVORÁVEL COM CONDICIONANTES">Favorável com condicionantes</option>
-                  <option value="EXIGÊNCIA / NOTIFICAÇÃO">Exigência / Notificação</option>
-                  <option value="VISTORIA AGENDADA">Vistoria agendada</option>
-                  <option value="DILIGÊNCIA / REQUISIÇÃO">Diligência / Requisição</option>
-                  <option value="DESFAVORÁVEL (INDEFERIMENTO)">Desfavorável (Indeferimento)</option>
-                  <option value="DESPACHO ADMINISTRATIVO">Despacho administrativo</option>
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-1">Tipo de manifestação</label>
+                  <select
+                    value={tipoParecer}
+                    onChange={(e) => setTipoParecer(e.target.value as TipoParecerTecnico)}
+                    className="!text-xs !font-medium !py-2 !px-2.5 !rounded-md !border-slate-300"
+                  >
+                    <option value="FAVORÁVEL (DEFERIMENTO)">Favorável (Deferimento)</option>
+                    <option value="FAVORÁVEL COM CONDICIONANTES">Favorável com condicionantes</option>
+                    <option value="EXIGÊNCIA / NOTIFICAÇÃO">Exigência / Notificação</option>
+                    <option value="VISTORIA AGENDADA">Vistoria agendada</option>
+                    <option value="DILIGÊNCIA / REQUISIÇÃO">Diligência / Requisição</option>
+                    <option value="DESFAVORÁVEL (INDEFERIMENTO)">Desfavorável (Indeferimento)</option>
+                    <option value="DESPACHO ADMINISTRATIVO">Despacho administrativo</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-1">Atualizar situação</label>
+                  <select
+                    value={novoStatus}
+                    onChange={(e) => setNovoStatus(e.target.value as ProcessoStatus)}
+                    className="!text-xs !font-medium !py-2 !px-2.5 !rounded-md !border-slate-300"
+                  >
+                    <option value="EM ANÁLISE">Em análise</option>
+                    <option value="PENDENTE DOCS">Pendente docs / Exigência</option>
+                    <option value="VISTORIA AGENDADA">Vistoria agendada</option>
+                    <option value="NOTIFICADO">Notificado</option>
+                    <option value="DEFERIDO">Deferido</option>
+                    <option value="INDEFERIDO">Indeferido</option>
+                  </select>
+                </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-slate-600 mb-1">Atualizar situação</label>
-                <select
-                  value={novoStatus}
-                  onChange={(e) => setNovoStatus(e.target.value as ProcessoStatus)}
-                  className="!text-xs !font-medium !py-2 !px-2.5 !rounded-md !border-slate-300"
-                >
-                  <option value="EM ANÁLISE">Em análise</option>
-                  <option value="PENDENTE DOCS">Pendente docs / Exigência</option>
-                  <option value="VISTORIA AGENDADA">Vistoria agendada</option>
-                  <option value="NOTIFICADO">Notificado</option>
-                  <option value="DEFERIDO">Deferido</option>
-                  <option value="INDEFERIDO">Indeferido</option>
-                </select>
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">Texto técnico</label>
+                <textarea
+                  rows={3}
+                  value={parecerTexto}
+                  onChange={(e) => setParecerTexto(e.target.value)}
+                  placeholder="Descreva a análise documental, exigências ou conclusão da vistoria..."
+                  className="!text-xs !font-normal !py-2 !px-3 !rounded-md !border-slate-300"
+                />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-[11px] font-medium text-slate-600 mb-1">Texto técnico</label>
-              <textarea
-                rows={3}
-                value={parecerTexto}
-                onChange={(e) => setParecerTexto(e.target.value)}
-                placeholder="Descreva a análise documental, exigências ou conclusão da vistoria..."
-                className="!text-xs !font-normal !py-2 !px-3 !rounded-md !border-slate-300"
-              />
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={saving || !parecerTexto.trim()}
-                className="px-4 py-2 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] disabled:opacity-50 text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>{saving ? 'Salvando...' : 'Salvar parecer'}</span>
-              </button>
-            </div>
-          </form>
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={saving || !parecerTexto.trim()}
+                  className="px-4 py-2 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] disabled:opacity-50 text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{saving ? 'Salvando...' : 'Salvar parecer'}</span>
+                </button>
+              </div>
+            </form>
+          ) : (
+            (processo.status === 'NOTIFICADO' || processo.status === 'PENDENTE DOCS') && (
+              <form onSubmit={handleEnviarCumprimentoExterno} className="space-y-3 pb-5 border-b border-slate-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-semibold text-slate-800">Responder Exigência / Enviar Cumprimento ao Fiscal</h3>
+                  {savedNotice && (
+                    <span className="text-xs font-medium text-emerald-700 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Enviado ao fiscal
+                    </span>
+                  )}
+                </div>
+                <textarea
+                  rows={3}
+                  value={cumprimentoTexto}
+                  onChange={(e) => setCumprimentoTexto(e.target.value)}
+                  placeholder="Informe as adequações providenciadas para conferência do fiscal responsável..."
+                  className="!text-xs !font-normal !py-2 !px-3 !rounded-md !border-slate-300"
+                />
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={saving || !cumprimentoTexto.trim()}
+                    className="px-4 py-2 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] disabled:opacity-50 text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{saving ? 'Enviando...' : 'Enviar Cumprimento'}</span>
+                  </button>
+                </div>
+              </form>
+            )
+          )}
 
           {/* Histórico de Pareceres e Tramitações */}
           <div className="space-y-3">

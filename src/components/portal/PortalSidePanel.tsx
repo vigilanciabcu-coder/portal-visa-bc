@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { EscalaItem, UserProfile, RecadoMural, ChatMessage } from '../../types';
+import { EscalaItem, UserProfile, RecadoMural, ChatMessage, resolveEffectiveTipoUsuario } from '../../types';
 import { 
   FileCheck, 
   Search, 
@@ -91,7 +91,7 @@ export const PortalSidePanel: React.FC<PortalSidePanelProps> = ({
   muralIndex,
   setMuralIndex
 }) => {
-  const userType = currentUser?.tipo_usuario || 'SERVIDOR';
+  const userType = resolveEffectiveTipoUsuario(currentUser);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -252,15 +252,19 @@ export const PortalSidePanel: React.FC<PortalSidePanelProps> = ({
 
   return (
     <div className="w-full lg:w-[320px] flex flex-col gap-4 text-left">
-      {userType === 'CIDADAO' ? (
-        /* Painel Exclusivo do Cidadão */
+      {userType !== 'SERVIDOR' ? (
+        /* Painel Exclusivo para Usuários Externos (Cidadão, Contribuinte/Empresário e Contabilidade) */
         <div className="space-y-4">
           <div className="bg-emerald-50 dark:bg-emerald-950/40 p-5 rounded-2xl border border-emerald-200 dark:border-emerald-800 shadow-sm">
             <h4 className="text-xs font-black uppercase text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5 mb-2">
               <FileCheck className="w-4 h-4" /> Protocolo 1Doc
             </h4>
             <p className="text-[11px] text-emerald-700 dark:text-emerald-400 leading-relaxed mb-3">
-              Precisa solicitar novo alvará ou protocolar defesa de notificação? Utilize o sistema 1Doc online.
+              {userType === 'CONTRIBUINTE'
+                ? 'Precisa solicitar novo alvará, renovação ou protocolar resposta para sua empresa? Utilize o sistema 1Doc online.'
+                : userType === 'CONTABILIDADE'
+                ? 'Precisa protocolar alvarás ou defesas para as empresas da sua carteira? Utilize o sistema 1Doc online.'
+                : 'Precisa solicitar novo alvará ou protocolar defesa de notificação? Utilize o sistema 1Doc online.'}
             </p>
             <button
               onClick={() => onOpenExternal('https://bc.1doc.com.br/b.php?pg=o/login&n=3')}

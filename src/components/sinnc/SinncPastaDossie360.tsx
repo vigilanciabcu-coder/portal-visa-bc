@@ -27,7 +27,7 @@ import {
 } from '../../lib/interlaceServices';
 import { fetchCnpj } from '../../lib/cnpjService';
 import { isColetaRealizada, isLaudoAssinado } from '../../lib/potabilidadeService';
-import { formatShortBrDate } from './sinncTypes';
+import { ExternalUserScope, formatShortBrDate } from './sinncTypes';
 import {
   ArrowLeft,
   Award,
@@ -60,6 +60,7 @@ export type DossieSubTab =
 interface SinncPastaDossie360Props {
   pasta: PastaVisaItem;
   currentUser: UserProfile | null;
+  externalScope?: ExternalUserScope;
   processos: ProcessoItem[];
   fiscalizacoes: FiscalizacaoItem[];
   amostrasLaboratorio: AmostraLaboratorioItem[];
@@ -83,6 +84,7 @@ interface SinncPastaDossie360Props {
 export const SinncPastaDossie360: React.FC<SinncPastaDossie360Props> = ({
   pasta,
   currentUser,
+  externalScope,
   processos,
   fiscalizacoes,
   amostrasLaboratorio,
@@ -102,6 +104,7 @@ export const SinncPastaDossie360: React.FC<SinncPastaDossie360Props> = ({
   onOpenTermoColeta,
   onOpenLaudoOficial,
 }) => {
+  const isExternal = Boolean(externalScope?.isExternal);
   const [subTab, setSubTab] = useState<DossieSubTab>('cadastro');
   const [refreshingRf, setRefreshingRf] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
@@ -483,7 +486,7 @@ export const SinncPastaDossie360: React.FC<SinncPastaDossie360Props> = ({
     { id: 'notificacoes_agenda', label: 'Notificações & Agenda', count: pastaFisc.length + pastaAgenda.length },
     { id: 'alvaras', label: 'Alvarás', count: pastaAlvaras.length },
     { id: 'habite_feiras_pas', label: 'Habite-se, Feiras & PAS', count: pastaHabite.length + pastaFeiras.length + pastaPas.length },
-    { id: 'atendimento_portal', label: 'Portal Cidadão / Contador' },
+    { id: 'atendimento_portal', label: isExternal ? 'Enviar Cumprimento' : 'Portal Cidadão / Contador' },
   ];
 
   return (
@@ -542,22 +545,26 @@ export const SinncPastaDossie360: React.FC<SinncPastaDossie360Props> = ({
               <Plus className="w-3.5 h-3.5" />
               <span>Nova Demanda</span>
             </button>
-            <button
-              type="button"
-              onClick={() => onOpenNovaVistoriaPasta(pasta)}
-              className="px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Vistoria / Notificar</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onOpenSolicitarLab(pasta)}
-              className="px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-            >
-              <Droplet className="w-3.5 h-3.5 text-[#3b6d96]" />
-              <span>Solicitar Coleta Lab</span>
-            </button>
+            {!isExternal && (
+              <button
+                type="button"
+                onClick={() => onOpenNovaVistoriaPasta(pasta)}
+                className="px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Vistoria / Notificar</span>
+              </button>
+            )}
+            {externalScope?.mode !== 'CIDADAO' && (
+              <button
+                type="button"
+                onClick={() => onOpenSolicitarLab(pasta)}
+                className="px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                <Droplet className="w-3.5 h-3.5 text-[#3b6d96]" />
+                <span>Solicitar Coleta Lab</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -693,24 +700,27 @@ export const SinncPastaDossie360: React.FC<SinncPastaDossie360Props> = ({
 
           <div className="lg:col-span-5 bg-white border border-slate-200 rounded-lg p-5 space-y-3">
             <h2 className="text-sm font-semibold text-slate-800 border-b border-slate-200 pb-3">
-              Anotações Permanentes da Pasta
+              Anotações da Pasta
             </h2>
             <textarea
               rows={5}
               value={obsInput}
+              readOnly={isExternal}
               onChange={(e) => setObsInput(e.target.value)}
-              placeholder="Registre observações administrativas permanentes da Pasta física ou digital..."
+              placeholder={isExternal ? 'Sem observações registradas pela VISA.' : 'Registre observações administrativas permanentes da Pasta física ou digital...'}
               className="w-full !text-xs !p-2.5"
             />
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleSalvarObservacoes}
-                className="px-3.5 py-1.5 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium cursor-pointer"
-              >
-                Salvar anotações
-              </button>
-            </div>
+            {!isExternal && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleSalvarObservacoes}
+                  className="px-3.5 py-1.5 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium cursor-pointer"
+                >
+                  Salvar anotações
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -767,9 +777,9 @@ export const SinncPastaDossie360: React.FC<SinncPastaDossie360Props> = ({
                       onClick={() => onSelectProcesso(proc)}
                       className="px-2.5 py-1.5 rounded border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium cursor-pointer"
                     >
-                      Parecer / Trâmite
+                      {isExternal ? 'Ver Trâmite' : 'Parecer / Trâmite'}
                     </button>
-                    {proc.status === 'DEFERIDO' && (
+                    {!isExternal && proc.status === 'DEFERIDO' && (
                       <button
                         type="button"
                         onClick={() => handleEmitirAlvaraDeProcesso(proc)}
@@ -779,7 +789,7 @@ export const SinncPastaDossie360: React.FC<SinncPastaDossie360Props> = ({
                         <span>Emitir Alvará</span>
                       </button>
                     )}
-                    {(proc.status === 'NOTIFICADO' || proc.status === 'PENDENTE DOCS') && !proc.pas && (
+                    {!isExternal && (proc.status === 'NOTIFICADO' || proc.status === 'PENDENTE DOCS') && !proc.pas && (
                       <button
                         type="button"
                         onClick={() => handleInstaurarPas(proc)}
@@ -1106,7 +1116,7 @@ export const SinncPastaDossie360: React.FC<SinncPastaDossie360Props> = ({
                         <span className="font-semibold text-[#285277]">{p.cumprimento_cidadao?.status}</span>
                       </div>
                       <p className="text-slate-600">{p.cumprimento_cidadao?.descricao}</p>
-                      {p.cumprimento_cidadao?.status === 'AGUARDANDO_CONFERENCIA' && (
+                      {!isExternal && p.cumprimento_cidadao?.status === 'AGUARDANDO_CONFERENCIA' && (
                         <div className="flex items-center gap-2 pt-1">
                           <button
                             type="button"

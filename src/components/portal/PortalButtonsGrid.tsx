@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PortalButtonDef, PortalCategoria, CATEGORIAS_PORTAL_LABELS } from './portalButtonsData';
 import { PortalButtonCard } from './PortalButtonCard';
-import { UserProfile, isUserMaster } from '../../types';
+import { UserProfile, isUserMaster, resolveEffectiveTipoUsuario, userHasAccessToPage } from '../../types';
 import { Filter } from 'lucide-react';
 
 interface PortalButtonsGridProps {
@@ -20,7 +20,7 @@ export const PortalButtonsGrid: React.FC<PortalButtonsGridProps> = ({
   todayDay
 }) => {
   const [categoriaAtiva, setCategoriaAtiva] = useState<PortalCategoria>('TODOS');
-  const userType = currentUser?.tipo_usuario || 'SERVIDOR';
+  const userType = resolveEffectiveTipoUsuario(currentUser);
   const isMaster = isUserMaster(currentUser);
 
   // Filtragem por permissão de usuário
@@ -33,10 +33,14 @@ export const PortalButtonsGrid: React.FC<PortalButtonsGridProps> = ({
       if (!b.perfisPermitidos.includes(userType)) return false;
     }
 
-    // 3. Permissão explícita por página individual para Servidor
+    // 3. Regra unificada por perfil efetivo (bloqueia módulos internos para externos e respeita paginas_permitidas)
+    if (currentUser && !userHasAccessToPage(currentUser, b.id)) {
+      return false;
+    }
+
+    // 4. Permissão explícita por página individual para Servidor
     if (userType === 'SERVIDOR' && !isMaster && b.view) {
       if (currentUser?.paginas_permitidas && currentUser.paginas_permitidas.length > 0) {
-        // Se possui páginas específicas configuradas, respeita a lista
         if (!currentUser.paginas_permitidas.includes(b.view) && b.view !== 'home' && b.view !== 'cidadao' && b.view !== 'alvara_visa' && b.view !== 'portal_sinnc') {
           return false;
         }

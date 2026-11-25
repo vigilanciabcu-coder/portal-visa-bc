@@ -12,11 +12,178 @@ import {
   PasJuridicoItem,
   SolicitacaoLaudoPotabilidadeItem,
   PontoColetaLaboratorio,
+  ContabilidadeProfile,
+  ContribuinteProfile,
+  CidadaoProfile,
+  resolveEffectiveTipoUsuario,
 } from '../../types';
 import { loadAllAlvarasUnificados, loadAllPastasUnificadas } from '../../lib/pastaVisaService';
 import { loadHabiteSeRegistros, loadPasJuridico } from '../../lib/interlaceServices';
 import { getSolicitacoesPotabilidade } from '../../lib/potabilidadeService';
 import { getLocalCcpuOcorrencias } from '../../lib/ccpuOcorrenciasService';
+import { INITIAL_CIDADAOS, INITIAL_CONTABILIDADES, INITIAL_CONTRIBUINTES } from '../../data/mockData';
+
+export type ExternalScopeMode = 'INTERNO' | 'CIDADAO' | 'CONTRIBUINTE' | 'CONTABILIDADE';
+
+export interface ExternalUserScope {
+  mode: ExternalScopeMode;
+  isExternal: boolean;
+  allowedDocs: string[];
+  primaryDoc: string;
+  contabilidade: ContabilidadeProfile | null;
+  label: string;
+}
+
+export function cleanScopeDoc(doc?: string): string {
+  return String(doc || '').replace(/\D/g, '');
+}
+
+function normalizeScopeName(name?: string): string {
+  return String(name || '')
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+export function resolveUserExternalScope(
+  currentUser: UserProfile | null | undefined,
+  contabilidadesOverride?: ContabilidadeProfile[],
+  contribuintesOverride?: ContribuinteProfile[],
+  cidadaosOverride?: CidadaoProfile[]
+): ExternalUserScope {
+  if (!currentUser) {
+    return {
+      mode: 'INTERNO',
+      isExternal: false,
+      allowedDocs: [],
+      primaryDoc: '',
+      contabilidade: null,
+      label: 'Coordenação VISA',
+    };
+  }
+
+  const tipo = resolveEffectiveTipoUsuario(currentUser);
+  if (tipo === 'SERVIDOR') {
+    return {
+      mode: 'INTERNO',
+      isExternal: false,
+      allowedDocs: [],
+      primaryDoc: '',
+      contabilidade: null,
+      label: currentUser.cargo || 'Coordenação VISA',
+    };
+  }
+
+  const userNameNorm = normalizeScopeName(currentUser.nome_completo);
+  const userDocDigits = cleanScopeDoc(currentUser.cnpj || currentUser.cpf);
+
+  if (tipo === 'CIDADAO') {
+    const localCid = safeReadLocalArray<CidadaoProfile>('visa_cidadaos');
+    const cidList = cidadaosOverride && cidadaosOverride.length > 0
+      ? cidadaosOverride
+      : (localCid.length > 0 ? localCid : INITIAL_CIDADAOS);
+    const matchedCid = cidList.find(
+      (c) =>
+        (currentUser.id && c.id === currentUser.id) ||
+        (currentUser.email && c.email?.toLowerCase() === currentUser.email.toLowerCase()) ||
+        (userDocDigits.length === 11 && cleanScopeDoc(c.cpf) === userDocDigits) ||
+        (userNameNorm && normalizeScopeName(c.nome_completo) === userNameNorm)
+    );
+    const docs = Array.from(
+      new Set(
+        [currentUser.cpf, currentUser.cnpj, matchedCid?.cpf]
+          .map((d) => cleanScopeDoc(d))
+          .filter((d) => d.length >= 11)
+      )
+    );
+    return {
+      mode: 'CIDADAO',
+      isExternal: true,
+      allowedDocs: docs,
+      primaryDoc: docs[0] || '',
+      contabilidade: null,
+      label: `Munícipe · ${currentUser.nome_completo}`,
+    };
+  }
+
+  if (tipo === 'CONTRIBUINTE') {
+    const localContrib = safeReadLocalArray<ContribuinteProfile>('visa_contribuintes');
+    const contribList = contribuintesOverride && contribuintesOverride.length > 0
+      ? contribuintesOverride
+      : (localContrib.length > 0 ? localContrib : INITIAL_CONTRIBUINTES);
+    const matchedContrib = contribList.find(
+      (c) =>
+        (currentUser.id && c.id === currentUser.id) ||
+        (currentUser.contribuinte_id && c.id === currentUser.contribuinte_id) ||
+        (currentUser.email && c.email?.toLowerCase() === currentUser.email.toLowerCase()) ||
+        (userDocDigits.length >= 11 && cleanScopeDoc(c.cnpj_cpf) === userDocDigits) ||
+        (userNameNorm &&
+          (normalizeScopeName(c.razao_social) === userNameNorm ||
+            normalizeScopeName(c.nome_fantasia) === userNameNorm))
+    );
+    const docs = Array.from(
+      new Set(
+        [currentUser.cnpj, currentUser.cpf, matchedContrib?.cnpj_cpf]
+          .map((d) => cleanScopeDoc(d))
+          .filter((d) => d.length >= 11)
+      )
+    );
+    return {
+      mode: 'CONTRIBUINTE',
+      isExternal: true,
+      allowedDocs: docs,
+      primaryDoc: docs[0] || '',
+      contabilidade: null,
+      label: `Contribuinte · ${currentUser.nome_completo}`,
+    };
+  }
+
+  // CONTABILIDADE
+  const localContab = safeReadLocalArray<ContabilidadeProfile>('visa_contabilidades_lab');
+  const contabList = contabilidadesOverride && contabilidadesOverride.length > 0
+    ? contabilidadesOverride
+    : (localContab.length > 0 ? localContab : INITIAL_CONTABILIDADES);
+
+  const matchedContab =
+    contabList.find(
+      (c) =>
+        (currentUser.contabilidade_id && c.id === currentUser.contabilidade_id) ||
+        (currentUser.id && c.id === currentUser.id) ||
+        (currentUser.email && c.email?.toLowerCase() === currentUser.email.toLowerCase()) ||
+        (currentUser.matricula &&
+          (c.crc?.toLowerCase() === currentUser.matricula.toLowerCase() ||
+            (cleanScopeDoc(c.cnpj) && cleanScopeDoc(c.cnpj) === cleanScopeDoc(currentUser.matricula)))) ||
+        (userNameNorm &&
+          (normalizeScopeName(c.razao_social) === userNameNorm ||
+            normalizeScopeName(c.nome_fantasia) === userNameNorm))
+    ) || null;
+
+  const docs = Array.from(
+    new Set(
+      (matchedContab?.cnpjs_vinculados || [])
+        .map((d) => cleanScopeDoc(d))
+        .filter((d) => d.length >= 11)
+    )
+  );
+
+  return {
+    mode: 'CONTABILIDADE',
+    isExternal: true,
+    allowedDocs: docs,
+    primaryDoc: docs[0] || '',
+    contabilidade: matchedContab,
+    label: `Contabilidade · ${matchedContab?.nome_fantasia || matchedContab?.razao_social || currentUser.nome_completo}`,
+  };
+}
+
+export function docMatchesExternalScope(doc: string | undefined, scope: ExternalUserScope): boolean {
+  if (!scope.isExternal) return true;
+  const clean = cleanScopeDoc(doc);
+  if (!clean) return false;
+  return scope.allowedDocs.includes(clean);
+}
 
 export type SinncNavId =
   | 'buscar'
@@ -191,14 +358,15 @@ export function computeSinncMetrics(
   alvarasOverride?: AlvaraSanitarioItem[],
   habiteSeOverride?: HabiteSeRegistroItem[],
   pasOverride?: PasJuridicoItem[],
-  solicitacoesLabOverride?: SolicitacaoLaudoPotabilidadeItem[]
+  solicitacoesLabOverride?: SolicitacaoLaudoPotabilidadeItem[],
+  isExternal?: boolean
 ): SinncDashboardMetrics {
-  const alvarasLocais = alvarasOverride || loadAllAlvarasUnificados();
-  const pastasLocais = pastasOverride || loadAllPastasUnificadas();
-  const ccpuLocais = getLocalCcpuOcorrencias();
-  const habiteSeLocais = habiteSeOverride || loadHabiteSeRegistros();
-  const pasJuridicoLocais = pasOverride || loadPasJuridico();
-  const solicitacoesLabLocais = solicitacoesLabOverride || getSolicitacoesPotabilidade();
+  const alvarasLocais = alvarasOverride ?? (isExternal ? [] : loadAllAlvarasUnificados());
+  const pastasLocais = pastasOverride ?? (isExternal ? [] : loadAllPastasUnificadas());
+  const ccpuLocais = isExternal ? [] : getLocalCcpuOcorrencias();
+  const habiteSeLocais = habiteSeOverride ?? (isExternal ? [] : loadHabiteSeRegistros());
+  const pasJuridicoLocais = pasOverride ?? (isExternal ? [] : loadPasJuridico());
+  const solicitacoesLabLocais = solicitacoesLabOverride ?? (isExternal ? [] : getSolicitacoesPotabilidade());
 
   const userFirstName = (currentUser?.nome_completo || '').trim().toLowerCase().split(' ')[0];
   const userFullName = (currentUser?.nome_completo || '').trim().toLowerCase();

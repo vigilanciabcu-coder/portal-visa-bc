@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserProfile } from '../types';
+import { UserProfile, resolveEffectiveTipoUsuario } from '../types';
 import { ChevronDown, LogOut, Key, Sun, Moon, FileText, Download, FileSpreadsheet } from 'lucide-react';
 import { ConferenciaCadastralModal } from './ConferenciaCadastralModal';
 
@@ -32,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [conferenciaModalOpen, setConferenciaModalOpen] = useState(false);
+  const effectiveUserType = resolveEffectiveTipoUsuario(currentUser);
 
   return (
     <header className="h-16 md:h-20 bg-white dark:bg-slate-900 border-b dark:border-slate-800 grid grid-cols-[auto_1fr_auto] md:grid-cols-3 items-center px-3 md:px-6 z-50 shrink-0 shadow-xs relative">
@@ -116,7 +117,7 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         {/* Botão de Backup e Exportação CSV (Servidores e Master) */}
-        {onOpenBackupModal && (!currentUser || currentUser.tipo_usuario === 'SERVIDOR') && (
+        {onOpenBackupModal && (!currentUser || effectiveUserType === 'SERVIDOR') && (
           <button
             type="button"
             onClick={onOpenBackupModal}
@@ -132,11 +133,11 @@ export const Header: React.FC<HeaderProps> = ({
         <div
           onClick={() => setDropdownOpen(!dropdownOpen)}
           className={`cursor-pointer group px-2.5 py-1.5 rounded-xl border transition flex items-center gap-2 shadow-2xs hover:shadow-xs ${
-            currentUser?.tipo_usuario === 'CIDADAO'
+            effectiveUserType === 'CIDADAO'
               ? 'bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/50 border-emerald-200 dark:border-emerald-800'
-              : currentUser?.tipo_usuario === 'CONTRIBUINTE'
+              : effectiveUserType === 'CONTRIBUINTE'
               ? 'bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100/60 dark:hover:bg-amber-900/50 border-amber-200 dark:border-amber-800'
-              : currentUser?.tipo_usuario === 'CONTABILIDADE'
+              : effectiveUserType === 'CONTABILIDADE'
               ? 'bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/50 border-indigo-200 dark:border-indigo-800'
               : 'bg-slate-50 dark:bg-slate-800/80 hover:bg-blue-50/80 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700'
           }`}
@@ -150,20 +151,20 @@ export const Header: React.FC<HeaderProps> = ({
             </p>
             {/* Função / Cargo */}
             <p className={`text-[9px] font-bold uppercase tracking-wider flex items-center justify-end gap-1 ${
-              currentUser?.tipo_usuario === 'CIDADAO'
+              effectiveUserType === 'CIDADAO'
                 ? 'text-emerald-700 dark:text-emerald-400'
-                : currentUser?.tipo_usuario === 'CONTRIBUINTE'
+                : effectiveUserType === 'CONTRIBUINTE'
                 ? 'text-amber-700 dark:text-amber-400'
-                : currentUser?.tipo_usuario === 'CONTABILIDADE'
+                : effectiveUserType === 'CONTABILIDADE'
                 ? 'text-indigo-700 dark:text-indigo-400'
                 : 'text-blue-600 dark:text-blue-400'
             }`}>
               <span>
-                {currentUser?.tipo_usuario === 'CIDADAO'
+                {effectiveUserType === 'CIDADAO'
                   ? 'ACESSO PÚBLICO (CIDADÃO)'
-                  : currentUser?.tipo_usuario === 'CONTRIBUINTE'
+                  : effectiveUserType === 'CONTRIBUINTE'
                   ? `CONTRIBUINTE (${currentUser?.categoria_contribuinte || 'EMPRESÁRIO/FEIRANTE'})`
-                  : currentUser?.tipo_usuario === 'CONTABILIDADE'
+                  : effectiveUserType === 'CONTABILIDADE'
                   ? 'ESCRITÓRIO CONTÁBIL (CONTABILISTA)'
                   : currentUser?.cargo || 'VISA BC'}
               </span>
@@ -173,19 +174,19 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Botão com Inicial ou Ícone do Perfil */}
           <div className={`w-7 h-7 rounded-lg text-white font-black text-xs flex items-center justify-center uppercase shadow-xs group-hover:scale-105 transition shrink-0 ${
-            currentUser?.tipo_usuario === 'CIDADAO'
+            effectiveUserType === 'CIDADAO'
               ? 'bg-emerald-600'
-              : currentUser?.tipo_usuario === 'CONTRIBUINTE'
+              : effectiveUserType === 'CONTRIBUINTE'
               ? 'bg-amber-600'
-              : currentUser?.tipo_usuario === 'CONTABILIDADE'
+              : effectiveUserType === 'CONTABILIDADE'
               ? 'bg-indigo-600'
               : 'bg-blue-600'
           }`}>
-            {currentUser?.tipo_usuario === 'CIDADAO'
+            {effectiveUserType === 'CIDADAO'
               ? '👤'
-              : currentUser?.tipo_usuario === 'CONTRIBUINTE'
+              : effectiveUserType === 'CONTRIBUINTE'
               ? '🏪'
-              : currentUser?.tipo_usuario === 'CONTABILIDADE'
+              : effectiveUserType === 'CONTABILIDADE'
               ? '🏢'
               : currentUser ? currentUser.nome_completo.charAt(0) : '?'}
           </div>
@@ -212,21 +213,21 @@ export const Header: React.FC<HeaderProps> = ({
             {currentUser && (
               <div className="px-2.5 py-2 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-100 dark:border-slate-700/80 mb-1">
                 <p className="text-[9px] font-black uppercase text-slate-400">
-                  {currentUser.tipo_usuario === 'CIDADAO'
+                  {effectiveUserType === 'CIDADAO'
                     ? 'Perfil Ativo (Cidadão)'
-                    : currentUser.tipo_usuario === 'CONTRIBUINTE'
+                    : effectiveUserType === 'CONTRIBUINTE'
                     ? 'Contribuinte Conectado'
-                    : currentUser.tipo_usuario === 'CONTABILIDADE'
+                    : effectiveUserType === 'CONTABILIDADE'
                     ? 'Contabilidade Conectada'
                     : 'Servidor Conectado'}
                 </p>
                 <p className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase truncate">{currentUser.nome_completo}</p>
                 <p className={`text-[10px] font-bold uppercase ${
-                  currentUser.tipo_usuario === 'CIDADAO'
+                  effectiveUserType === 'CIDADAO'
                     ? 'text-emerald-600 dark:text-emerald-400'
-                    : currentUser.tipo_usuario === 'CONTRIBUINTE'
+                    : effectiveUserType === 'CONTRIBUINTE'
                     ? 'text-amber-600 dark:text-amber-400'
-                    : currentUser.tipo_usuario === 'CONTABILIDADE'
+                    : effectiveUserType === 'CONTABILIDADE'
                     ? 'text-indigo-600 dark:text-indigo-400'
                     : 'text-blue-600 dark:text-blue-400'
                 }`}>
@@ -247,29 +248,29 @@ export const Header: React.FC<HeaderProps> = ({
                   className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-extrabold text-xs flex items-center gap-2.5 transition cursor-pointer"
                 >
                   <div className={`p-1.5 rounded-lg text-white ${
-                    currentUser.tipo_usuario === 'SERVIDOR'
+                    effectiveUserType === 'SERVIDOR'
                       ? 'bg-blue-600'
-                      : currentUser.tipo_usuario === 'CONTABILIDADE'
+                      : effectiveUserType === 'CONTABILIDADE'
                       ? 'bg-indigo-600'
-                      : (currentUser.cpf?.includes('/') || currentUser.categoria_contribuinte === 'EMPRESARIO')
+                      : (currentUser.cpf?.includes('/') || currentUser.cnpj || currentUser.categoria_contribuinte === 'EMPRESARIO')
                       ? 'bg-amber-600'
                       : 'bg-emerald-600'
                   }`}>
                     <FileText className="w-4 h-4" />
                   </div>
                   <span>
-                    {currentUser.tipo_usuario === 'SERVIDOR'
+                    {effectiveUserType === 'SERVIDOR'
                       ? 'Ficha Funcional do Servidor'
-                      : (currentUser.cpf?.includes('/') || currentUser.categoria_contribuinte === 'EMPRESARIO')
+                      : (currentUser.cpf?.includes('/') || currentUser.cnpj || currentUser.categoria_contribuinte === 'EMPRESARIO')
                       ? 'Conferir Cadastro da Empresa (CNPJ)'
-                      : currentUser.tipo_usuario === 'CONTABILIDADE'
+                      : effectiveUserType === 'CONTABILIDADE'
                       ? 'Conferir Cadastro da Contabilidade'
                       : 'Conferir Meu Cadastro (CPF)'}
                   </span>
                 </button>
               )}
 
-              {currentUser?.tipo_usuario === 'SERVIDOR' && (
+              {effectiveUserType === 'SERVIDOR' && (
                 <button
                   type="button"
                   onClick={() => {
@@ -301,7 +302,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               )}
 
-              {onOpenBackupModal && (!currentUser || currentUser.tipo_usuario === 'SERVIDOR') && (
+              {onOpenBackupModal && (!currentUser || effectiveUserType === 'SERVIDOR') && (
                 <button
                   type="button"
                   onClick={() => {
@@ -329,7 +330,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <LogOut className="w-4 h-4" />
                 </div>
                 <span>
-                  {currentUser?.tipo_usuario === 'CIDADAO' || currentUser?.tipo_usuario === 'CONTRIBUINTE'
+                  {effectiveUserType !== 'SERVIDOR'
                     ? 'Trocar Perfil / Entrar como Servidor'
                     : 'Sair / Deslogar do Sistema'}
                 </span>

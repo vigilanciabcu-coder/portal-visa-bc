@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FeiranteItem } from '../types';
+import { FeiranteItem, UserProfile, resolveEffectiveTipoUsuario } from '../types';
 import { BAIRROS_BC } from '../data/mockData';
 import { fetchCnpj } from '../lib/cnpjService';
 import { ConfirmModal } from './ConfirmModal';
@@ -14,6 +14,7 @@ import {
 
 interface FeirasViewProps {
   feiras: FeiranteItem[];
+  currentUser?: UserProfile | null;
   onSaveFeirante: (item: FeiranteItem) => void;
   onDeleteFeirante?: (id: string) => void;
   onSyncFeirantesFromSheets?: (items: FeiranteItem[]) => void;
@@ -21,6 +22,7 @@ interface FeirasViewProps {
 
 export const FeirasView: React.FC<FeirasViewProps> = ({
   feiras,
+  currentUser,
   onSaveFeirante,
   onDeleteFeirante,
   onSyncFeirantesFromSheets
@@ -255,7 +257,22 @@ export const FeirasView: React.FC<FeirasViewProps> = ({
     setModalOpen(false);
   };
 
-  const filteredFeiras = feiras.filter(
+  const isExternalUser = Boolean(currentUser && resolveEffectiveTipoUsuario(currentUser) !== 'SERVIDOR');
+  const userDocs = [currentUser?.cpf, currentUser?.cnpj]
+    .filter(Boolean)
+    .map((d) => String(d).replace(/\D/g, ''))
+    .filter((d) => d.length >= 11);
+
+  const scopedFeiras = isExternalUser
+    ? feiras.filter((f) => {
+        const fCpf = (f.cpf || '').replace(/\D/g, '');
+        const fCnpj = (f.cnpj || '').replace(/\D/g, '');
+        const fClean = (f.cpf_cnpj_limpo || '').replace(/\D/g, '');
+        return userDocs.some((ud) => ud === fCpf || ud === fCnpj || ud === fClean);
+      })
+    : feiras;
+
+  const filteredFeiras = scopedFeiras.filter(
     (f) =>
       f.nome_pf.toLowerCase().includes(searchTerm.toLowerCase()) ||
       f.num_prot.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -292,27 +309,30 @@ export const FeirasView: React.FC<FeirasViewProps> = ({
             />
           </div>
 
-          {/* Sincronizar com Google Sheets */}
-          <button
-            type="button"
-            onClick={() => handleSyncFromSheets(false)}
-            disabled={syncingSheets}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-3 rounded-2xl shadow uppercase text-xs transition cursor-pointer flex items-center gap-1.5 shrink-0 disabled:opacity-50"
-            title="Atualizar dados da planilha do Google Sheets"
-          >
-            <RefreshCw className={`w-4 h-4 ${syncingSheets ? 'animate-spin' : ''}`} />
-            {syncingSheets ? 'Sincronizando...' : 'Google Sheets'}
-          </button>
+          {/* Sincronizar com Google Sheets (apenas Servidores) */}
+          {!isExternalUser && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleSyncFromSheets(false)}
+                disabled={syncingSheets}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-3 rounded-2xl shadow uppercase text-xs transition cursor-pointer flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+                title="Atualizar dados da planilha do Google Sheets"
+              >
+                <RefreshCw className={`w-4 h-4 ${syncingSheets ? 'animate-spin' : ''}`} />
+                {syncingSheets ? 'Sincronizando...' : 'Google Sheets'}
+              </button>
 
-          {/* Configurar Webhook URL */}
-          <button
-            type="button"
-            onClick={() => setConfigUrlModal(true)}
-            className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold p-3 rounded-2xl transition cursor-pointer shrink-0"
-            title="Configurar URL do Webhook do Google Sheets"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
+              <button
+                type="button"
+                onClick={() => setConfigUrlModal(true)}
+                className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold p-3 rounded-2xl transition cursor-pointer shrink-0"
+                title="Configurar URL do Webhook do Google Sheets"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            </>
+          )}
 
           <button
             onClick={openNewForm}
