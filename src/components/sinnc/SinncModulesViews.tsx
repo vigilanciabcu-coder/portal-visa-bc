@@ -84,7 +84,7 @@ interface SinncModulesViewsProps {
   onOpenDossiePasta: (pasta: PastaVisaItem) => void;
   onOpenDossiePorProcesso: (proc: ProcessoItem) => void;
   onOpenDossiePorDoc: (doc: string, razaoFallback?: string) => void;
-  onOpenWorkflowModal: (kind: SinncWorkflowModalKind, initialPasta?: PastaVisaItem | null) => void;
+  onOpenWorkflowModal: (kind: SinncWorkflowModalKind, initialPasta?: PastaVisaItem | null, initialServicoId?: string | null) => void;
   onOpenSolicitarLab: (pasta?: PastaVisaItem | null) => void;
   onOpenTermoColeta?: (amostra?: AmostraLaboratorioItem | null, solicitacao?: SolicitacaoLaudoPotabilidadeItem | null) => void;
   onOpenLaudoOficial?: (amostra?: AmostraLaboratorioItem | null, solicitacao?: SolicitacaoLaudoPotabilidadeItem | null) => void;
@@ -414,6 +414,7 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
 
   const handleResolverOuCriarPasta = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (externalScope?.isExternal) return;
     if (!isValidDocLength(quickDoc)) {
       setQuickFeedback('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.');
       return;
@@ -571,6 +572,7 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
   };
 
   const handleSalvarPastaDraft = async (abrirDossieDepois: boolean) => {
+    if (externalScope?.isExternal) return;
     if (!pastaDraft) return;
     const nomeLimpo = pastaDraft.razao_social.trim();
     if (!nomeLimpo) {
@@ -1183,9 +1185,18 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
       <div className="space-y-4 text-left">
         {renderSectionHeader(
           externalScope?.isExternal
-            ? `Pastas VISA vinculadas à sua conta (${metrics.pastasLocais.length})`
+            ? `Pastas VISA vinculadas à sua conta (${metrics.pastasLocais.length}) — abertura exclusiva por servidores`
             : `Pastas VISA cadastradas (${metrics.pastasLocais.length}) — 1 CPF/CNPJ = 1 Pasta (Opção A Híbrida)`,
-          undefined,
+          externalScope?.isExternal ? (
+            <button
+              type="button"
+              onClick={() => onOpenWorkflowModal('nova_demanda', metrics.pastasLocais[0] || null, 'alvara_inicial')}
+              className="px-3 py-1.5 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Nova Solicitação</span>
+            </button>
+          ) : undefined,
           externalScope?.isExternal
             ? externalScope.mode === 'CONTABILIDADE'
               ? 'Pastas da Carteira'
@@ -1193,15 +1204,13 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
             : undefined
         )}
 
-        {/* Resolvedor instantâneo Opção A Híbrida (interno ou vínculo de novo cliente pela Contabilidade) */}
-        {(!externalScope?.isExternal || externalScope.mode === 'CONTABILIDADE') && (
+        {/* Resolvedor / Abertura de Pasta VISA — exclusivo para servidores da Vigilância Sanitária */}
+        {!externalScope?.isExternal && (
           <form onSubmit={handleResolverOuCriarPasta} className="bg-white border border-slate-200 rounded-lg p-4 space-y-2.5">
             <div className="flex flex-col lg:flex-row lg:items-end gap-3">
               <div className="flex-1">
                 <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                  {externalScope?.mode === 'CONTABILIDADE'
-                    ? 'Vincular novo cliente à sua carteira e abrir/gerar Pasta VISA'
-                    : 'Localizar ou Gerar Pasta VISA por CPF ou CNPJ'}
+                  Localizar ou Gerar Pasta VISA por CPF ou CNPJ
                 </label>
                 <input
                   type="text"
@@ -1211,30 +1220,24 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
                   className="w-full !text-xs !py-2 !px-3 font-mono"
                 />
               </div>
-              {!externalScope?.isExternal && (
-                <div className="lg:w-64">
-                  <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                    Nº Pasta Física Existente (se houver)
-                  </label>
-                  <input
-                    type="text"
-                    value={quickFisica}
-                    onChange={(e) => setQuickFisica(e.target.value)}
-                    placeholder="Ex: 1042/2024 (vazio = 6 dígitos)"
-                    className="w-full !text-xs !py-2 !px-3 font-mono"
-                  />
-                </div>
-              )}
+              <div className="lg:w-64">
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                  Nº Pasta Física Existente (se houver)
+                </label>
+                <input
+                  type="text"
+                  value={quickFisica}
+                  onChange={(e) => setQuickFisica(e.target.value)}
+                  placeholder="Ex: 1042/2024 (vazio = 6 dígitos)"
+                  className="w-full !text-xs !py-2 !px-3 font-mono"
+                />
+              </div>
               <button
                 type="submit"
                 disabled={resolvingPasta}
                 className="px-4 py-2 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium cursor-pointer whitespace-nowrap shrink-0"
               >
-                {resolvingPasta
-                  ? 'Carregando dados...'
-                  : externalScope?.mode === 'CONTABILIDADE'
-                  ? 'Vincular Cliente & Abrir Pasta'
-                  : 'Abrir / Criar Pasta VISA'}
+                {resolvingPasta ? 'Carregando dados...' : 'Abrir / Criar Pasta VISA'}
               </button>
             </div>
             {quickFeedback && (
@@ -1264,17 +1267,21 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-slate-400">
                       {externalScope?.isExternal ? (
-                        <div className="space-y-2">
-                          <p>Nenhuma Pasta VISA vinculada ao seu documento foi localizada até o momento.</p>
-                          {externalScope.primaryDoc && externalScope.mode !== 'CONTABILIDADE' && (
-                            <button
-                              type="button"
-                              onClick={() => onOpenDossiePorDoc(externalScope.primaryDoc!, currentUser?.nome_completo)}
-                              className="px-3 py-1.5 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium cursor-pointer"
-                            >
-                              Gerar / Abrir Minha Pasta VISA
-                            </button>
-                          )}
+                        <div className="space-y-2.5 max-w-md mx-auto">
+                          <p className="text-slate-600">
+                            Nenhuma Pasta VISA vinculada ao seu documento foi localizada até o momento.
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            A abertura de Pastas VISA é realizada exclusivamente por servidores da Vigilância Sanitária após o recebimento da sua solicitação.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => onOpenWorkflowModal('nova_demanda', null, 'alvara_inicial')}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Nova Solicitação</span>
+                          </button>
                         </div>
                       ) : (
                         'Nenhuma Pasta encontrada. Digite um CPF/CNPJ acima ou execute a Consolidação em Gestão.'
@@ -1843,11 +1850,15 @@ export const SinncModulesViews: React.FC<SinncModulesViewsProps> = ({
           'Feiras livres e ambulantes mantendo código físico do box vinculado à Pasta VISA',
           <button
             type="button"
-            onClick={() => onOpenWorkflowModal('novo_feirante')}
+            onClick={() =>
+              externalScope?.isExternal
+                ? onOpenWorkflowModal('nova_demanda', metrics.pastasLocais[0] || null, 'feirante_ambulante')
+                : onOpenWorkflowModal('novo_feirante')
+            }
             className="px-3 py-1.5 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium flex items-center gap-1 cursor-pointer whitespace-nowrap"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Vincular Feirante à Pasta</span>
+            <span>{externalScope?.isExternal ? 'Nova Solicitação' : 'Vincular Feirante à Pasta'}</span>
           </button>
         )}
         {renderSearchBar('Filtrar por permissionário, feira ou produto...')}

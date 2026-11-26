@@ -23,6 +23,7 @@ import {
   Calculator,
   FlaskConical,
   Bug,
+  Plus,
 } from 'lucide-react';
 import {
   AlvaraSanitarioItem,
@@ -126,6 +127,7 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
   // Modais do fluxo Capa Teste Full
   const [workflowModal, setWorkflowModal] = useState<SinncWorkflowModalKind>(null);
   const [workflowInitialPasta, setWorkflowInitialPasta] = useState<PastaVisaItem | null>(null);
+  const [workflowInitialServicoId, setWorkflowInitialServicoId] = useState<string | null>(null);
 
   // Modais originais do Laboratório (sem alterar telas do Lab)
   const [labSolicitarPasta, setLabSolicitarPasta] = useState<PastaVisaItem | null>(null);
@@ -453,6 +455,7 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
       setSelectedPasta(existing);
       return;
     }
+    if (externalScope.isExternal) return;
     if (limpo.length === 11 || limpo.length === 14) {
       const { pasta } = await obterOuCriarPastaPorCpfCnpj(limpo, {
         razao_social: razaoFallback,
@@ -480,6 +483,7 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
       setSelectedPasta(existing);
       return;
     }
+    if (externalScope.isExternal) return;
     if (limpo.length === 11 || limpo.length === 14) {
       const { pasta } = await obterOuCriarPastaPorCpfCnpj(limpo, {
         razao_social: proc.razao_social || proc.nome_fantasia,
@@ -729,9 +733,19 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
       <header className="h-11 bg-[#3b6d96] text-white px-3.5 flex items-center justify-between gap-4 shrink-0 border-b border-[#315b7e] relative z-30">
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex items-center gap-2 shrink-0">
-            <div className="w-5 h-5 rounded-sm bg-white/15 border border-white/25 flex items-center justify-center">
-              <div className="w-2.5 h-2.5 border border-white/90 rounded-[2px]" />
-            </div>
+            <img
+              src="https://wcbzmpnvcjamlgljsksk.supabase.co/storage/v1/object/public/public-assets/DVIS.2.avif"
+              alt="Logo VISA - Divisão de Vigilância Sanitária"
+              className="h-6 w-auto object-contain shrink-0"
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.dataset.fallback) {
+                  target.dataset.fallback = '1';
+                  target.src = '/brasao_bc.png';
+                }
+              }}
+            />
             <span className="text-xs font-semibold tracking-wide whitespace-nowrap">VISA</span>
           </div>
           <span className="h-3.5 w-px bg-white/25 shrink-0 hidden sm:inline-block" aria-hidden="true" />
@@ -828,7 +842,22 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
         </div>
         )}
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
+          {externalScope.isExternal && (
+            <button
+              type="button"
+              onClick={() => {
+                setWorkflowInitialPasta(externalScope.mode === 'CONTABILIDADE' ? null : scopedPastas[0] || null);
+                setWorkflowInitialServicoId('alvara_inicial');
+                setWorkflowModal('nova_demanda');
+              }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded bg-white text-[#285277] hover:bg-slate-100 text-[11px] font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 shadow-2xs"
+              title="Abrir nova solicitação de serviço sanitário"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Nova Solicitação</span>
+            </button>
+          )}
           <span className="hidden lg:inline-block text-[11px] text-white/95 px-2.5 py-0.5 rounded bg-white/15 whitespace-nowrap">
             {externalScope.mode === 'CIDADAO'
               ? `Munícipe · ${externalScope.primaryDoc ? formatDoc(externalScope.primaryDoc) : currentUser?.nome_completo || 'CPF'}`
@@ -978,6 +1007,7 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
                   onRefreshState={refreshUnifiedState}
                   onOpenNovaDemandaPasta={(pt) => {
                     setWorkflowInitialPasta(pt);
+                    setWorkflowInitialServicoId('alvara_inicial');
                     setWorkflowModal('nova_demanda');
                   }}
                   onOpenNovaVistoriaPasta={(pt) => {
@@ -997,7 +1027,8 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
                   onOpenTab={handleOpenTab}
                   onSelectProcesso={(proc) => setSelectedProcesso(proc)}
                   onOpenNovaDemanda={() => {
-                    setWorkflowInitialPasta(scopedPastas[0] || null);
+                    setWorkflowInitialPasta(externalScope.mode === 'CONTABILIDADE' ? null : scopedPastas[0] || null);
+                    setWorkflowInitialServicoId('alvara_inicial');
                     setWorkflowModal('nova_demanda');
                   }}
                   onOpenDossiePorProcesso={handleOpenDossiePorProcesso}
@@ -1020,9 +1051,10 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
                   onOpenDossiePasta={(pt) => setSelectedPasta(pt)}
                   onOpenDossiePorProcesso={handleOpenDossiePorProcesso}
                   onOpenDossiePorDoc={handleOpenDossiePorDoc}
-                  onOpenWorkflowModal={(kind, pt) => {
+                  onOpenWorkflowModal={(kind, pt, servicoId) => {
                     if (externalScope.isExternal && kind === 'nova_vistoria') return;
                     setWorkflowInitialPasta(pt || null);
+                    setWorkflowInitialServicoId(servicoId || null);
                     setWorkflowModal(kind);
                   }}
                   onOpenSolicitarLab={handleSolicitarLab}
@@ -1069,12 +1101,14 @@ export const SinncMinimalistPortalView: React.FC<SinncPortalDataProps> = ({
       <SinncDemoWorkflowModals
         modalKind={workflowModal}
         initialPasta={workflowInitialPasta}
+        initialServicoId={workflowInitialServicoId}
         currentUser={currentUser}
         externalScope={externalScope}
         users={scopedUsers}
         onClose={() => {
           setWorkflowModal(null);
           setWorkflowInitialPasta(null);
+          setWorkflowInitialServicoId(null);
           refreshUnifiedState();
         }}
         onSaveProcesso={onSaveProcesso}

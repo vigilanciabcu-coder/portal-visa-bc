@@ -25,6 +25,27 @@ import { INITIAL_CIDADAOS, INITIAL_CONTABILIDADES, INITIAL_CONTRIBUINTES } from 
 
 export type ExternalScopeMode = 'INTERNO' | 'CIDADAO' | 'CONTRIBUINTE' | 'CONTABILIDADE';
 
+export interface ExternalPrefillProfile {
+  doc: string;
+  razaoSocial: string;
+  telefone: string;
+  email: string;
+  endereco: string;
+  bairro: string;
+  cnae?: string;
+}
+
+export interface ContabilidadeClienteOption {
+  docLimpo: string;
+  docFormatado: string;
+  razaoSocial: string;
+  endereco?: string;
+  bairro?: string;
+  telefone?: string;
+  email?: string;
+  cnae?: string;
+}
+
 export interface ExternalUserScope {
   mode: ExternalScopeMode;
   isExternal: boolean;
@@ -32,6 +53,8 @@ export interface ExternalUserScope {
   primaryDoc: string;
   contabilidade: ContabilidadeProfile | null;
   label: string;
+  prefillProfile?: ExternalPrefillProfile | null;
+  contabilidadeClientes?: ContabilidadeClienteOption[];
 }
 
 export function cleanScopeDoc(doc?: string): string {
@@ -79,6 +102,8 @@ export function resolveUserExternalScope(
   const userNameNorm = normalizeScopeName(currentUser.nome_completo);
   const userDocDigits = cleanScopeDoc(currentUser.cnpj || currentUser.cpf);
 
+  const allPastas = loadAllPastasUnificadas();
+
   if (tipo === 'CIDADAO') {
     const localCid = safeReadLocalArray<CidadaoProfile>('visa_cidadaos');
     const cidList = cidadaosOverride && cidadaosOverride.length > 0
@@ -98,13 +123,26 @@ export function resolveUserExternalScope(
           .filter((d) => d.length >= 11)
       )
     );
+    const primaryDoc = docs[0] || '';
+    const pastaMatch = primaryDoc
+      ? allPastas.find((p) => cleanScopeDoc(p.cpf_cnpj_limpo || p.cnpj_cpf) === primaryDoc)
+      : undefined;
     return {
       mode: 'CIDADAO',
       isExternal: true,
       allowedDocs: docs,
-      primaryDoc: docs[0] || '',
+      primaryDoc,
       contabilidade: null,
       label: `Munícipe · ${currentUser.nome_completo}`,
+      prefillProfile: {
+        doc: matchedCid?.cpf || currentUser.cpf || pastaMatch?.cnpj_cpf || primaryDoc,
+        razaoSocial: matchedCid?.nome_completo || currentUser.nome_completo || pastaMatch?.razao_social || '',
+        telefone: matchedCid?.telefone || currentUser.telefone || pastaMatch?.telefone || '',
+        email: matchedCid?.email || currentUser.email || pastaMatch?.email || '',
+        endereco: matchedCid?.endereco || currentUser.endereco || pastaMatch?.endereco || '',
+        bairro: matchedCid?.bairro || currentUser.bairro || pastaMatch?.bairro || 'Centro',
+        cnae: pastaMatch?.cnae_principal || '',
+      },
     };
   }
 
@@ -130,13 +168,30 @@ export function resolveUserExternalScope(
           .filter((d) => d.length >= 11)
       )
     );
+    const primaryDoc = docs[0] || '';
+    const pastaMatch = primaryDoc
+      ? allPastas.find((p) => cleanScopeDoc(p.cpf_cnpj_limpo || p.cnpj_cpf) === primaryDoc)
+      : undefined;
     return {
       mode: 'CONTRIBUINTE',
       isExternal: true,
       allowedDocs: docs,
-      primaryDoc: docs[0] || '',
+      primaryDoc,
       contabilidade: null,
       label: `Contribuinte · ${currentUser.nome_completo}`,
+      prefillProfile: {
+        doc: matchedContrib?.cnpj_cpf || currentUser.cnpj || currentUser.cpf || pastaMatch?.cnpj_cpf || primaryDoc,
+        razaoSocial:
+          matchedContrib?.razao_social ||
+          pastaMatch?.razao_social ||
+          currentUser.nome_completo ||
+          '',
+        telefone: matchedContrib?.telefone || pastaMatch?.telefone || currentUser.telefone || '',
+        email: matchedContrib?.email || pastaMatch?.email || currentUser.email || '',
+        endereco: matchedContrib?.endereco || pastaMatch?.endereco || currentUser.endereco || '',
+        bairro: matchedContrib?.bairro || pastaMatch?.bairro || currentUser.bairro || 'Centro',
+        cnae: matchedContrib?.cnae_principal || pastaMatch?.cnae_principal || '',
+      },
     };
   }
 
@@ -168,6 +223,27 @@ export function resolveUserExternalScope(
     )
   );
 
+  const localContrib = safeReadLocalArray<ContribuinteProfile>('visa_contribuintes');
+  const contribList = contribuintesOverride && contribuintesOverride.length > 0
+    ? contribuintesOverride
+    : (localContrib.length > 0 ? localContrib : INITIAL_CONTRIBUINTES);
+
+  const contabilidadeClientes: ContabilidadeClienteOption[] = docs.map((docLimpo) => {
+    const rawLinked = (matchedContab?.cnpjs_vinculados || []).find((d) => cleanScopeDoc(d) === docLimpo) || docLimpo;
+    const pastaMatch = allPastas.find((p) => cleanScopeDoc(p.cpf_cnpj_limpo || p.cnpj_cpf) === docLimpo);
+    const contribMatch = contribList.find((c) => cleanScopeDoc(c.cnpj_cpf) === docLimpo);
+    return {
+      docLimpo,
+      docFormatado: pastaMatch?.cnpj_cpf || contribMatch?.cnpj_cpf || rawLinked,
+      razaoSocial: pastaMatch?.razao_social || contribMatch?.razao_social || 'Empresa da Carteira',
+      endereco: pastaMatch?.endereco || contribMatch?.endereco || '',
+      bairro: pastaMatch?.bairro || contribMatch?.bairro || 'Centro',
+      telefone: pastaMatch?.telefone || contribMatch?.telefone || '',
+      email: pastaMatch?.email || contribMatch?.email || '',
+      cnae: pastaMatch?.cnae_principal || contribMatch?.cnae_principal || '',
+    };
+  });
+
   return {
     mode: 'CONTABILIDADE',
     isExternal: true,
@@ -175,6 +251,7 @@ export function resolveUserExternalScope(
     primaryDoc: docs[0] || '',
     contabilidade: matchedContab,
     label: `Contabilidade · ${matchedContab?.nome_fantasia || matchedContab?.razao_social || currentUser.nome_completo}`,
+    contabilidadeClientes,
   };
 }
 

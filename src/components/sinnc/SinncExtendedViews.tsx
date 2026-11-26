@@ -32,6 +32,7 @@ import {
   formatDoc,
   getDisplayPastaNumero,
   isValidDocLength,
+  loadAllPastasUnificadas,
   obterOuCriarPastaPorCpfCnpj,
 } from '../../lib/pastaVisaService';
 import {
@@ -112,7 +113,7 @@ interface SinncMunicipeViewProps {
   onSelectProcesso: (proc: ProcessoItem) => void;
   onSaveProcesso: (proc: ProcessoItem) => Promise<void> | void;
   onOpenDossiePorDoc: (doc: string, razaoFallback?: string) => void;
-  onOpenWorkflowModal: (kind: SinncWorkflowModalKind, initialPasta?: PastaVisaItem | null) => void;
+  onOpenWorkflowModal: (kind: SinncWorkflowModalKind, initialPasta?: PastaVisaItem | null, initialServicoId?: string | null) => void;
   onOpenSolicitarLab: (pasta?: PastaVisaItem | null) => void;
   onRefreshState: () => void;
   onNavigateClassic: (view: string) => void;
@@ -295,14 +296,22 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
     }
     setSalvandoPerfil(true);
     try {
-      const { pasta } = await obterOuCriarPastaPorCpfCnpj(perfilCpfCnpj, {
-        razao_social: perfilNome.trim(),
-        telefone: perfilTelefone,
-        email: perfilEmail,
-        bairro: perfilBairro,
-        endereco: perfilEndereco,
-        criado_por: 'Portal do Munícipe (Capa Teste)',
-      });
+      const limpo = cleanDoc(perfilCpfCnpj);
+      let pastaVinculada: PastaVisaItem | null =
+        loadAllPastasUnificadas().find((p) => cleanDoc(p.cpf_cnpj_limpo || p.cnpj_cpf) === limpo) || null;
+
+      if (!isExternal) {
+        const { pasta } = await obterOuCriarPastaPorCpfCnpj(perfilCpfCnpj, {
+          razao_social: perfilNome.trim(),
+          telefone: perfilTelefone,
+          email: perfilEmail,
+          bairro: perfilBairro,
+          endereco: perfilEndereco,
+          criado_por: 'Portal do Munícipe (Capa Teste)',
+        });
+        pastaVinculada = pasta;
+      }
+
       const novoCid: CidadaoProfile = {
         id: `cid-${Date.now()}`,
         nome_completo: perfilNome.trim(),
@@ -314,13 +323,17 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
         senha: perfilSenha || '123456',
         data_cadastro: new Date().toISOString().slice(0, 10),
       };
-      const updated = [novoCid, ...cidadaos.filter((c) => cleanDoc(c.cpf) !== cleanDoc(perfilCpfCnpj))];
+      const updated = [novoCid, ...cidadaos.filter((c) => cleanDoc(c.cpf) !== limpo)];
       setCidadaos(updated);
       saveLocalArray(LS_CIDADAO, updated);
       await saveCidadaoToSupabase(novoCid);
       onRefreshState();
-      setBuscaDoc(cleanDoc(perfilCpfCnpj));
-      setFeedback(`Cadastro salvo e vinculado automaticamente à Pasta VISA ${getDisplayPastaNumero(pasta)}.`);
+      setBuscaDoc(limpo);
+      setFeedback(
+        pastaVinculada
+          ? `Cadastro salvo e vinculado à Pasta VISA ${getDisplayPastaNumero(pastaVinculada)}.`
+          : 'Dados cadastrais salvos. A abertura de Pasta VISA é realizada exclusivamente por servidores após envio de solicitação.'
+      );
     } finally {
       setSalvandoPerfil(false);
     }
@@ -583,38 +596,73 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {[
             {
-              title: 'Alvará Sanitário (Inicial / Renovação)',
-              desc: 'Solicitação de licenciamento sanitário com geração automática da Pasta VISA de 6 dígitos.',
-              actionLabel: 'Abrir solicitação',
-              onClick: () => onOpenWorkflowModal('nova_demanda', pastaEncontrada),
+              title: 'Alvará Sanitário Inicial',
+              desc: isExternal
+                ? 'Solicitação inicial de licenciamento sanitário com preenchimento de ramo/CNAE e endereço.'
+                : 'Solicitação de licenciamento sanitário inicial vinculada à Pasta VISA.',
+              actionLabel: 'Solicitar Alvará',
+              onClick: () => onOpenWorkflowModal('nova_demanda', pastaEncontrada, 'alvara_inicial'),
             },
             {
-              title: 'Análise de Potabilidade da Água',
-              desc: 'Solicitação oficial de coleta e laudo laboratorial vinculada diretamente à Pasta.',
-              actionLabel: 'Solicitar coleta',
-              onClick: () => onOpenSolicitarLab(pastaEncontrada),
+              title: 'Renovação de Alvará Sanitário',
+              desc: 'Pedido de revalidação periódica informando o número do alvará anterior e dados atualizados.',
+              actionLabel: 'Solicitar Renovação',
+              onClick: () => onOpenWorkflowModal('nova_demanda', pastaEncontrada, 'renovacao_alvara'),
+            },
+            {
+              title: 'Defesa de Auto / Prorrogação de Prazo',
+              desc: 'Apresentação de defesa a Auto de Infração, penalidade ou pedido de prorrogação de intimação.',
+              actionLabel: 'Enviar Defesa / Prazo',
+              onClick: () => onOpenWorkflowModal('nova_demanda', pastaEncontrada, 'defesa_auto'),
+            },
+            {
+              title: 'Desinterdição de Estabelecimento',
+              desc: 'Requerimento de revogação de termo de interdição após cumprimento das adequações sanitárias.',
+              actionLabel: 'Solicitar Desinterdição',
+              onClick: () => onOpenWorkflowModal('nova_demanda', pastaEncontrada, 'desinterdicao'),
             },
             {
               title: 'Habite-se Sanitário (LC 40/2019)',
-              desc: 'Requerimento de vistoria de conclusão de obra com protocolo e vínculo cadastral.',
+              desc: 'Requerimento de vistoria de conclusão de obra com dados de edificação, DIC, área e RT.',
               actionLabel: 'Requerer Habite-se',
-              onClick: () => onOpenWorkflowModal('novo_habite_se', pastaEncontrada),
+              onClick: () => onOpenWorkflowModal('nova_demanda', pastaEncontrada, 'habite_se'),
+            },
+            {
+              title: 'Livros (Unidade de Saúde & Piscina)',
+              desc: 'Abertura, autenticação ou encerramento de Livro de Unidade de Saúde ou Livro Piscina.',
+              actionLabel: 'Solicitar Livro',
+              onClick: () => onOpenWorkflowModal('nova_demanda', pastaEncontrada, 'livro_saude'),
+            },
+            {
+              title: 'Responsabilidade Técnica / Parecer',
+              desc: 'Assunção/baixa de Termo de Responsabilidade Técnica (TRT) ou análise de projeto sanitário.',
+              actionLabel: 'Solicitar RT / Parecer',
+              onClick: () => onOpenWorkflowModal('nova_demanda', pastaEncontrada, 'responsabilidade_tecnica'),
+            },
+            {
+              title: 'Análise de Potabilidade da Água',
+              desc: 'Solicitação oficial de coleta e laudo laboratorial enviada ao Laboratório Municipal VISA.',
+              actionLabel: 'Solicitar coleta',
+              onClick: () => onOpenSolicitarLab(pastaEncontrada),
             },
             ...(!isExternal || isFeirante
               ? [
                   {
                     title: 'Feirantes & Ambulantes',
-                    desc: 'Regularização de box/banca mantendo vínculo único por CPF ou MEI na Pasta VISA.',
-                    actionLabel: 'Vincular permissão',
-                    onClick: () => onOpenWorkflowModal('novo_feirante', pastaEncontrada),
+                    desc: 'Autorização ou renovação sanitária para box de feira livre ou comércio ambulante.',
+                    actionLabel: isExternal ? 'Solicitar permissão' : 'Vincular permissão',
+                    onClick: () =>
+                      isExternal
+                        ? onOpenWorkflowModal('nova_demanda', pastaEncontrada, 'feirante_ambulante')
+                        : onOpenWorkflowModal('novo_feirante', pastaEncontrada),
                   },
                 ]
               : []),
             {
               title: 'Denúncia Sanitária / Ouvidoria',
-              desc: 'Registro de ocorrência sanitária para triagem e vinculação ao estabelecimento alvo.',
+              desc: 'Registro de ocorrência sanitária para triagem e averiguação fiscal (com opção anônima).',
               actionLabel: 'Registrar denúncia',
-              onClick: () => onOpenWorkflowModal('nova_demanda', null),
+              onClick: () => onOpenWorkflowModal('nova_demanda', null, 'denuncia_sanitaria'),
             },
           ].map((srv) => (
             <div key={srv.title} className="bg-white border border-slate-200 rounded-lg p-4 flex flex-col justify-between gap-3">
@@ -761,7 +809,11 @@ export const SinncMunicipeView: React.FC<SinncMunicipeViewProps> = ({
               disabled={salvandoPerfil}
               className="px-4 py-1.5 rounded bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium cursor-pointer"
             >
-              {salvandoPerfil ? 'Salvando...' : 'Salvar Cadastro e Gerar Pasta VISA'}
+              {salvandoPerfil
+                ? 'Salvando...'
+                : isExternal
+                ? 'Salvar Dados Cadastrais'
+                : 'Salvar Cadastro e Gerar Pasta VISA'}
             </button>
           </form>
 
@@ -840,7 +892,7 @@ interface SinncContadorViewProps {
   processos: ProcessoItem[];
   onSelectProcesso: (proc: ProcessoItem) => void;
   onOpenDossiePorDoc: (doc: string, razaoFallback?: string) => void;
-  onOpenWorkflowModal: (kind: SinncWorkflowModalKind, initialPasta?: PastaVisaItem | null) => void;
+  onOpenWorkflowModal: (kind: SinncWorkflowModalKind, initialPasta?: PastaVisaItem | null, initialServicoId?: string | null) => void;
   onRefreshState: () => void;
   onNavigateClassic: (view: string) => void;
   compactDensity: boolean;
@@ -959,10 +1011,18 @@ export const SinncContadorView: React.FC<SinncContadorViewProps> = ({
       setFeedback('Informe um CNPJ (14 dígitos) ou CPF (11 dígitos) válido para vincular à carteira.');
       return;
     }
-    const { pasta } = await obterOuCriarPastaPorCpfCnpj(novoClienteDoc, {
-      razao_social: novoClienteRazao || undefined,
-      criado_por: activeContab?.responsavel || currentUser?.nome_completo || 'Portal do Contador',
-    });
+    const limpo = cleanDoc(novoClienteDoc);
+    let pastaExistente: PastaVisaItem | null =
+      loadAllPastasUnificadas().find((p) => cleanDoc(p.cpf_cnpj_limpo || p.cnpj_cpf) === limpo) || null;
+
+    if (!isExternalContador) {
+      const { pasta } = await obterOuCriarPastaPorCpfCnpj(novoClienteDoc, {
+        razao_social: novoClienteRazao || undefined,
+        criado_por: activeContab?.responsavel || currentUser?.nome_completo || 'Portal do Contador',
+      });
+      pastaExistente = pasta;
+    }
+
     const docFormatado = formatDoc(novoClienteDoc);
     if (activeContab) {
       const updatedCnpjs = Array.from(new Set([docFormatado, ...(activeContab.cnpjs_vinculados || [])]));
@@ -978,7 +1038,11 @@ export const SinncContadorView: React.FC<SinncContadorViewProps> = ({
     onRefreshState();
     setNovoClienteDoc('');
     setNovoClienteRazao('');
-    setFeedback(`Empresa vinculada à carteira e associada à Pasta VISA ${getDisplayPastaNumero(pasta)}.`);
+    setFeedback(
+      pastaExistente
+        ? `Empresa vinculada à carteira e associada à Pasta VISA ${getDisplayPastaNumero(pastaExistente)}.`
+        : 'Empresa vinculada à sua carteira. A abertura da Pasta VISA é realizada por um servidor após o envio de solicitação.'
+    );
   };
 
   const handleEnviarDocumento = async (e: React.FormEvent) => {
@@ -1049,17 +1113,19 @@ export const SinncContadorView: React.FC<SinncContadorViewProps> = ({
             Portal do Contador &amp; Carteira de Empresas
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Gestão multi-CNPJ com resolução automática da Pasta VISA de 6 dígitos, protocolos e envio de documentos sanitários
+            {isExternalContador
+              ? 'Gestão multi-CNPJ da carteira contábil, protocolos de serviços e envio de documentos sanitários'
+              : 'Gestão multi-CNPJ com resolução automática da Pasta VISA de 6 dígitos, protocolos e envio de documentos sanitários'}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           <button
             type="button"
-            onClick={() => onOpenWorkflowModal('nova_demanda')}
+            onClick={() => onOpenWorkflowModal('nova_demanda', null, 'alvara_inicial')}
             className="px-3 py-1.5 rounded-md bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Nova Demanda (Cliente)</span>
+            <span>{isExternalContador ? 'Nova Solicitação' : 'Nova Demanda (Cliente)'}</span>
           </button>
           {!externalScope?.isExternal && (
             <button
@@ -1161,7 +1227,7 @@ export const SinncContadorView: React.FC<SinncContadorViewProps> = ({
               type="submit"
               className="px-3.5 py-1.5 rounded bg-[#3b6d96] hover:bg-[#315b7e] text-white text-xs font-medium cursor-pointer whitespace-nowrap"
             >
-              Vincular &amp; Resolver Pasta
+              {isExternalContador ? 'Vincular CNPJ à Carteira' : 'Vincular & Resolver Pasta'}
             </button>
           </form>
 
@@ -1190,7 +1256,7 @@ export const SinncContadorView: React.FC<SinncContadorViewProps> = ({
                     return (
                       <tr key={doc} className="hover:bg-[#f8fafc] transition-colors">
                         <td className={`${rowPad} font-mono font-semibold text-[#285277]`}>
-                          {pasta ? getDisplayPastaNumero(pasta) : 'Pendente'}
+                          {pasta ? getDisplayPastaNumero(pasta) : 'Aguardando VISA'}
                         </td>
                         <td className={`${rowPad} font-mono text-slate-600 tabular-nums`}>{doc}</td>
                         <td className={`${rowPad} font-medium text-slate-800`}>
@@ -1198,19 +1264,21 @@ export const SinncContadorView: React.FC<SinncContadorViewProps> = ({
                         </td>
                         <td className={`${rowPad} text-slate-600`}>{pasta?.alvara_atualizado || '—'}</td>
                         <td className={`${rowPad} text-right space-x-2 whitespace-nowrap`}>
+                          {(pasta || !isExternalContador) && (
+                            <button
+                              type="button"
+                              onClick={() => onOpenDossiePorDoc(doc, pasta?.razao_social)}
+                              className="text-[#3b6d96] font-medium hover:underline cursor-pointer"
+                            >
+                              Dossiê 360°
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={() => onOpenDossiePorDoc(doc, pasta?.razao_social)}
-                            className="text-[#3b6d96] font-medium hover:underline cursor-pointer"
-                          >
-                            Dossiê 360°
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onOpenWorkflowModal('nova_demanda', pasta || null)}
+                            onClick={() => onOpenWorkflowModal('nova_demanda', pasta || null, 'alvara_inicial')}
                             className="text-emerald-700 font-medium hover:underline cursor-pointer"
                           >
-                            + Demanda
+                            {isExternalContador ? '+ Nova Solicitação' : '+ Demanda'}
                           </button>
                           <button
                             type="button"

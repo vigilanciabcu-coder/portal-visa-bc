@@ -44,6 +44,10 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
+app.get('/api/ready', (_req, res) => {
+  res.json({ ready: process.env.NODE_ENV === 'production' || Boolean(viteMiddleware) });
+});
+
 // 1.1 Clima e Temperatura em Tempo Real para Balneário Camboriú (CCPU / Vigilância Ambiental)
 app.get('/api/clima/bc', async (_req, res) => {
   try {
@@ -1017,11 +1021,32 @@ app.use(async (req, res, next) => {
   if (process.env.NODE_ENV === 'production') {
     return next();
   }
-  if (req.method === 'HEAD') {
+  if (req.method === 'HEAD' || req.method === 'OPTIONS') {
     return res.status(200).end();
   }
+  const isHtmlNav =
+    req.method === 'GET' &&
+    (req.path === '/' ||
+      req.path === '/index.html' ||
+      (req.headers.accept || '').includes('text/html'));
+
   try {
-    await viteReadyPromise;
+    if (isHtmlNav) {
+      await Promise.race([
+        viteReadyPromise,
+        new Promise((resolve) => setTimeout(resolve, 400)),
+      ]);
+      if (!viteMiddleware) {
+        res.status(200).setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
+        return res.send(
+          `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>VISA-BC</title><meta http-equiv="refresh" content="1"></head><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:system-ui,-apple-system,sans-serif;background:#eef1f5;color:#1e293b;"><div style="text-align:center;font-size:14px;">Iniciando ambiente VISA-BC...</div><script>setInterval(function(){fetch('/api/ready').then(function(r){return r.json()}).then(function(d){if(d&&d.ready)location.reload()}).catch(function(){})},300);</script></body></html>`
+        );
+      }
+    } else {
+      await viteReadyPromise;
+    }
+
     if (viteMiddleware) {
       return viteMiddleware(req, res, next);
     }
